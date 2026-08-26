@@ -1,0 +1,13 @@
+{
+  "name": "BayanBox",
+  "short_name": "BayanBox",
+  "description": "Provincial Last-Mile Logistics OS",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#16a34a",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

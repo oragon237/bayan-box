@@ -1,0 +1,42 @@
+import axios from 'axios';
+import { isDemoMode, mockRequest } from './mock.js';
+
+export const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+const client = axios.create({
+  baseURL: API_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Attach Sanctum bearer token
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('bayanbox_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+client.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('bayanbox_token');
+    }
+    return Promise.reject(err);
+  },
+);
+
+// ─── Demo mode: serve mock responses without a backend ──────────────────────
+// Activate via the "Explore demo" button on the Auth screen, or by setting
+// localStorage.bayanbox_demo = "1". Real API calls resume after clearing it.
+const originalRequest = client.request.bind(client);
+
+client.request = function (config) {
+  if (isDemoMode()) {
+    const url = config.url || '';
+    const mock = mockRequest(url, config.method || 'get', config.data);
+    if (mock) return mock;
+  }
+  return originalRequest(config);
+};
+
+export default client;

@@ -1,0 +1,31 @@
+{
+  "name": "bayanbox-pwa",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "description": "BayanBox (BodegaBarangay) Provincial Last-Mile Logistics PWA",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "html5-qrcode": "^2.3.8",
+    "leaflet": "^1.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.9",
+    "vite": "^5.4.2",
+    "vite-plugin-pwa": "^0.20.1"
+  }
+}

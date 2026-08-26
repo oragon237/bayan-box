@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\AffiliateService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+
+class AuthController extends Controller
+{
+    public function __construct(
+        protected AffiliateService $affiliate,
+    ) {}
+
+    /**
+     * POST /api/auth/register
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'phone' => 'required|string|max:20|unique:users,phone',
+            'email' => 'nullable|email|max:255|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role' => ['sometimes', 'string', Rule::in(['customer', 'merchant', 'rider', 'provider'])],
+            'referral_code' => 'nullable|string|max:15',
+            'barangay' => 'nullable|string|max:100',
+            'municipality' => 'nullable|string|max:100',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+            'password_hash' => Hash::make($validated['password']),
+            'role' => $validated['role'] ?? 'customer',
+            'affiliate_code' => $this->generateAffiliateCode(),
+            'barangay' => $validated['barangay'] ?? null,
+            'municipality' => $validated['municipality'] ?? null,
+        ]);
+
+        // FR-AFF-001: Register referral link if scanned a hub poster
+        if (! empty($validated['referral_code'])) {
+            try {
+                $this->affiliate->registerReferral($user, $validated['referral_code']);
+            } catch (\Throwable) {
+                // Non-blocking: referral doesn't prevent registration
+            }
+        }
+
+        return response()->json([
+            'user' => $user->only(['id', 'name', 'phone', 'role', 'affiliate_code', 'barangay', 'municipality']),
+            'token' => $user->createToken('bayanbox-pwa', [$user->role])->plainTextToken,
+        ], 201);
+    }
+
+    /**
+     * POST /api/auth/login
+     */
+    public function login(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('phone', $validated['phone'])->first();
+
+        if (! $user || ! Hash::check($validated['password'], $user->password_hash)) {
+            throw ValidationException::withMessages([
+                'phone' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        return response()->json([
+            'user' => $user->only(['id', 'name', 'phone', 'role', 'affiliate_code', 'barangay', 'municipality', 'status']),
+            'token' => $user->createToken('bayanbox-pwa', [$user->role])->plainTextToken,
+        ]);
+    }
+
+    /**
+     * POST /api/auth/logout
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logged out.']);
+    }
+
+    /**
+     * GET /api/auth/me
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user()->load([
+            'wallets',
+            'hub',
+            'providerProfile',
+            'referredBy',
+        ]);
+
+        return response()->json([
+            'user' => $user,
+            'loyalty_balance' => $user->loyaltyBalance(),
+        ]);
+    }
+
+    protected function generateAffiliateCode(): string
+    {
+        do {
+            $code = strtoupper(Str::random(8));
+        } while (User::where('affiliate_code', $code)->exists());
+
+        return $code;
+    }
+}
