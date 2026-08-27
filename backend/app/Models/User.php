@@ -19,6 +19,9 @@ class User extends Authenticatable
         'password_hash',
         'role',
         'affiliate_code',
+        'affiliate_status',
+        'affiliate_documents',
+        'affiliate_activated_at',
         'referred_by_id',
         'barangay',
         'municipality',
@@ -34,6 +37,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_official_mall' => 'boolean',
         'verified_at' => 'datetime',
+        'affiliate_documents' => 'array',
+        'affiliate_activated_at' => 'datetime',
     ];
 
     public const STATUS_PENDING = 'pending_verification';
@@ -135,6 +140,11 @@ class User extends Authenticatable
     public function providerReviews(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ProviderReview::class, 'provider_id');
+    }
+
+    public function affiliateWallet(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Wallet::class)->where('wallet_type', Wallet::TYPE_AFFILIATE_PAYOUT);
     }
 
     public function wallet(string $type): ?Wallet

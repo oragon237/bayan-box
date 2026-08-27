@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminAffiliateController;
 use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminMallController;
 use App\Http\Controllers\Api\AdminRiderController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\HubController;
 use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
+use App\Http\Controllers\Api\MerchantOrderController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
@@ -78,6 +80,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Affiliate (FR-AFF-001..003)
     Route::post('/affiliate/register-referral', [AffiliateController::class, 'registerReferral']);
+    Route::get('/affiliate/earnings', [AffiliateController::class, 'earnings']);
+    Route::get('/affiliate/qr', [AffiliateController::class, 'qr']);
+    Route::post('/affiliate/cash-out', [AffiliateController::class, 'requestCashOut']);
+    Route::get('/affiliate/cash-outs', [AffiliateController::class, 'cashOutHistory']);
 
     // Offline sync queue (FR-OFF-001/002)
     Route::post('/sync/offline-queue', [OfflineSyncController::class, 'sync']);
@@ -85,6 +91,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Bookings (PRD 2.6)
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
+    Route::post('/bookings/{id}/confirm', [BookingController::class, 'confirm'])->whereNumber('id');
+    Route::post('/bookings/{id}/rework', [BookingController::class, 'rework'])->whereNumber('id');
+
+    // Customer order tracking
+    Route::get('/orders', [MerchantOrderController::class, 'customerOrders']);
 
     // Image upload (Phase A)
     Route::post('/upload', [UploadController::class, 'store']);
@@ -114,6 +125,10 @@ Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant/pro
 Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant')->group(function () {
     Route::get('/profile', [MerchantProfileController::class, 'show']);
     Route::put('/profile', [MerchantProfileController::class, 'update']);
+
+    // Merchant order fulfillment
+    Route::get('/orders', [MerchantOrderController::class, 'index']);
+    Route::post('/orders/{id}/status', [MerchantOrderController::class, 'updateStatus'])->whereNumber('id');
 });
 
 // ---- Staff (Hub PWA) ----
@@ -213,4 +228,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     // Any role's referral poster
     Route::get('/affiliate/referral-qr/poster', [AffiliateController::class, 'poster']);
+
+    // Affiliate commission tracking + cash-out management
+    Route::get('/affiliates', [AdminAffiliateController::class, 'index']);
+    Route::get('/affiliates/cash-outs', [AdminAffiliateController::class, 'cashOuts']);
+    Route::post('/affiliates/cash-outs/{id}/approve', [AdminAffiliateController::class, 'approveCashOut'])->whereNumber('id');
+    Route::post('/affiliates/cash-outs/{id}/decline', [AdminAffiliateController::class, 'declineCashOut'])->whereNumber('id');
 });

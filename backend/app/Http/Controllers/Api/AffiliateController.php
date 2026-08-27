@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AffiliateCashOut;
 use App\Models\Hub;
+use App\Models\User;
+use App\Models\Wallet;
 use App\Services\AffiliateService;
+use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
@@ -16,6 +20,7 @@ class AffiliateController extends Controller
 {
     public function __construct(
         protected AffiliateService $affiliate,
+        protected WalletService $wallets,
     ) {}
 
     /**
@@ -105,5 +110,97 @@ class AffiliateController extends Controller
         }
 
         return '';
+    }
+
+    /**
+     * GET /api/affiliate/earnings — my affiliate wallet balance + ledger.
+     */
+    public function earnings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
+
+        return response()->json([
+            'balance' => $wallet->balance,
+            'referral_code' => $user->affiliate_code,
+            'referral_url' => url('/register?ref='.$user->affiliate_code),
+            'min_cashout' => (float) config('bayanbox.affiliate.min_cashout', 200),
+            'ledger' => $wallet->ledgerTransactions()->latest()->limit(50)->get(),
+        ]);
+    }
+
+    /**
+     * GET /api/affiliate/qr — QR data-URL for the user's affiliate link.
+     */
+    public function qr(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $payload = url('/register?ref='.$user->affiliate_code);
+
+        return response()->json([
+            'referral_code' => $user->affiliate_code,
+            'url' => $payload,
+            'qr_data_url' => $this->qrDataUrl($payload),
+        ]);
+    }
+
+    /**
+     * POST /api/affiliate/cash-out — request affiliate commission cash-out.
+     */
+    public function requestCashOut(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+        ]);
+
+        $user = $request->user();
+        $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
+        $amount = round((float) $validated['amount'], 2);
+        $min = (float) config('bayanbox.affiliate.min_cashout', 200);
+
+        if ($amount < $min) {
+            return response()->json([
+                'message' => "Minimum cash-out is ₱".number_format($min, 2).'.',
+            ], 422);
+        }
+
+        if ((float) $wallet->balance < $amount) {
+            return response()->json([
+                'message' => 'Insufficient affiliate earnings.',
+            ], 422);
+        }
+
+        // Prevent duplicate pending requests
+        $hasPending = AffiliateCashOut::where('user_id', $user->id)
+            ->where('status', AffiliateCashOut::STATUS_PENDING)
+            ->exists();
+
+        if ($hasPending) {
+            return response()->json(['message' => 'You already have a pending cash-out request.'], 422);
+        }
+
+        $cashOut = AffiliateCashOut::create([
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'status' => AffiliateCashOut::STATUS_PENDING,
+            'requested_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Cash-out requested. Admin will review.',
+            'cash_out' => $cashOut,
+        ], 201);
+    }
+
+    /**
+     * GET /api/affiliate/cash-outs — my cash-out history.
+     */
+    public function cashOutHistory(Request $request): JsonResponse
+    {
+        return response()->json(
+            AffiliateCashOut::where('user_id', $request->user()->id)
+                ->orderByDesc('created_at')
+                ->paginate($request->integer('per_page', 20))
+        );
     }
 }

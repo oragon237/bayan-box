@@ -11,10 +11,17 @@ class Order extends Model
     public const FULFILLMENT_PICKUP = 'pickup';
     public const FULFILLMENT_DELIVERY = 'delivery';
 
+    // Merchant fulfillment workflow
+    public const FULFILL_PENDING = 'pending';
+    public const FULFILL_ACCEPTED = 'accepted';
+    public const FULFILL_PACKAGING = 'packaging';
+    public const FULFILL_SENDING = 'sending_to_courier';
+    public const FULFILL_COURIER_ACCEPTED = 'accepted_by_courier';
+
     protected $fillable = [
         'customer_id', 'total_amount', 'shipping_amount', 'fulfillment_type',
         'hub_id', 'rider_id', 'delivery_address', 'latitude', 'longitude',
-        'status', 'payment_method', 'referring_affiliate_id',
+        'status', 'fulfillment_status', 'payment_method', 'referring_affiliate_id',
     ];
 
     protected function casts(): array

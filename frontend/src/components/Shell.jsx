@@ -21,13 +21,14 @@ const BUYER_ROLES = ['customer', 'merchant', 'admin'];
 function tabsFor(role) {
   const base = [{ to: '/', label: 'Shop', icon: HomeIcon }];
   const cart = { to: '/', label: 'Cart', icon: CartIcon, cart: true };
+  const affiliate = { to: '/affiliate', label: 'Affiliate', icon: ShareIcon };
   const map = {
     guest: [base[0]],
     admin: [
       ...base,
-      { to: '/admin/merchants', label: 'Verify', icon: ScanIcon },
       { to: '/admin/merchant-list', label: 'Merchants', icon: PackageIcon },
       { to: '/admin/riders', label: 'Riders', icon: RouteIcon },
+      { to: '/admin/affiliates', label: 'Affiliates', icon: ShareIcon },
       { to: '/admin/mall', label: 'Mall', icon: TagIcon },
     ],
     staff: [
@@ -35,6 +36,7 @@ function tabsFor(role) {
       { to: '/hub', label: 'Scan', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', icon: PackageIcon },
       { to: '/staff/dispatch', label: 'Dispatch', icon: RouteIcon },
+      affiliate,
       { to: '/staff/mall', label: 'Mall', icon: TagIcon },
     ],
     rider: [
@@ -42,27 +44,29 @@ function tabsFor(role) {
       { to: '/rider', label: 'Route', icon: RouteIcon },
       { to: '/rider/deliveries', label: 'Deliveries', icon: PackageIcon },
       { to: '/rider/wallet', label: 'Wallet', icon: WalletIcon },
-      { to: '/track', label: 'Track', icon: MapPinIcon },
+      affiliate,
     ],
     merchant: [
       ...base,
-      { to: '/merchant/products', label: 'Products', icon: PackageIcon },
-      { to: '/merchant/profile', label: 'Profile', icon: StarIcon },
+      { to: '/merchant/orders', label: 'Orders', icon: PackageIcon },
       cart,
-      { to: '/suki', label: 'Suki', icon: StarIcon },
+      affiliate,
+      { to: '/merchant/products', label: 'Products', icon: StarIcon },
+      { to: '/merchant/profile', label: 'Profile', icon: StarIcon },
     ],
     customer: [
       ...base,
       cart,
+      { to: '/orders', label: 'Orders', icon: PackageIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },
       { to: '/track', label: 'Track', icon: MapPinIcon },
-      { to: '/suki', label: 'Suki', icon: StarIcon },
+      affiliate,
     ],
     provider: [
       ...base,
       { to: '/provider/profile', label: 'Profile', icon: StarIcon },
       { to: '/provider/jobs', label: 'Jobs', icon: PackageIcon },
-      { to: '/track', label: 'Track', icon: MapPinIcon },
+      affiliate,
       { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
     ],
   };

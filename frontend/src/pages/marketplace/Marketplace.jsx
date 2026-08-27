@@ -35,6 +35,8 @@ export default function Marketplace({ user }) {
   const [referralCode, setReferralCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
+  const [useAffiliateBalance, setUseAffiliateBalance] = useState(false);
+  const [affiliateBalance, setAffiliateBalance] = useState(0);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -62,6 +64,12 @@ export default function Marketplace({ user }) {
   useEffect(() => {
     client.get('/products/categories').then((res) => setCategories(res.data)).catch(() => {});
   }, []);
+
+  // Fetch affiliate balance for checkout when logged in
+  useEffect(() => {
+    if (!user) return;
+    client.get('/affiliate/earnings').then((res) => setAffiliateBalance(Number(res.data.balance || 0))).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -155,6 +163,7 @@ export default function Marketplace({ user }) {
         fulfillment_type: fulfillment,
         payment_method: paymentMethod,
         referral_code: referralCode.trim() || null,
+        use_affiliate_balance: useAffiliateBalance,
       };
       if (fulfillment === 'pickup') {
         payload.hub_id = hubId;
@@ -466,6 +475,19 @@ export default function Marketplace({ user }) {
                       </button>
                     ))}
                   </div>
+                  {user && affiliateBalance > 0 && (
+                    <label className="flex items-center gap-2 mt-2 px-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useAffiliateBalance}
+                        onChange={(e) => setUseAffiliateBalance(e.target.checked)}
+                        className="w-4 h-4 rounded border-ink-300 text-bayan-600 focus:ring-bayan-500"
+                      />
+                      <span className="text-xs text-ink-600">
+                        Pay with affiliate earnings <span className="font-bold text-bayan-700">(₱{affiliateBalance.toLocaleString()} available)</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 <button
@@ -473,7 +495,7 @@ export default function Marketplace({ user }) {
                   disabled={submitting}
                   className="w-full py-3 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white font-bold rounded-xl transition"
                 >
-                  {submitting ? 'Processing…' : paymentMethod === 'cod' ? 'Place order (Cash on Delivery)' : 'Checkout via GCash/Maya'}
+                  {submitting ? 'Processing…' : useAffiliateBalance ? 'Pay with affiliate earnings' : paymentMethod === 'cod' ? 'Place order (Cash on Delivery)' : 'Checkout via GCash/Maya'}
                 </button>
               </div>
             </div>

@@ -102,28 +102,75 @@ class BookingController extends Controller
     }
 
     /**
-     * POST /api/bookings/{id}/complete — provider marks done; escrow payout.
+     * POST /api/bookings/{id}/complete — provider marks the job done.
+     * (Two-party flow: waits for customer confirmation before payout.)
      */
     public function complete(int $id, Request $request): JsonResponse
     {
         $booking = Booking::where('provider_id', $request->user()->id)->findOrFail($id);
 
+        if ($booking->status !== 'accepted' && $booking->status !== 'rework') {
+            return response()->json(['message' => 'Job must be accepted before completing.'], 422);
+        }
+
+        $booking->update(['status' => 'provider_completed']);
+
+        return response()->json([
+            'message' => 'Marked as done. Awaiting customer confirmation before payout.',
+            'booking' => $booking->fresh(),
+        ]);
+    }
+
+    /**
+     * POST /api/bookings/{id}/confirm — customer confirms completion → payout.
+     */
+    public function confirm(int $id, Request $request): JsonResponse
+    {
+        $booking = Booking::where('customer_id', $request->user()->id)
+            ->where('status', 'provider_completed')
+            ->findOrFail($id);
+
         $booking->update(['status' => 'completed']);
 
-        // Credit provider earnings
-        $wallet = $this->walletService->ensureWallet($request->user()->id, Wallet::TYPE_PROVIDER_EARNINGS);
+        // Release escrow payout to the provider
+        $wallet = $this->walletService->ensureWallet($booking->provider_id, Wallet::TYPE_PROVIDER_EARNINGS);
         $this->walletService->credit(
             $wallet,
             (float) $booking->provider_payout,
-            "Service payout — {$booking->service?->name}",
+            "Service payout — {$booking->service?->name} (confirmed)",
             'escrow_release',
             null,
             $booking,
         );
 
         return response()->json([
+            'message' => 'Completion confirmed. Provider payout released.',
             'booking' => $booking->fresh(),
             'payout' => $booking->provider_payout,
+        ]);
+    }
+
+    /**
+     * POST /api/bookings/{id}/rework — customer requests re-work.
+     */
+    public function rework(int $id, Request $request): JsonResponse
+    {
+        $booking = Booking::where('customer_id', $request->user()->id)
+            ->where('status', 'provider_completed')
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $booking->update([
+            'status' => 'rework',
+            'rework_reason' => $validated['reason'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Re-work requested. Provider has been notified.',
+            'booking' => $booking->fresh(),
         ]);
     }
 }

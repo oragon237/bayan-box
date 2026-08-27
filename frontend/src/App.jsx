@@ -3,6 +3,7 @@ import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import client from './api/client.js';
 import { flushQueue, queueCount } from './services/offlineQueue.js';
 import { ToastProvider } from './components/ui.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Shell from './components/Shell.jsx';
 import Auth from './pages/Auth.jsx';
 
@@ -12,19 +13,23 @@ import RiderBatches from './pages/rider/RiderBatches.jsx';
 import RiderWallet from './pages/rider/RiderWallet.jsx';
 import CustomerTracking from './pages/customer/CustomerTracking.jsx';
 import CustomerBookings from './pages/customer/CustomerBookings.jsx';
+import MyOrders from './pages/customer/MyOrders.jsx';
 import SukiPoints from './pages/customer/SukiPoints.jsx';
 import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
 import ReferralQR from './pages/affiliate/ReferralQR.jsx';
+import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
 import Marketplace from './pages/marketplace/Marketplace.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
 import ProvidersList from './pages/marketplace/ProvidersList.jsx';
 import HireProvider from './pages/marketplace/HireProvider.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
+import MerchantOrders from './pages/merchant/MerchantOrders.jsx';
 import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
 import AdminMerchants from './pages/admin/AdminMerchants.jsx';
 import AdminMerchantList from './pages/admin/AdminMerchantList.jsx';
 import AdminMall from './pages/admin/AdminMall.jsx';
 import AdminRiders from './pages/admin/AdminRiders.jsx';
+import AdminAffiliates from './pages/admin/AdminAffiliates.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
@@ -124,43 +129,60 @@ export default function App() {
         onLogout={logout}
       >
         <Routes>
-          {/* Public storefront (homepage for all) */}
-          <Route path="/" element={<Marketplace user={user} />} />
-          <Route path="/product/:id" element={<ProductDetail user={user} />} />
-          <Route path="/providers" element={<ProvidersList user={user} />} />
-          <Route path="/hire/:id" element={<HireProvider user={user} />} />
-          <Route path="/login" element={<Auth onAuth={(u) => { setUser(u); navigate('/'); }} />} />
-
-          {/* Authenticated role routes */}
-          {user && (
-            <>
-              <Route path="/hub" element={<HubScanner user={user} />} />
-              <Route path="/hub/inventory" element={<HubInventory user={user} />} />
-              <Route path="/rider" element={<RiderBatches user={user} />} />
-              <Route path="/rider/wallet" element={<RiderWallet user={user} />} />
-              <Route path="/rider/deliveries" element={<RiderDeliveries user={user} />} />
-              <Route path="/track" element={<CustomerTracking />} />
-              <Route path="/track/:tracking" element={<CustomerTracking />} />
-              <Route path="/bookings" element={<CustomerBookings user={user} />} />
-              <Route path="/suki" element={<SukiPoints user={user} />} />
-              <Route path="/delivery-cost" element={<DeliveryCostPreview user={user} />} />
-              <Route path="/referral" element={<ReferralQR user={user} />} />
-              <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
-              <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
-              <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
-              <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />
-              <Route path="/admin/mall" element={<AdminMall user={user} />} />
-              <Route path="/admin/riders" element={<AdminRiders user={user} />} />
-              <Route path="/staff/mall" element={<StaffMall user={user} />} />
-              <Route path="/staff/dispatch" element={<StaffDispatch user={user} />} />
-              <Route path="/provider/profile" element={<ProviderProfile user={user} />} />
-              <Route path="/provider/jobs" element={<ProviderJobs user={user} />} />
-            </>
-          )}
-
-          <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+          <Route
+            path="*"
+            element={
+              <ErrorBoundary>
+                <MainRoutes user={user} onAuth={(u) => { setUser(u); navigate('/'); }} />
+              </ErrorBoundary>
+            }
+          />
         </Routes>
       </Shell>
     </ToastProvider>
+  );
+}
+
+function MainRoutes({ user, onAuth }) {
+  return (
+    <Routes>
+      <Route path="/" element={<Marketplace user={user} />} />
+      <Route path="/product/:id" element={<ProductDetail user={user} />} />
+      <Route path="/providers" element={<ProvidersList user={user} />} />
+      <Route path="/hire/:id" element={<HireProvider user={user} />} />
+      <Route path="/login" element={<Auth onAuth={onAuth} />} />
+
+      {user && (
+        <>
+          <Route path="/hub" element={<HubScanner user={user} />} />
+          <Route path="/hub/inventory" element={<HubInventory user={user} />} />
+          <Route path="/rider" element={<RiderBatches user={user} />} />
+          <Route path="/rider/wallet" element={<RiderWallet user={user} />} />
+          <Route path="/rider/deliveries" element={<RiderDeliveries user={user} />} />
+          <Route path="/track" element={<CustomerTracking />} />
+          <Route path="/track/:tracking" element={<CustomerTracking />} />
+          <Route path="/bookings" element={<CustomerBookings user={user} />} />
+          <Route path="/suki" element={<SukiPoints user={user} />} />
+          <Route path="/delivery-cost" element={<DeliveryCostPreview user={user} />} />
+          <Route path="/referral" element={<ReferralQR user={user} />} />
+          <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
+          <Route path="/merchant/orders" element={<MerchantOrders user={user} />} />
+          <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
+          <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
+          <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />
+          <Route path="/admin/mall" element={<AdminMall user={user} />} />
+          <Route path="/admin/riders" element={<AdminRiders user={user} />} />
+          <Route path="/staff/mall" element={<StaffMall user={user} />} />
+          <Route path="/staff/dispatch" element={<StaffDispatch user={user} />} />
+          <Route path="/provider/profile" element={<ProviderProfile user={user} />} />
+          <Route path="/provider/jobs" element={<ProviderJobs user={user} />} />
+          <Route path="/affiliate" element={<AffiliateDashboard user={user} />} />
+          <Route path="/admin/affiliates" element={<AdminAffiliates user={user} />} />
+          <Route path="/orders" element={<MyOrders user={user} />} />
+        </>
+      )}
+
+      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+    </Routes>
   );
 }

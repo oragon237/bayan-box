@@ -51,12 +51,16 @@ class MarketplaceService
             $shippingAmount = (float) config('bayanbox.marketplace.pickup_handling_fee', 10.00);
         }
 
-        // Resolve optional affiliate referral (no self-referral)
+        // Resolve affiliate: from an explicit referral code at checkout, or the
+        // account's registered referrer (linked via QR/referral link).
         $affiliate = null;
         if (! empty($payload['referral_code'])) {
             $affiliate = User::where('affiliate_code', $payload['referral_code'])
                 ->where('id', '!=', $customer->id)
                 ->first();
+        }
+        if (! $affiliate && $customer->referred_by_id) {
+            $affiliate = User::find($customer->referred_by_id);
         }
 
         return DB::transaction(function () use ($customer, $payload, $fulfillment, $shippingAmount, $shippingDetail, $affiliate) {
@@ -105,6 +109,21 @@ class MarketplaceService
                 'payment_method' => $payload['payment_method'] ?? 'gcash',
                 'status' => $isCod ? 'pending_payment' : 'paid', // COD: rider collects at delivery
             ]);
+
+            // 2b. Pay with affiliate earnings (use_affiliate_balance)
+            $totalDue = round((float) $productTotal + (float) $shippingAmount, 2);
+            if (! empty($payload['use_affiliate_balance'])) {
+                $affiliateWallet = $this->wallets->ensureWallet($customer->id, Wallet::TYPE_AFFILIATE_PAYOUT);
+                $this->wallets->debit(
+                    $affiliateWallet,
+                    $totalDue,
+                    "Marketplace purchase Order #{$order->id} paid with affiliate earnings",
+                    'affiliate_purchase',
+                    null,
+                    $order,
+                );
+                $order->update(['payment_method' => 'affiliate', 'status' => 'paid']);
+            }
 
             // 3. Per-item: record receipt, deduct stock, split the ledger
             foreach ($items as $cartItem) {

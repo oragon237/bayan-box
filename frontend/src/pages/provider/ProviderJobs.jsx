@@ -5,6 +5,8 @@ import { EmptyState, useToast } from '../../components/ui.jsx';
 const STATUS_STYLES = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
   accepted: 'bg-bayan-50 text-bayan-700 border-bayan-200',
+  provider_completed: 'bg-blue-50 text-blue-700 border-blue-200',
+  rework: 'bg-orange-50 text-orange-700 border-orange-200',
   completed: 'bg-green-50 text-green-700 border-green-200',
 };
 
@@ -42,10 +44,10 @@ export default function ProviderJobs({ user }) {
   const complete = async (id) => {
     try {
       const res = await client.post(`/bookings/${id}/complete`);
-      notify(`Job completed! Payout: ₱${Number(res.data.payout).toLocaleString()}`);
+      notify(res.data?.message || 'Marked as done. Awaiting customer confirmation.');
       load();
     } catch (err) {
-      notify(err.response?.data?.message || 'Could not complete.', 'error');
+      notify(err.response?.data?.message || 'Could not mark as done.', 'error');
     }
   };
 
@@ -100,10 +102,23 @@ export default function ProviderJobs({ user }) {
                 {b.status === 'accepted' && (
                   <button
                     onClick={() => complete(b.id)}
-                    className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl"
+                    className="flex-1 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl"
                   >
-                    ✅ Mark completed
+                    ✅ Mark as done
                   </button>
+                )}
+                {b.status === 'rework' && (
+                  <button
+                    onClick={() => complete(b.id)}
+                    className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-xl"
+                  >
+                    🔧 Re-work done — resubmit
+                  </button>
+                )}
+                {b.status === 'provider_completed' && (
+                  <span className="flex-1 py-2.5 bg-blue-50 text-blue-700 text-sm font-bold rounded-xl text-center">
+                    ⏳ Awaiting customer confirmation
+                  </span>
                 )}
                 {b.status === 'completed' && (
                   <span className="flex-1 py-2.5 bg-ink-50 text-ink-500 text-sm font-bold rounded-xl text-center">

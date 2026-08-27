@@ -12,8 +12,9 @@ const ROLES = [
 export default function Auth({ onAuth }) {
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState('customer');
-  const [form, setForm] = useState({
-    name: '', phone: '', password: '', referral_code: '',
+  const [form, setForm] = useState(() => {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    return { name: '', phone: '', password: '', referral_code: ref || '' };
   });
   const [busy, setBusy] = useState(false);
   const notify = useToast();

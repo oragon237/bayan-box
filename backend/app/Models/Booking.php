@@ -11,6 +11,7 @@ class Booking extends Model
         'customer_id', 'provider_id', 'service_id', 'status',
         'booking_date', 'address', 'latitude', 'longitude',
         'quoted_amount', 'platform_commission', 'provider_payout',
+        'rework_reason',
     ];
 
     protected function casts(): array

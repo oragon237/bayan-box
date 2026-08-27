@@ -328,9 +328,14 @@ export function mockRequest(url, method, data, params = {}) {
       total: 2,
     }));
   }
-  if (/^\/bookings\/\d+\/(accept|complete)$/.test(path) && lower === 'post') {
+  if (/^\/bookings\/\d+\/(accept|complete|confirm|rework)$/.test(path) && lower === 'post') {
     const action = path.split('/').pop();
-    return Promise.resolve(mockResponse(action === 'complete' ? { booking: { status: 'completed' }, payout: '765.00' } : { status: 'accepted' }));
+    const statusMap = { accept: 'accepted', complete: 'provider_completed', confirm: 'completed', rework: 'rework' };
+    return Promise.resolve(mockResponse({
+      message: action === 'confirm' ? 'Completion confirmed. Provider payout released.' : action === 'rework' ? 'Re-work requested.' : 'OK.',
+      booking: { id: Number(path.match(/bookings\/(\d+)/)[1]), status: statusMap[action] },
+      payout: action === 'confirm' ? '765.00' : undefined,
+    }));
   }
 
   // Provider profile (item 7)
@@ -359,6 +364,54 @@ export function mockRequest(url, method, data, params = {}) {
     }));
   }
   if (path === '/merchant/profile' && lower === 'put') return Promise.resolve(mockResponse({ message: 'Profile updated.', merchant: {}, documents: {} }));
+
+  // Affiliate earnings + cash-out
+  if (path === '/affiliate/earnings' && lower === 'get') {
+    return Promise.resolve(mockResponse({ balance: 500.0, referral_code: 'JUAN01', referral_url: 'http://localhost:3000/login?ref=JUAN01', min_cashout: 200, ledger: [{ id: 1, description: 'Commission from sale', amount: 500, direction: 'credit', created_at: new Date().toISOString() }] }));
+  }
+  if (path === '/affiliate/qr' && lower === 'get') {
+    return Promise.resolve(mockResponse({ referral_code: 'JUAN01', url: 'http://localhost:3000/login?ref=JUAN01', qr_data_url: '' }));
+  }
+  if (path === '/affiliate/cash-out' && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Cash-out requested.', cash_out: { id: 1, amount: data?.amount, status: 'pending' } }, 201));
+  }
+  if (path === '/affiliate/cash-outs' && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: [{ id: 1, amount: 250, status: 'pending', requested_at: new Date().toISOString() }], total: 1 }));
+  }
+
+  // Admin affiliate management
+  if (path === '/admin/affiliates' && lower === 'get') {
+    return Promise.resolve(mockResponse({ affiliates: [{ id: 5, name: 'Juan Dela Cruz', role: 'customer', affiliate_code: 'JUAN01', earnings: 500 }, { id: 4, name: 'Aling Maria', role: 'merchant', affiliate_code: 'MARIA01', earnings: 250 }] }));
+  }
+  if (path === '/admin/affiliates/cash-outs' && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: [{ id: 1, user: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, amount: 250, status: 'pending', requested_at: new Date().toISOString() }], total: 1 }));
+  }
+  if (/^\/admin\/affiliates\/cash-outs\/\d+\/(approve|decline)$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Cash-out ' + (path.endsWith('approve') ? 'approved and paid.' : 'declined.') }));
+  }
+
+  // Merchant orders + customer order tracking
+  if (path === '/merchant/orders' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      data: [
+        { id: 11, customer: { id: 20, name: 'Referred User 2', phone: '09179990001' }, total_amount: '80.00', payment_method: 'gcash', fulfillment_status: 'packaging', items: [{ id: 1, product: { id: 1, name: 'Fresh Sili (250g)', merchant_id: 4 }, quantity: 2 }] },
+        { id: 10, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, total_amount: '160.00', payment_method: 'affiliate', fulfillment_status: 'pending', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong', merchant_id: 4 }, quantity: 2 }] },
+      ],
+      total: 2,
+    }));
+  }
+  if (/^\/merchant\/orders\/\d+\/status$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Order marked as ' + data?.fulfillment_status + '.', order: {} }));
+  }
+  if (path === '/orders' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      data: [
+        { id: 11, total_amount: '80.00', payment_method: 'gcash', fulfillment_type: 'delivery', fulfillment_status: 'packaging', items: [{ id: 1, product: { id: 1, name: 'Fresh Sili (250g)' }, quantity: 2 }] },
+        { id: 10, total_amount: '160.00', payment_method: 'affiliate', fulfillment_type: 'pickup', fulfillment_status: 'pending', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 2 }] },
+      ],
+      total: 2,
+    }));
+  }
 
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {

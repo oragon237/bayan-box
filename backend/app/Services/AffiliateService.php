@@ -32,20 +32,32 @@ class AffiliateService
     }
 
     /**
-     * Register a customer who scanned a hub referral poster.
+     * Register a customer who scanned a hub referral poster OR a user's
+     * affiliate QR/link. Links the customer to the referrer.
      */
     public function registerReferral(User $customer, string $referralCode): bool
     {
+        // 1. Hub referral code → hub staff
         $hub = Hub::where('referral_code', $referralCode)->first();
+        if ($hub && $hub->staff_id) {
+            $customer->referred_by_id = $hub->staff_id;
+            $customer->save();
 
-        if (! $hub || ! $hub->staff_id) {
-            throw new RuntimeException('Invalid referral code.');
+            return true;
         }
 
-        $customer->referred_by_id = $hub->staff_id;
-        $customer->save();
+        // 2. User affiliate code → that user (no self-referral)
+        $referrer = User::where('affiliate_code', $referralCode)
+            ->where('id', '!=', $customer->id)
+            ->first();
+        if ($referrer) {
+            $customer->referred_by_id = $referrer->id;
+            $customer->save();
 
-        return true;
+            return true;
+        }
+
+        throw new RuntimeException('Invalid referral code.');
     }
 
     /**

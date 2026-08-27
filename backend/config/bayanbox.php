@@ -165,4 +165,13 @@ return [
         'max_affiliate_percentage' => 50.00,      // FR-MKT-003 cap
     ],
 
+    /*
+    |----------------------------------------------------------------------
+    | Affiliate & Referrals
+    |----------------------------------------------------------------------
+    */
+    'affiliate' => [
+        'min_cashout' => env('AFFILIATE_MIN_CASHOUT', 200.00), // minimum cash-out threshold
+    ],
+
 ];

@@ -30,6 +30,7 @@ class CheckoutController extends Controller
             'longitude' => ['required_if:fulfillment_type,delivery', 'nullable', 'numeric', 'between:116,127'],
             'municipality' => 'nullable|string|max:100',
             'referral_code' => 'nullable|string|max:15',
+            'use_affiliate_balance' => 'nullable|boolean',
         ]);
 
         $validated['payment_method'] = $validated['payment_method'] ?? 'gcash';
