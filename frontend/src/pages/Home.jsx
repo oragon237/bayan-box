@@ -56,13 +56,14 @@ export default function Home({ user }) {
       { to: '/rider/wallet', label: 'Wallet', desc: 'COD & earnings', icon: MapPinIcon },
     ],
     customer: [
+      { to: '/market', label: 'Shop Local', desc: 'Browse merchant goods', icon: TagIcon },
       { to: '/track', label: 'Track Parcel', desc: 'Live 3-marker map', icon: MapPinIcon },
-      { to: '/delivery-cost', label: 'Delivery Fee', desc: 'Estimate doorstep rate', icon: TagIcon },
+      { to: '/delivery-cost', label: 'Delivery Fee', desc: 'Estimate doorstep rate', icon: MapPinIcon },
       { to: '/suki', label: 'Suki Points', desc: 'Balance & redeem', icon: StarIcon },
     ],
     merchant: [
-      { to: '/delivery-cost', label: 'Delivery Fee', desc: 'Estimate rates', icon: TagIcon },
-      { to: '/track', label: 'Track', desc: 'Follow shipments', icon: MapPinIcon },
+      { to: '/merchant/products', label: 'My Products', desc: 'Upload & manage goods', icon: PackageIcon },
+      { to: '/market', label: 'Shop', desc: 'Browse the marketplace', icon: TagIcon },
       { to: '/suki', label: 'Suki Points', desc: 'Earn & redeem supplies', icon: StarIcon },
     ],
     provider: [

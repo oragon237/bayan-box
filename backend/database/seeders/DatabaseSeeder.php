@@ -155,6 +155,26 @@ class DatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
+        // -----------------------------------------------------------------
+        // 8. Marketplace demo products (FR-MKT-001)
+        // -----------------------------------------------------------------
+        foreach ([
+            ['name' => 'Fresh Sili (250g)', 'category' => 'Fresh Produce', 'price' => 40.00, 'stock' => 100, 'suki_points_award' => 2, 'affiliate_percentage' => 5.00],
+            ['name' => 'Home-baked Pan de Sal', 'category' => 'Home Cooks', 'price' => 25.00, 'stock' => 60, 'suki_points_award' => 1, 'affiliate_percentage' => 3.00],
+            ['name' => 'Abaca Tote Bag', 'category' => 'Local Crafts', 'price' => 180.00, 'stock' => 30, 'suki_points_award' => 5, 'affiliate_percentage' => 10.00],
+            ['name' => 'Bicol Express Bagoong', 'category' => 'Fresh Produce', 'price' => 95.00, 'stock' => 45, 'suki_points_award' => 3, 'affiliate_percentage' => 0.00],
+        ] as $product) {
+            \App\Models\Product::firstOrCreate(
+                ['name' => $product['name']],
+                array_merge($product, [
+                    'merchant_id' => $created['merchant']->id,
+                    'description' => "Local {$product['category']} item from {$created['merchant']->name}.",
+                    'image_url' => null,
+                    'status' => 'active',
+                ]),
+            );
+        }
+
         $this->command->info('BayanBox demo data seeded.');
     }
 }

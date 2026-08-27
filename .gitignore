@@ -4,3 +4,4 @@
 /dist
 /.phpunit.result.cache
 /storage
+/backend/vendor

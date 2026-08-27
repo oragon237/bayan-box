@@ -4,9 +4,13 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\HubController;
 use App\Http\Controllers\Api\LoyaltyController;
+use App\Http\Controllers\Api\MarketplaceController;
+use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\RiderController;
@@ -58,6 +62,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // Bookings (PRD 2.6)
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
+
+    // Marketplace storefront + cart + checkout (PRD v4 §3.7)
+    Route::get('/products', [MarketplaceController::class, 'index']);
+    Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/sync', [CartController::class, 'sync']);
+    Route::delete('/cart/items/{productId}', [CartController::class, 'remove']);
+    Route::post('/checkout', [CheckoutController::class, 'processPurchase']);
+});
+
+// ---- Merchant (Local Seller / MSME) ----
+Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant/products')->group(function () {
+    Route::get('/', [MerchantProductController::class, 'index']);
+    Route::post('/', [MerchantProductController::class, 'store']);
+    Route::put('/{id}', [MerchantProductController::class, 'update']);
+    Route::delete('/{id}', [MerchantProductController::class, 'destroy']);
 });
 
 // ---- Staff (Hub PWA) ----

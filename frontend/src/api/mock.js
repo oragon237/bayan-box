@@ -106,6 +106,15 @@ const TRACKING = {
   eta: { min: 9, max: 16 },
 };
 
+const PRODUCTS = [
+  { id: 1, merchant_id: 4, name: 'Fresh Sili (250g)', description: 'Local fresh chili from Bicol farms.', price: '40.00', stock: 100, suki_points_award: 2, affiliate_percentage: '5.00', image_url: null, category: 'Fresh Produce', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
+  { id: 2, merchant_id: 4, name: 'Home-baked Pan de Sal', description: 'Warm pandesal, fresh daily.', price: '25.00', stock: 60, suki_points_award: 1, affiliate_percentage: '3.00', image_url: null, category: 'Home Cooks', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
+  { id: 3, merchant_id: 4, name: 'Abaca Tote Bag', description: 'Handwoven abaca tote from local artisans.', price: '180.00', stock: 30, suki_points_award: 5, affiliate_percentage: '10.00', image_url: null, category: 'Local Crafts', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
+  { id: 4, merchant_id: 4, name: 'Bicol Express Bagoong', description: 'Fiery bagoong for authentic Bicol express.', price: '95.00', stock: 45, suki_points_award: 3, affiliate_percentage: '0.00', image_url: null, category: 'Fresh Produce', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
+];
+
+let MOCK_CART = [];
+
 function mockResponse(data, status = 200) {
   return { data, status, statusText: 'OK', headers: {}, config: {}, isDemo: true };
 }
@@ -128,7 +137,7 @@ export function exitDemoMode() {
  * Handle a demo request. Returns a promise resolving to a mock axios response,
  * or null if this endpoint has no mock (falls through to the real API).
  */
-export function mockRequest(url, method, data) {
+export function mockRequest(url, method, data, params = {}) {
   const path = url.replace(/^\/api/, '');
   const lower = method.toLowerCase();
 
@@ -182,6 +191,71 @@ export function mockRequest(url, method, data) {
   // Customer
   if (/^\/track\//.test(path) && lower === 'get') return Promise.resolve(mockResponse(TRACKING));
   if (path === '/loyalty' && lower === 'get') return Promise.resolve(mockResponse(LOYALTY));
+
+  // Marketplace (FR-MKT)
+  if (path === '/products' && lower === 'get') {
+    const q = (params?.q || '').toLowerCase();
+    const cat = params?.category;
+    let list = PRODUCTS.filter((p) => p.status === 'active' && p.stock > 0);
+    if (cat) list = list.filter((p) => p.category === cat);
+    if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
+    return Promise.resolve(mockResponse({ data: list, total: list.length }));
+  }
+  if (path === '/products/categories' && lower === 'get') {
+    return Promise.resolve(mockResponse([...new Set(PRODUCTS.filter((p) => p.status === 'active').map((p) => p.category))]));
+  }
+  if (path === '/cart' && lower === 'get') {
+    const items = MOCK_CART.map((i) => ({ ...i, product: PRODUCTS.find((p) => p.id === i.product_id) }));
+    return Promise.resolve(mockResponse({ items, count: items.length }));
+  }
+  if (path === '/cart/sync' && lower === 'post') {
+    MOCK_CART = (data?.cart || []).map((c) => ({ id: c.product_id, customer_id: 5, product_id: c.product_id, quantity: c.quantity }));
+    return Promise.resolve(mockResponse({ message: 'Cart synced.' }));
+  }
+  if (/^\/cart\/items\/\d+$/.test(path) && lower === 'delete') {
+    const pid = Number(path.match(/items\/(\d+)/)[1]);
+    MOCK_CART = MOCK_CART.filter((i) => i.product_id !== pid);
+    return Promise.resolve(mockResponse({ message: 'Removed from cart.' }));
+  }
+  if (path === '/checkout' && lower === 'post') {
+    const items = MOCK_CART.map((i) => ({ ...i, product: PRODUCTS.find((p) => p.id === i.product_id) }));
+    const productTotal = items.reduce((s, i) => s + Number(i.product.price) * i.quantity, 0);
+    const shipping = data?.fulfillment_type === 'pickup' ? 10 : 0;
+    MOCK_CART = [];
+    return Promise.resolve(mockResponse({
+      status: 'purchase_completed',
+      order: {
+        id: Math.floor(Math.random() * 900) + 100,
+        total_amount: productTotal.toFixed(2),
+        shipping_amount: shipping.toFixed(2),
+        fulfillment_type: data?.fulfillment_type,
+        status: 'paid',
+      },
+    }));
+  }
+
+  // Merchant product management (FR-MKT-001)
+  if (path === '/merchant/products' && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: PRODUCTS, total: PRODUCTS.length }));
+  }
+  if (path === '/merchant/products' && lower === 'post') {
+    const p = { ...data, id: PRODUCTS.length + 1, merchant_id: 4, status: 'active', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    PRODUCTS.push(p);
+    return Promise.resolve(mockResponse(p, 201));
+  }
+  if (/^\/merchant\/products\/\d+$/.test(path) && lower === 'put') {
+    const pid = Number(path.match(/products\/(\d+)/)[1]);
+    const idx = PRODUCTS.findIndex((p) => p.id === pid);
+    if (idx >= 0) PRODUCTS[idx] = { ...PRODUCTS[idx], ...data, updated_at: new Date().toISOString() };
+    return Promise.resolve(mockResponse(PRODUCTS[idx]));
+  }
+  if (/^\/merchant\/products\/\d+$/.test(path) && lower === 'delete') {
+    const pid = Number(path.match(/products\/(\d+)/)[1]);
+    const idx = PRODUCTS.findIndex((p) => p.id === pid);
+    if (idx >= 0) PRODUCTS[idx] = { ...PRODUCTS[idx], status: 'archived' };
+    return Promise.resolve(mockResponse({ message: 'Product archived.' }));
+  }
+
   if (path === '/delivery/calculate' && lower === 'post') {
     const a = data?.dest_lat ?? SAN_JOSE.lat;
     const b = data?.dest_lng ?? SAN_JOSE.lng;

@@ -152,4 +152,17 @@ return [
         'staff_rider_ttl_days' => 30,
     ],
 
+    /*
+    |----------------------------------------------------------------------
+    | Local E-Commerce Marketplace (PRD v4 §3.7)
+    |----------------------------------------------------------------------
+    | Revenue splits and fees for the merchant storefront (FR-MKT-007).
+    */
+    'marketplace' => [
+        'platform_commission_percent' => 10.00,   // 10% platform rake
+        'merchant_share_percent' => 90.00,        // 90% merchant payout
+        'pickup_handling_fee' => env('MARKETPLACE_PICKUP_HANDLING_FEE', 10.00), // ₱10 split ₱5 hub / ₱5 platform
+        'max_affiliate_percentage' => 50.00,      // FR-MKT-003 cap
+    ],
+
 ];

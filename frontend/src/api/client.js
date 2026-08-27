@@ -33,7 +33,7 @@ const originalRequest = client.request.bind(client);
 client.request = function (config) {
   if (isDemoMode()) {
     const url = config.url || '';
-    const mock = mockRequest(url, config.method || 'get', config.data);
+    const mock = mockRequest(url, config.method || 'get', config.data, config.params);
     if (mock) return mock;
   }
   return originalRequest(config);

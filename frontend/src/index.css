@@ -33,6 +33,9 @@
   .chip {
     @apply px-3 py-1.5 rounded-full text-xs font-bold transition select-none;
   }
+  .field {
+    @apply w-full px-3 py-2 bg-ink-50 border border-ink-200 rounded-xl text-sm focus:ring-2 focus:ring-bayan-500 focus:border-bayan-500 outline-none transition placeholder:text-ink-400;
+  }
 }
 
 .leaflet-container {

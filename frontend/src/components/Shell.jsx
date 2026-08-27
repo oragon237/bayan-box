@@ -32,14 +32,14 @@ function tabsFor(role) {
     ],
     merchant: [
       ...base,
-      { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
-      { to: '/track', label: 'Track', icon: MapPinIcon },
+      { to: '/merchant/products', label: 'Products', icon: PackageIcon },
+      { to: '/market', label: 'Shop', icon: TagIcon },
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
     customer: [
       ...base,
+      { to: '/market', label: 'Shop', icon: TagIcon },
       { to: '/track', label: 'Track', icon: MapPinIcon },
-      { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
     provider: [

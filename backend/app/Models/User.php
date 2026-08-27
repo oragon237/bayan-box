@@ -88,6 +88,21 @@ class User extends Authenticatable
         return $this->hasMany(LoyaltyPoint::class);
     }
 
+    public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Product::class, 'merchant_id');
+    }
+
+    public function cartItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CartItem::class, 'customer_id');
+    }
+
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class, 'customer_id');
+    }
+
     public function wallet(string $type): ?Wallet
     {
         return $this->wallets()->where('wallet_type', $type)->first();
