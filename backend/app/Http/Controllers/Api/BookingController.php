@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\ServiceCategory;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,14 @@ class BookingController extends Controller
     public function __construct(
         protected WalletService $walletService,
     ) {}
+
+    /**
+     * GET /api/services — public service catalogue with rates (hire flow).
+     */
+    public function services(): JsonResponse
+    {
+        return response()->json(ServiceCategory::orderBy('name')->get());
+    }
 
     /**
      * GET /api/bookings — list bookings for the authenticated user
@@ -37,17 +46,25 @@ class BookingController extends Controller
     }
 
     /**
-     * POST /api/bookings — customer creates a booking.
+     * POST /api/bookings — customer creates a booking (hire a provider).
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'service_id' => 'required|exists:service_categories,id',
+            'provider_id' => 'nullable|integer|exists:users,id',
             'booking_date' => 'required|date|after:now',
             'address' => 'required|string',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
+
+        if (! empty($validated['provider_id'])) {
+            $provider = User::where('id', $validated['provider_id'])->where('role', 'provider')->first();
+            if (! $provider) {
+                return response()->json(['message' => 'Provider not found.'], 404);
+            }
+        }
 
         $service = ServiceCategory::findOrFail($validated['service_id']);
         $commissionPct = $service->global_commission_percentage / 100;
@@ -58,6 +75,7 @@ class BookingController extends Controller
 
         $booking = Booking::create([
             'customer_id' => $request->user()->id,
+            'provider_id' => $validated['provider_id'] ?? null,
             'service_id' => $service->id,
             'booking_date' => $validated['booking_date'],
             'address' => $validated['address'],
@@ -69,7 +87,7 @@ class BookingController extends Controller
             'status' => 'pending',
         ]);
 
-        return response()->json($booking->load('service:id,name'), 201);
+        return response()->json($booking->load(['service:id,name', 'provider:id,name']), 201);
     }
 
     /**

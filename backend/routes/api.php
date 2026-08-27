@@ -40,6 +40,19 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/track/{tracking}', [TrackingController::class, 'show']);
 
+// Public storefront — browse products without login (item 1, homepage)
+Route::get('/products', [MarketplaceController::class, 'index']);
+Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
+Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
+Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+
+// Public provider directory — browse workers without login (item 7)
+Route::get('/providers', [ProviderController::class, 'index']);
+Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
+Route::get('/providers/{id}/reviews', [ProviderController::class, 'reviews'])->whereNumber('id');
+Route::get('/services', [BookingController::class, 'services']);
+
 // ---- Authenticated (any role) ----
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -77,19 +90,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/upload', [UploadController::class, 'store']);
 
     // Providers (item 7)
-    Route::get('/providers', [ProviderController::class, 'index']);
-    Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
-    Route::get('/providers/{id}/reviews', [ProviderController::class, 'reviews'])->whereNumber('id');
     Route::post('/providers/{id}/review', [ProviderController::class, 'review'])->whereNumber('id');
     Route::get('/provider/profile', [ProviderController::class, 'myProfile']);
     Route::put('/provider/profile', [ProviderController::class, 'updateProfile']);
 
     // Marketplace storefront + cart + checkout (PRD v4 §3.7)
-    Route::get('/products', [MarketplaceController::class, 'index']);
-    Route::get('/products/categories', [MarketplaceController::class, 'categories']);
-    Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
-    Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
-    Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
     Route::post('/products/{id}/review', [ProductReviewController::class, 'store'])->whereNumber('id');
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/sync', [CartController::class, 'sync']);

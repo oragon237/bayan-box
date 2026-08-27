@@ -64,6 +64,11 @@ export default function Marketplace({ user }) {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setCart([]);
+      setCartLoaded(true);
+      return;
+    }
     client
       .get('/cart')
       .then((res) => {
@@ -76,13 +81,15 @@ export default function Marketplace({ user }) {
       })
       .catch(() => {})
       .finally(() => setCartLoaded(true));
-  }, []);
+  }, [user]);
 
   // Auto-sync the cart to the server whenever it changes, so items persist
   // when the user navigates away and back. Debounced to avoid hammering the
   // API on every add/quantity change, and gated on the initial server load.
+  // Guests have no server cart, so skip syncing when unauthenticated.
   const syncTimer = useRef(null);
   useEffect(() => {
+    if (!user) return;
     if (!cartLoaded) return;
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
@@ -93,9 +100,14 @@ export default function Marketplace({ user }) {
         .catch(() => {});
     }, 800);
     return () => clearTimeout(syncTimer.current);
-  }, [cart, cartLoaded]);
+  }, [cart, cartLoaded, user]);
 
   const addToCart = (product) => {
+    if (!user) {
+      notify('Please log in to add items to your cart.', 'info');
+      navigate('/login');
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
       if (existing) {
@@ -167,8 +179,18 @@ export default function Marketplace({ user }) {
     <div className="space-y-5">
       {/* Header */}
       <div className="rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift">
-        <h2 className="text-2xl font-black tracking-tight">Local Marketplace</h2>
-        <p className="text-white/75 text-sm mt-1">Support neighborhood merchants with direct same-day delivery.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight">Local Marketplace</h2>
+            <p className="text-white/75 text-sm mt-1">Support neighborhood merchants with direct same-day delivery.</p>
+          </div>
+          <button
+            onClick={() => navigate('/providers')}
+            className="shrink-0 px-3 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl border border-white/20 transition"
+          >
+            🧑‍🔧 Skilled Workers
+          </button>
+        </div>
       </div>
 
       {/* Success panel */}
@@ -304,10 +326,20 @@ export default function Marketplace({ user }) {
         <div className="card p-4 self-start md:sticky md:top-20">
           <h2 className="font-extrabold text-ink-800 border-b pb-2 mb-4 flex items-center justify-between">
             <span>🛒 My Cart</span>
-            <span className="bg-bayan-100 text-bayan-700 text-xs px-2 py-0.5 rounded-full">{cartCount} items</span>
+            {user && <span className="bg-bayan-100 text-bayan-700 text-xs px-2 py-0.5 rounded-full">{cartCount} items</span>}
           </h2>
 
-          {!cartLoaded ? (
+          {!user ? (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-ink-400 text-sm">Log in to add items to your cart and checkout.</p>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-5 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl transition"
+              >
+                Login / Signup
+              </button>
+            </div>
+          ) : !cartLoaded ? (
             <Spinner className="mx-auto" />
           ) : cart.length === 0 ? (
             <p className="text-ink-400 text-sm text-center py-6">Your cart is empty. Start supporting local sellers!</p>

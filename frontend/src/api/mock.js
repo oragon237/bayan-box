@@ -296,6 +296,43 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse({ date: new Date().toISOString().slice(0, 10), order_count: 8, gross_sales: 965.0, delivery_fees: 252.0, total_revenue: 1217.0 }));
   }
 
+  // Providers list (item 7)
+  if (path === '/providers' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      providers: [
+        { id: 6, name: 'Mang Cardo Pro', municipality: 'Naga City', is_verified: true, is_official: true, picture_url: null, skills: ['General Handyman', 'Aircon Cleaning'], average_rating: 5, review_count: 1 },
+        { id: 7, name: 'Ate Belen Aircon', municipality: 'Naga City', is_verified: true, is_official: false, picture_url: null, skills: ['Aircon Cleaning'], average_rating: 0, review_count: 0 },
+        { id: 8, name: 'Kuya Dom Plumber', municipality: 'Naga City', is_verified: true, is_official: false, picture_url: null, skills: ['Plumbing'], average_rating: 0, review_count: 0 },
+      ],
+    }));
+  }
+
+  // Public services + bookings (hire flow)
+  if (path === '/services' && lower === 'get') {
+    return Promise.resolve(mockResponse([
+      { id: 1, name: 'Aircon Cleaning', base_pakyaw_rate: '900.00', global_commission_percentage: '15.00' },
+      { id: 2, name: 'Plumbing', base_pakyaw_rate: '500.00', global_commission_percentage: '15.00' },
+      { id: 3, name: 'Electrical Repair', base_pakyaw_rate: '450.00', global_commission_percentage: '15.00' },
+      { id: 4, name: 'General Handyman', base_pakyaw_rate: '350.00', global_commission_percentage: '10.00' },
+    ]));
+  }
+  if (path === '/bookings' && lower === 'post') {
+    return Promise.resolve(mockResponse({ id: Math.floor(Math.random() * 900) + 100, service: { name: 'General Handyman' }, provider: { name: 'Mang Cardo Pro' }, status: 'pending' }, 201));
+  }
+  if (path === '/bookings' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      data: [
+        { id: 2, service: { id: 1, name: 'Aircon Cleaning' }, provider: { id: 6, name: 'Mang Cardo Pro' }, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, status: 'pending', address: 'Block 12, San Jose, Naga City', quoted_amount: '900.00', provider_payout: '765.00', booking_date: new Date(Date.now() + 864e5).toISOString() },
+        { id: 1, service: { id: 4, name: 'General Handyman' }, provider: { id: 6, name: 'Mang Cardo Pro' }, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, status: 'completed', address: 'San Jose, Naga City', quoted_amount: '350.00', provider_payout: '315.00', booking_date: new Date(Date.now() - 864e5).toISOString() },
+      ],
+      total: 2,
+    }));
+  }
+  if (/^\/bookings\/\d+\/(accept|complete)$/.test(path) && lower === 'post') {
+    const action = path.split('/').pop();
+    return Promise.resolve(mockResponse(action === 'complete' ? { booking: { status: 'completed' }, payout: '765.00' } : { status: 'accepted' }));
+  }
+
   // Provider profile (item 7)
   if (path === '/provider/profile' && lower === 'get') {
     return Promise.resolve(mockResponse({
@@ -308,6 +345,11 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse({ data: [{ id: 1, customer: { id: 5, name: 'Juan Dela Cruz' }, rating: 5, review: 'Excellent work!', created_at: new Date().toISOString() }], total: 1 }));
   }
   if (/^\/providers\/\d+\/review$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ id: 1, rating: data?.rating, review: data?.review || null }, 201));
+
+  // Image upload (Phase A)
+  if (path === '/upload' && lower === 'post') {
+    return Promise.resolve(mockResponse({ image_url: 'https://placehold.co/600x400/673de6/ffffff?text=Uploaded' }));
+  }
 
   // Merchant profile (item 8)
   if (path === '/merchant/profile' && lower === 'get') {

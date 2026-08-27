@@ -60,6 +60,11 @@ export default function ProductDetail({ user }) {
   }, [id]);
 
   const addToCart = async () => {
+    if (!user) {
+      notify('Please log in to add items to your cart.', 'info');
+      navigate('/login');
+      return;
+    }
     if (quantity < 1 || quantity > product.stock) {
       notify(`Please select 1–${product.stock} items.`, 'error');
       return;

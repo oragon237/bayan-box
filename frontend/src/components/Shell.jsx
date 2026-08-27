@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import client from '../api/client.js';
 import {
   HomeIcon, MapPinIcon, StarIcon, WalletIcon, ScanIcon,
@@ -19,9 +19,10 @@ const ROLE_LABEL = {
 const BUYER_ROLES = ['customer', 'merchant', 'admin'];
 
 function tabsFor(role) {
-  const base = [{ to: '/', label: 'Home', icon: HomeIcon }];
-  const cart = { to: '/market', label: 'Cart', icon: CartIcon, cart: true };
+  const base = [{ to: '/', label: 'Shop', icon: HomeIcon }];
+  const cart = { to: '/', label: 'Cart', icon: CartIcon, cart: true };
   const map = {
+    guest: [base[0]],
     admin: [
       ...base,
       { to: '/admin/merchants', label: 'Verify', icon: ScanIcon },
@@ -53,12 +54,14 @@ function tabsFor(role) {
     customer: [
       ...base,
       cart,
+      { to: '/bookings', label: 'Bookings', icon: StarIcon },
       { to: '/track', label: 'Track', icon: MapPinIcon },
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
     provider: [
       ...base,
       { to: '/provider/profile', label: 'Profile', icon: StarIcon },
+      { to: '/provider/jobs', label: 'Jobs', icon: PackageIcon },
       { to: '/track', label: 'Track', icon: MapPinIcon },
       { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
     ],
@@ -68,7 +71,8 @@ function tabsFor(role) {
 
 export default function Shell({ user, online, queueCount, demo, onRoleChange, children, onLogout }) {
   const notify = useToast();
-  const tabs = tabsFor(user?.role || 'customer');
+  const navigate = useNavigate();
+  const tabs = tabsFor(user?.role || 'guest');
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -99,13 +103,11 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-1.5 flex items-center justify-center">
-                <img
-                  src="/beboolbox-logo.png"
-                  alt="BayanBox"
-                  className="h-8 w-auto object-contain"
-                />
-              </div>
+              <img
+                src="/beboolbox-logo.png"
+                alt="BayanBox"
+                className="h-8 w-auto object-contain"
+              />
               <div>
                 <p className="text-[11px] text-white/70 mt-0.5 leading-none">
                   {user ? `${ROLE_LABEL[user.role] || user.role}` : 'Provincial Last-Mile OS'}
@@ -114,27 +116,38 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
             </div>
 
             <div className="flex items-center gap-2">
-              {demo && (
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1.5 rounded-full bg-amber-400 text-amber-950">
-                  Demo
-                </span>
+              {user ? (
+                <>
+                  {demo && (
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1.5 rounded-full bg-amber-400 text-amber-950">
+                      Demo
+                    </span>
+                  )}
+                  <span
+                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${
+                      online ? 'bg-white/15' : 'bg-amber-500/90 text-amber-950'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400 animate-pulse-soft' : 'bg-amber-900'}`} />
+                    {online ? 'Online' : 'Offline'}
+                    {queueCount > 0 && <span className="px-1 bg-white text-bayan-700 rounded-full text-[9px]">{queueCount}</span>}
+                  </span>
+                  <button
+                    onClick={logout}
+                    title="Sign out"
+                    className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+                  >
+                    <LogoutIcon className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-4 py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-2xl transition"
+                >
+                  Login / Signup
+                </button>
               )}
-              <span
-                className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${
-                  online ? 'bg-white/15' : 'bg-amber-500/90 text-amber-950'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400 animate-pulse-soft' : 'bg-amber-900'}`} />
-                {online ? 'Online' : 'Offline'}
-                {queueCount > 0 && <span className="px-1 bg-white text-bayan-700 rounded-full text-[9px]">{queueCount}</span>}
-              </span>
-              <button
-                onClick={logout}
-                title="Sign out"
-                className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
-              >
-                <LogoutIcon className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
