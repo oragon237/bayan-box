@@ -267,7 +267,17 @@ export default function Marketplace({ user }) {
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between items-baseline mb-2">
-                      <span className="text-lg font-black text-ink-900">₱{Number(p.price).toLocaleString()}</span>
+                      <div>
+                        {p.sale_price ? (
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] text-ink-400 line-through">₱{Number(p.price).toLocaleString()}</span>
+                            <span className="text-lg font-black text-ink-900">₱{Number(p.sale_price).toLocaleString()}</span>
+                            <span className="text-[9px] font-black text-white bg-red-500 px-1 py-0.5 rounded-full">SALE</span>
+                          </div>
+                        ) : (
+                          <span className="text-lg font-black text-ink-900">₱{Number(p.price).toLocaleString()}</span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-ink-400">Stock: {p.stock}</span>
                     </div>
                     {Number(p.suki_points_award) > 0 && (

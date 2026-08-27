@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminMallController;
+use App\Http\Controllers\Api\AdminRiderController;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
@@ -13,10 +14,14 @@ use App\Http\Controllers\Api\HubController;
 use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
+use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\ProductReviewController;
+use App\Http\Controllers\Api\ProviderController;
 use App\Http\Controllers\Api\RiderController;
+use App\Http\Controllers\Api\RiderDeliveryController;
+use App\Http\Controllers\Api\StaffDeliveryController;
 use App\Http\Controllers\Api\StaffMallController;
 use App\Http\Controllers\Api\TrackingController;
 use App\Http\Controllers\Api\UploadController;
@@ -71,10 +76,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Image upload (Phase A)
     Route::post('/upload', [UploadController::class, 'store']);
 
+    // Providers (item 7)
+    Route::get('/providers', [ProviderController::class, 'index']);
+    Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
+    Route::get('/providers/{id}/reviews', [ProviderController::class, 'reviews'])->whereNumber('id');
+    Route::post('/providers/{id}/review', [ProviderController::class, 'review'])->whereNumber('id');
+    Route::get('/provider/profile', [ProviderController::class, 'myProfile']);
+    Route::put('/provider/profile', [ProviderController::class, 'updateProfile']);
+
     // Marketplace storefront + cart + checkout (PRD v4 §3.7)
     Route::get('/products', [MarketplaceController::class, 'index']);
     Route::get('/products/categories', [MarketplaceController::class, 'categories']);
     Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
+    Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
     Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
     Route::post('/products/{id}/review', [ProductReviewController::class, 'store'])->whereNumber('id');
     Route::get('/cart', [CartController::class, 'index']);
@@ -89,6 +103,12 @@ Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant/pro
     Route::post('/', [MerchantProductController::class, 'store']);
     Route::put('/{id}', [MerchantProductController::class, 'update']);
     Route::delete('/{id}', [MerchantProductController::class, 'destroy']);
+});
+
+// ---- Merchant profile & verification documents (item 8) ----
+Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant')->group(function () {
+    Route::get('/profile', [MerchantProfileController::class, 'show']);
+    Route::put('/profile', [MerchantProfileController::class, 'update']);
 });
 
 // ---- Staff (Hub PWA) ----
@@ -109,12 +129,25 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff/mall')->g
     Route::get('/inventory', [StaffMallController::class, 'inventory']);
 });
 
+// ---- Staff: delivery dispatch + today's sales (item 4) ----
+Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(function () {
+    Route::get('/deliveries/unassigned', [StaffDeliveryController::class, 'unassigned']);
+    Route::post('/deliveries/{id}/assign', [StaffDeliveryController::class, 'assign']);
+    Route::get('/sales/today', [StaffDeliveryController::class, 'todaySales']);
+});
+
 // ---- Rider (Rider PWA) ----
 Route::middleware(['auth:sanctum', 'role:rider,admin'])->prefix('rider')->group(function () {
     Route::post('/telemetry', [RiderController::class, 'telemetry']);
     Route::get('/batches', [RiderController::class, 'batches']);
     Route::post('/batches/{batchCode}/parcels/{parcelId}/deliver', [RiderController::class, 'markDelivered']);
     Route::get('/wallet', [RiderController::class, 'wallet']);
+
+    // Doorstep delivery assignments (item 3)
+    Route::get('/deliveries', [RiderDeliveryController::class, 'index']);
+    Route::post('/deliveries/{id}/refuse', [RiderDeliveryController::class, 'refuse']);
+    Route::post('/deliveries/{id}/out-for-delivery', [RiderDeliveryController::class, 'outForDelivery']);
+    Route::post('/deliveries/{id}/deliver', [RiderDeliveryController::class, 'deliver']);
 });
 
 // ---- Merchant ----
@@ -158,6 +191,20 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/mall/products', [AdminMallController::class, 'store']);
     Route::put('/mall/products/{id}', [AdminMallController::class, 'update']);
     Route::delete('/mall/products/{id}', [AdminMallController::class, 'destroy']);
+
+    // Item 5: Rider management
+    Route::get('/riders', [AdminRiderController::class, 'index']);
+    Route::get('/riders/{id}', [AdminRiderController::class, 'show']);
+    Route::put('/riders/{id}', [AdminRiderController::class, 'update']);
+    Route::delete('/riders/{id}', [AdminRiderController::class, 'destroy']);
+
+    // Item 5: Merchant management
+    Route::get('/merchants', [AdminMerchantController::class, 'index']);
+    Route::get('/merchants/{id}', [AdminMerchantController::class, 'show']);
+    Route::put('/merchants/{id}', [AdminMerchantController::class, 'update']);
+    Route::delete('/merchants/{id}', [AdminMerchantController::class, 'destroy']);
+    Route::post('/merchants/{id}/activate', [AdminMerchantController::class, 'activate']);
+    Route::post('/merchants/{id}/deactivate', [AdminMerchantController::class, 'deactivate']);
 
     // Any role's referral poster
     Route::get('/affiliate/referral-qr/poster', [AffiliateController::class, 'poster']);

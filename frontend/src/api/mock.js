@@ -228,6 +228,11 @@ export function mockRequest(url, method, data, params = {}) {
   if (/^\/products\/\d+\/review$/.test(path) && lower === 'post') {
     return Promise.resolve(mockResponse({ id: 99, rating: data?.rating, review: data?.review || null }, 201));
   }
+  if (/^\/products\/\d+\/related$/.test(path) && lower === 'get') {
+    const pid = Number(path.match(/products\/(\d+)/)[1]);
+    const others = PRODUCTS.filter((p) => p.id !== pid && p.status === 'active');
+    return Promise.resolve(mockResponse({ related: others.slice(0, 4) }));
+  }
   if (path === '/products/categories' && lower === 'get') {
     return Promise.resolve(mockResponse([...new Set(PRODUCTS.filter((p) => p.status === 'active').map((p) => p.category))]));
   }
@@ -261,6 +266,57 @@ export function mockRequest(url, method, data, params = {}) {
       },
     }));
   }
+
+  // Rider doorstep deliveries (item 3)
+  if (path === '/rider/deliveries' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      deliveries: [
+        { id: 201, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, total_amount: '160.00', shipping_amount: '10.00', delivery_address: 'San Jose, Naga City', payment_method: 'cod', status: 'assigned', items: [{ id: 1, product: { id: 10, name: 'Bulk Thermal Paper' }, quantity: 1 }] },
+        { id: 202, customer: { id: 8, name: 'Maria Santos', phone: '09173334444' }, total_amount: '95.00', shipping_amount: '12.00', delivery_address: 'Sta. Cruz, Naga City', payment_method: 'gcash', status: 'assigned', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 1 }] },
+      ],
+    }));
+  }
+  if (/^\/rider\/deliveries\/\d+\/(refuse|out-for-delivery|deliver)$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Action completed.' }));
+  }
+
+  // Staff dispatch (item 4)
+  if (path === '/staff/deliveries/unassigned' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      data: [
+        { id: 203, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, total_amount: '80.00', payment_method: 'cod', delivery_address: 'San Jose, Naga City' },
+      ],
+      total: 1,
+    }));
+  }
+  if (/^\/staff\/deliveries\/\d+\/assign$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Assigned to Rico the Rider.', rider: { id: 3, name: 'Rico the Rider' } }));
+  }
+  if (path === '/staff/sales/today' && lower === 'get') {
+    return Promise.resolve(mockResponse({ date: new Date().toISOString().slice(0, 10), order_count: 8, gross_sales: 965.0, delivery_fees: 252.0, total_revenue: 1217.0 }));
+  }
+
+  // Provider profile (item 7)
+  if (path === '/provider/profile' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      provider: { id: 6, name: 'Mang Cardo Pro', phone: '09170000006', municipality: 'Naga City', is_verified: true, is_official: true, picture_url: null, skills: ['General Handyman', 'Aircon Cleaning'], average_rating: 5, review_count: 1 },
+      profile: { id: 1, user_id: 6, is_verified: true, is_official: true, skills: ['General Handyman', 'Aircon Cleaning'], picture_url: null, custom_rate_enabled: true },
+    }));
+  }
+  if (path === '/provider/profile' && lower === 'put') return Promise.resolve(mockResponse({ profile: { ...data, id: 1, user_id: 6 } }));
+  if (/^\/providers\/\d+\/reviews$/.test(path) && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: [{ id: 1, customer: { id: 5, name: 'Juan Dela Cruz' }, rating: 5, review: 'Excellent work!', created_at: new Date().toISOString() }], total: 1 }));
+  }
+  if (/^\/providers\/\d+\/review$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ id: 1, rating: data?.rating, review: data?.review || null }, 201));
+
+  // Merchant profile (item 8)
+  if (path === '/merchant/profile' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      merchant: { id: 4, name: 'Aling Maria Merch', phone: '09170000004', email: 'merchant@bayanbox.ph', barangay: 'San Jose', municipality: 'Naga City', status: 'active' },
+      documents: { dti_sec_number: 'DTI-2026-12345', government_id_url: null, business_permit_url: null, picture_url: null, verification_message: 'I am a registered local seller.', submitted_at: new Date().toISOString() },
+    }));
+  }
+  if (path === '/merchant/profile' && lower === 'put') return Promise.resolve(mockResponse({ message: 'Profile updated.', merchant: {}, documents: {} }));
 
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {
@@ -299,6 +355,24 @@ export function mockRequest(url, method, data, params = {}) {
       message: action === 'approve' ? 'Merchant approved.' : 'Merchant rejected.',
       merchant: { id, name: 'Rosie Bakes', status: action === 'approve' ? 'active' : 'rejected', verified_at: action === 'approve' ? new Date().toISOString() : null },
     }));
+  }
+
+  // Item 5: Admin rider + merchant management
+  const ADMIN_RIDERS = [
+    { id: 3, name: 'Rico the Rider', phone: '09170000003', email: 'rider@bayanbox.ph', municipality: 'Naga City', status: 'active', active_deliveries: 2 },
+    { id: 18, name: 'Berto the Rider', phone: '09175550000', email: 'rider18@bayanbox.ph', municipality: 'Naga City', status: 'active', active_deliveries: 2 },
+  ];
+  const ADMIN_MERCHANTS = [
+    { id: 4, name: 'Aling Maria Merch', phone: '09170000004', municipality: 'Naga City', status: 'active' },
+    { id: 14, name: 'New Seller', phone: '09179999999', municipality: 'Naga City', status: 'active' },
+    { id: 101, name: 'Rosie Bakes', phone: '09171234567', municipality: 'Naga City', status: 'pending_verification' },
+  ];
+  if (path === '/admin/riders' && lower === 'get') return Promise.resolve(mockResponse({ data: ADMIN_RIDERS, total: ADMIN_RIDERS.length }));
+  if (/^\/admin\/riders\/\d+$/.test(path) && lower === 'put') return Promise.resolve(mockResponse({ ...data, id: Number(path.match(/riders\/(\d+)/)[1]) }));
+  if (/^\/admin\/riders\/\d+$/.test(path) && lower === 'delete') return Promise.resolve(mockResponse({ message: 'Rider deactivated.' }));
+  if (path === '/admin/merchants' && lower === 'get') return Promise.resolve(mockResponse({ data: ADMIN_MERCHANTS, total: ADMIN_MERCHANTS.length }));
+  if (/^\/admin\/merchants\/\d+\/(activate|deactivate)$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: path.endsWith('activate') ? 'Merchant activated.' : 'Merchant deactivated.' }));
   }
 
   // Module 2: BeCoolBox Mall

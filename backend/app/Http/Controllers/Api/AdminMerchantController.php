@@ -9,6 +9,7 @@ use App\Services\SmsService;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Admin merchant verification workflow (Module 1).
@@ -23,6 +24,102 @@ class AdminMerchantController extends Controller
         protected WalletService $wallets,
         protected SmsService $sms,
     ) {}
+
+    /**
+     * GET /api/admin/merchants — list all merchants (item 5).
+     */
+    public function index(Request $request): JsonResponse
+    {
+        return response()->json(
+            User::where('role', 'merchant')
+                ->select(['id', 'name', 'phone', 'email', 'barangay', 'municipality', 'status', 'verification_notes', 'verified_at', 'created_at'])
+                ->orderByDesc('created_at')
+                ->paginate($request->integer('per_page', 30))
+        );
+    }
+
+    /**
+     * GET /api/admin/merchants/{id} — view a single merchant with documents.
+     */
+    public function show(int $id): JsonResponse
+    {
+        $merchant = User::where('role', 'merchant')
+            ->withCount('products')
+            ->findOrFail($id);
+
+        $docs = [];
+        if ($merchant->verification_notes) {
+            $docs = json_decode($merchant->verification_notes, true) ?: [];
+        }
+
+        return response()->json([
+            'merchant' => $merchant->only(['id', 'name', 'phone', 'email', 'barangay', 'municipality', 'status', 'verification_notes', 'verified_at', 'created_at']),
+            'documents' => [
+                'dti_sec_number' => $docs['dti_sec_number'] ?? null,
+                'government_id_url' => $docs['government_id_url'] ?? null,
+                'business_permit_url' => $docs['business_permit_url'] ?? null,
+                'picture_url' => $docs['picture_url'] ?? null,
+                'verification_message' => $docs['verification_message'] ?? null,
+                'submitted_at' => $docs['submitted_at'] ?? null,
+            ],
+            'product_count' => $merchant->products_count,
+        ]);
+    }
+
+    /**
+     * PUT /api/admin/merchants/{id} — update merchant profile/details.
+     */
+    public function update(int $id, Request $request): JsonResponse
+    {
+        $merchant = User::where('role', 'merchant')->findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:100',
+            'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($merchant->id)],
+            'municipality' => 'sometimes|nullable|string|max:100',
+            'status' => 'sometimes|in:active,inactive,deactivated,pending_verification,rejected',
+        ]);
+
+        $merchant->update($validated);
+
+        return response()->json($merchant->only(['id', 'name', 'phone', 'email', 'municipality', 'status']));
+    }
+
+    /**
+     * DELETE /api/admin/merchants/{id} — deactivate a merchant.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $merchant = User::where('role', 'merchant')->findOrFail($id);
+        $merchant->update(['status' => 'deactivated']);
+
+        return response()->json(['message' => 'Merchant deactivated.']);
+    }
+
+    /**
+     * POST /api/admin/merchants/{id}/activate — reactivate a merchant.
+     */
+    public function activate(int $id): JsonResponse
+    {
+        $merchant = User::where('role', 'merchant')->findOrFail($id);
+        $merchant->update([
+            'status' => User::STATUS_ACTIVE,
+            'verified_at' => $merchant->verified_at ?? now(),
+        ]);
+
+        return response()->json(['message' => 'Merchant activated.', 'merchant' => $merchant->only(['id', 'name', 'status'])]);
+    }
+
+    /**
+     * POST /api/admin/merchants/{id}/deactivate — pause a merchant.
+     */
+    public function deactivate(int $id): JsonResponse
+    {
+        $merchant = User::where('role', 'merchant')->findOrFail($id);
+        $merchant->update(['status' => 'deactivated']);
+
+        return response()->json(['message' => 'Merchant deactivated.', 'merchant' => $merchant->only(['id', 'name', 'status'])]);
+    }
 
     /**
      * GET /api/admin/merchants/pending — verification queue (Admin only).

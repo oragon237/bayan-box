@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductReview;
+use App\Services\RelatedProductsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -56,12 +57,27 @@ class MarketplaceController extends Controller
             'images:id,product_id,image_url',
         ])->findOrFail($id);
 
+        // Item 1: record the view for behavioral related products
+        app(RelatedProductsService::class)->recordView($request->user()?->id, $id);
+
         $average = round((float) $product->reviews->avg('rating'), 2);
         $product->setAttribute('average_rating', $average);
         $product->setAttribute('review_count', $product->reviews->count());
         $product->setAttribute('can_review', $this->canReview($request->user(), $id));
 
         return response()->json(['data' => $product]);
+    }
+
+    /**
+     * GET /api/products/{id}/related — behavioral related products (item 1).
+     */
+    public function related(int $id, Request $request): JsonResponse
+    {
+        $product = Product::findOrFail($id);
+
+        $related = app(RelatedProductsService::class)->for($product, $request->user()?->id);
+
+        return response()->json(['related' => $related]);
     }
 
     /**

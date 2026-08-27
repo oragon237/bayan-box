@@ -18,9 +18,15 @@ import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import Marketplace from './pages/marketplace/Marketplace.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
+import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
 import AdminMerchants from './pages/admin/AdminMerchants.jsx';
+import AdminMerchantList from './pages/admin/AdminMerchantList.jsx';
 import AdminMall from './pages/admin/AdminMall.jsx';
+import AdminRiders from './pages/admin/AdminRiders.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
+import StaffDispatch from './pages/staff/StaffDispatch.jsx';
+import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
+import ProviderProfile from './pages/provider/ProviderProfile.jsx';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -135,9 +141,15 @@ export default function App() {
           <Route path="/market" element={<Marketplace user={user} />} />
           <Route path="/product/:id" element={<ProductDetail user={user} />} />
           <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
+          <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
           <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
+          <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />
           <Route path="/admin/mall" element={<AdminMall user={user} />} />
+          <Route path="/admin/riders" element={<AdminRiders user={user} />} />
           <Route path="/staff/mall" element={<StaffMall user={user} />} />
+          <Route path="/staff/dispatch" element={<StaffDispatch user={user} />} />
+          <Route path="/rider/deliveries" element={<RiderDeliveries user={user} />} />
+          <Route path="/provider/profile" element={<ProviderProfile user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>

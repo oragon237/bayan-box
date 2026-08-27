@@ -49,11 +49,13 @@ export default function Home({ user }) {
     staff: [
       { to: '/hub', label: 'Scan Parcels', desc: 'Inbound intake with camera', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', desc: 'Reconcile & OTP release', icon: PackageIcon },
+      { to: '/staff/dispatch', label: 'Dispatch', desc: 'Assign deliveries + sales', icon: RouteIcon },
       { to: '/staff/mall', label: 'BeCoolBox Mall', desc: 'View official stock', icon: TagIcon },
       { to: '/referral', label: 'Referral Poster', desc: 'Print your QR poster', icon: ShareIcon },
     ],
     rider: [
       { to: '/rider', label: 'My Route', desc: 'Batch deliveries today', icon: RouteIcon },
+      { to: '/rider/deliveries', label: 'Deliveries', desc: 'Assigned doorstep orders', icon: PackageIcon },
       { to: '/rider/wallet', label: 'Wallet', desc: 'COD & earnings', icon: MapPinIcon },
     ],
     customer: [
@@ -64,6 +66,7 @@ export default function Home({ user }) {
     ],
     merchant: [
       { to: '/merchant/products', label: 'My Products', desc: 'Upload & manage goods', icon: PackageIcon },
+      { to: '/merchant/profile', label: 'My Profile', desc: 'Documents & address', icon: StarIcon },
       { to: '/market', label: 'Shop', desc: 'Browse the marketplace', icon: TagIcon },
       { to: '/suki', label: 'Suki Points', desc: 'Earn & redeem supplies', icon: StarIcon },
     ],
@@ -73,9 +76,10 @@ export default function Home({ user }) {
     ],
     admin: [
       { to: '/admin/merchants', label: 'Verify Merchants', desc: 'Approve & reject queue', icon: ScanIcon },
+      { to: '/admin/merchant-list', label: 'All Merchants', desc: 'Manage & activate', icon: PackageIcon },
+      { to: '/admin/riders', label: 'Riders', desc: 'Manage delivery riders', icon: RouteIcon },
       { to: '/admin/mall', label: 'BeCoolBox Mall', desc: 'Manage flagship store', icon: TagIcon },
-      { to: '/hub', label: 'Hub Tools', desc: 'Operate as hub agent', icon: PackageIcon },
-      { to: '/delivery-cost', label: 'Rate Test', desc: 'Check pricing engine', icon: MapPinIcon },
+      { to: '/staff/dispatch', label: 'Dispatch', desc: 'Assign deliveries + sales', icon: MapPinIcon },
     ],
   }[user?.role] || [];
 

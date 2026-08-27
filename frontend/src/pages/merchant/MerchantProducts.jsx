@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import client from '../../api/client.js';
+import ImageUploader from '../../components/ImageUploader.jsx';
 import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const EMPTY_FORM = {
@@ -7,10 +8,13 @@ const EMPTY_FORM = {
   description: '',
   category: 'General',
   price: '',
+  sale_price: '',
   stock: '',
   suki_points_award: 0,
   affiliate_percentage: 0,
   image_url: '',
+  gallery: [],
+  availability: 'available',
 };
 
 const CATEGORIES = ['General', 'Fresh Produce', 'Home Cooks', 'Local Crafts'];
@@ -49,12 +53,17 @@ export default function MerchantProducts({ user }) {
     e.preventDefault();
     setSaving(true);
     const payload = {
-      ...form,
+      name: form.name,
+      description: form.description,
+      category: form.category,
       price: Number(form.price),
+      sale_price: form.sale_price !== '' ? Number(form.sale_price) : null,
       stock: Number(form.stock),
       suki_points_award: Number(form.suki_points_award || 0),
       affiliate_percentage: Number(form.affiliate_percentage || 0),
       image_url: form.image_url || null,
+      gallery: (form.gallery || []).map((u) => ({ image_url: u })),
+      availability: form.availability || 'available',
     };
     try {
       if (editingId) {
@@ -81,10 +90,13 @@ export default function MerchantProducts({ user }) {
       description: p.description || '',
       category: p.category,
       price: p.price,
+      sale_price: p.sale_price || '',
       stock: p.stock,
       suki_points_award: p.suki_points_award,
       affiliate_percentage: p.affiliate_percentage,
       image_url: p.image_url || '',
+      gallery: (p.images || []).map((i) => i.image_url),
+      availability: p.availability || 'available',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -128,12 +140,34 @@ export default function MerchantProducts({ user }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-ink-500 mb-1">Image URL</label>
-            <input value={form.image_url} onChange={set('image_url')} placeholder="https://…" className="field" />
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Availability</label>
+            <select value={form.availability} onChange={set('availability')} className="field bg-white">
+              <option value="available">Available</option>
+              <option value="out_of_stock">Out of stock</option>
+              <option value="unavailable">Not available</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Main image</label>
+            <ImageUploader value={form.image_url} onChange={(url) => setForm({ ...form, image_url: url })} folder="products" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Gallery</label>
+            <ImageUploader
+              value={form.gallery}
+              onChange={(gallery) => setForm({ ...form, gallery })}
+              multiple
+              folder="products"
+              label="Add gallery images"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Price (₱) *</label>
             <input required type="number" min="0" step="0.01" value={form.price} onChange={set('price')} placeholder="0.00" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Sale price (₱) — ON SALE</label>
+            <input type="number" min="0" step="0.01" value={form.sale_price} onChange={set('sale_price')} placeholder="Optional discount" className="field" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Stock *</label>
@@ -188,9 +222,10 @@ export default function MerchantProducts({ user }) {
                     </span>
                   </div>
                   <p className="text-xs text-ink-400 truncate">
-                    ₱{Number(p.price).toLocaleString()} · {p.stock} in stock · {p.category}
+                    ₱{Number(p.price).toLocaleString()}{p.sale_price ? ` → ₱${Number(p.sale_price).toLocaleString()} ON SALE` : ''} · {p.stock} in stock · {p.category}
                     {Number(p.suki_points_award) > 0 && ` · 🪙 +${p.suki_points_award}`}
                     {Number(p.affiliate_percentage) > 0 && ` · 🔗 ${p.affiliate_percentage}%`}
+                    · {p.availability === 'available' ? '✅ Available' : p.availability === 'out_of_stock' ? '📦 Out of stock' : '🚫 Unavailable'}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">

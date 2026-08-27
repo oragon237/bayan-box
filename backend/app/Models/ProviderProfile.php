@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProviderProfile extends Model
 {
     protected $fillable = [
-        'user_id', 'is_verified', 'verified_badge_assigned_at',
-        'skills', 'custom_rate_enabled', 'custom_commission_override',
+        'user_id', 'is_verified', 'is_official', 'verified_badge_assigned_at',
+        'skills', 'picture_url', 'custom_rate_enabled', 'custom_commission_override',
         'verification_expiry',
     ];
 
@@ -17,6 +17,7 @@ class ProviderProfile extends Model
     {
         return [
             'is_verified' => 'boolean',
+            'is_official' => 'boolean',
             'custom_rate_enabled' => 'boolean',
             'skills' => 'array',
             'verified_badge_assigned_at' => 'datetime',

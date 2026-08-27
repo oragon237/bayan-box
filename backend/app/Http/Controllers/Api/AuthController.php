@@ -35,6 +35,9 @@ class AuthController extends Controller
             // Module 1: merchant verification documents
             'dti_sec_number' => 'required_if:role,merchant|nullable|string|max:50',
             'government_id_url' => 'nullable|string|max:255',
+            'business_permit_url' => 'nullable|string|max:255',
+            'picture_url' => 'nullable|string|max:255',
+            'verification_message' => 'nullable|string|max:500',
         ]);
 
         $role = $validated['role'] ?? 'customer';
@@ -45,6 +48,9 @@ class AuthController extends Controller
             $verificationNotes = json_encode([
                 'dti_sec_number' => $validated['dti_sec_number'] ?? null,
                 'government_id_url' => $validated['government_id_url'] ?? null,
+                'business_permit_url' => $validated['business_permit_url'] ?? null,
+                'picture_url' => $validated['picture_url'] ?? null,
+                'verification_message' => $validated['verification_message'] ?? null,
                 'submitted_at' => now()->toIso8601String(),
             ]);
         }
