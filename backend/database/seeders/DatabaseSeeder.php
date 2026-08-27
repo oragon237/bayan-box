@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\DeliveryRateSetting;
 use App\Models\Hub;
 use App\Models\PackagingItem;
+use App\Models\ProviderProfile;
 use App\Models\ServiceCategory;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -28,6 +29,10 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Aling Maria Merch', 'phone' => '09170000004', 'role' => 'merchant'],
             ['name' => 'Juan Dela Cruz', 'phone' => '09170000005', 'role' => 'customer'],
             ['name' => 'Mang Cardo Pro', 'phone' => '09170000006', 'role' => 'provider'],
+            ['name' => 'Ate Belen Aircon', 'phone' => '09170000007', 'role' => 'provider'],
+            ['name' => 'Kuya Dom Plumber', 'phone' => '09170000008', 'role' => 'provider'],
+            ['name' => 'Manong Ely Electrician', 'phone' => '09170000009', 'role' => 'provider'],
+            ['name' => 'Nanay Imelda Handyman', 'phone' => '09170000010', 'role' => 'provider'],
         ];
 
         $created = [];
@@ -35,12 +40,38 @@ class DatabaseSeeder extends Seeder
             $created[$u['role']] = User::firstOrCreate(
                 ['phone' => $u['phone']],
                 array_merge($u, [
-                    'email' => strtolower($u['role']).'@bayanbox.ph',
+                    'email' => strtolower($u['role']).$u['phone'].'@bayanbox.ph',
                     'password_hash' => $passwordHash,
                     'affiliate_code' => strtoupper(Str::random(8)),
                     'municipality' => 'Naga City',
                     'status' => 'active',
                 ]),
+            );
+        }
+
+        // -----------------------------------------------------------------
+        // 1b. Skilled worker profiles (PRD 4.1 #4)
+        // -----------------------------------------------------------------
+        $providerSkills = [
+            '09170000006' => ['General Handyman'],
+            '09170000007' => ['Aircon Cleaning'],
+            '09170000008' => ['Plumbing'],
+            '09170000009' => ['Electrical Repair'],
+            '09170000010' => ['General Handyman', 'Plumbing'],
+        ];
+
+        $providerUsers = User::where('role', 'provider')->get();
+        foreach ($providerUsers as $provider) {
+            $skills = $providerSkills[$provider->phone] ?? ['General Handyman'];
+            ProviderProfile::firstOrCreate(
+                ['user_id' => $provider->id],
+                [
+                    'is_verified' => true,
+                    'verified_badge_assigned_at' => now(),
+                    'skills' => $skills,
+                    'custom_rate_enabled' => false,
+                    'verification_expiry' => now()->addYear(),
+                ],
             );
         }
 

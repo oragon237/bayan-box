@@ -25,8 +25,8 @@ class CheckoutController extends Controller
             'fulfillment_type' => 'required|in:pickup,delivery',
             'hub_id' => 'required_if:fulfillment_type,pickup|nullable|exists:hubs,id',
             'delivery_address' => 'required_if:fulfillment_type,delivery|nullable|string',
-            'latitude' => 'required_if:fulfillment_type,delivery|nullable|numeric',
-            'longitude' => 'required_if:fulfillment_type,delivery|nullable|numeric',
+            'latitude' => ['required_if:fulfillment_type,delivery', 'nullable', 'numeric', 'between:-14,21'],
+            'longitude' => ['required_if:fulfillment_type,delivery', 'nullable', 'numeric', 'between:116,127'],
             'municipality' => 'nullable|string|max:100',
             'referral_code' => 'nullable|string|max:15',
         ]);

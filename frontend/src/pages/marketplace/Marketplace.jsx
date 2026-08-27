@@ -10,7 +10,14 @@ export default function Marketplace({ user }) {
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Debounce search so we don't fire GET /products on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // Cart state (local mirror + server)
   const [cart, setCart] = useState([]);
@@ -30,7 +37,7 @@ export default function Marketplace({ user }) {
     try {
       const params = { per_page: 50 };
       if (category) params.category = category;
-      if (search.trim()) params.q = search.trim();
+      if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
       const res = await client.get('/products', { params });
       setProducts(res.data.data);
     } catch {
@@ -42,7 +49,7 @@ export default function Marketplace({ user }) {
 
   useEffect(() => {
     loadProducts();
-  }, [category, search]);
+  }, [category, debouncedSearch]);
 
   useEffect(() => {
     client.get('/products/categories').then((res) => setCategories(res.data)).catch(() => {});

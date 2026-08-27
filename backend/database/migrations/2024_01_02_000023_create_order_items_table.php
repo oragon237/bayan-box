@@ -24,6 +24,9 @@ return new class extends Migration
             $table->integer('suki_points_awarded')->default(0);
             $table->decimal('affiliate_payout_amount', 10, 2)->default(0.00);
             $table->timestamps();
+
+            $table->index('order_id');
+            $table->index('product_id');
         });
     }
 

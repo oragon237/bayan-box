@@ -6,6 +6,7 @@ use App\Models\CartItem;
 use App\Models\Hub;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -36,15 +37,9 @@ class MarketplaceService
      */
     public function processCheckout(User $customer, array $payload): Order
     {
-        $items = CartItem::with('product')->where('customer_id', $customer->id)->get();
-
-        if ($items->isEmpty()) {
-            throw new RuntimeException('Cart is empty.');
-        }
-
         $fulfillment = $payload['fulfillment_type'] ?? Order::FULFILLMENT_PICKUP;
 
-        // Resolve shipping amount based on fulfillment mode
+        // Resolve shipping amount based on fulfillment mode (no DB locks needed)
         $shippingAmount = 0.00;
         $shippingDetail = null;
 
@@ -52,7 +47,7 @@ class MarketplaceService
             $shippingDetail = $this->resolveDoorstepShipping($payload);
             $shippingAmount = $shippingDetail['total_delivery_fee'];
         } elseif ($fulfillment === Order::FULFILLMENT_PICKUP) {
-            // FR-MKT-007: ₱10 click-and-collect handling fee (₱5 hub / ₱5 platform)
+            // FR-MKT-007: click-and-collect handling fee (halved hub / platform)
             $shippingAmount = (float) config('bayanbox.marketplace.pickup_handling_fee', 10.00);
         }
 
@@ -64,7 +59,17 @@ class MarketplaceService
                 ->first();
         }
 
-        return DB::transaction(function () use ($customer, $items, $payload, $fulfillment, $shippingAmount, $shippingDetail, $affiliate) {
+        return DB::transaction(function () use ($customer, $payload, $fulfillment, $shippingAmount, $shippingDetail, $affiliate) {
+            // Re-read the cart inside the transaction, locking product rows so
+            // the stock check + decrement are atomic across concurrent checkouts.
+            $items = CartItem::with(['product' => fn ($q) => $q->lockForUpdate()])
+                ->where('customer_id', $customer->id)
+                ->get();
+
+            if ($items->isEmpty()) {
+                throw new RuntimeException('Cart is empty.');
+            }
+
             $productTotal = 0.00;
 
             // 1. Validate stock & sum the product total
@@ -119,10 +124,18 @@ class MarketplaceService
                     'affiliate_payout_amount' => $affiliatePayout,
                 ]);
 
-                $product->decrement('stock', $cartItem->quantity);
+                // Atomic conditional decrement prevents overselling under
+                // concurrent checkouts (the product row is lockForUpdate'd).
+                $affected = Product::where('id', $product->id)
+                    ->where('stock', '>=', $cartItem->quantity)
+                    ->decrement('stock', $cartItem->quantity);
+                if ($affected === 0) {
+                    throw new RuntimeException("Insufficient stock for {$product->name}.");
+                }
 
-                // Merchant: 90% retail price, minus the affiliate cut
-                $merchantPayout = round($itemTotal * 0.90, 2) - $affiliatePayout;
+                // Merchant share (configurable percentage), minus affiliate cut
+                $merchantPct = (float) config('bayanbox.marketplace.merchant_share_percent', 90.00);
+                $merchantPayout = round($itemTotal * ($merchantPct / 100), 2) - $affiliatePayout;
                 if ($merchantPayout > 0) {
                     $merchantWallet = $this->wallets->ensureWallet($product->merchant_id, Wallet::TYPE_MERCHANT_EARNINGS);
                     $this->wallets->credit(
@@ -132,9 +145,10 @@ class MarketplaceService
                     );
                 }
 
-                // Platform: 10% commission rake
+                // Platform commission (configurable percentage)
+                $platformPct = (float) config('bayanbox.marketplace.platform_commission_percent', 10.00);
                 $this->wallets->credit(
-                    $platformWallet, round($itemTotal * 0.10, 2),
+                    $platformWallet, round($itemTotal * ($platformPct / 100), 2),
                     "Platform commission Order #{$order->id}",
                     'marketplace_commission', null, $order,
                 );
@@ -160,14 +174,20 @@ class MarketplaceService
 
             // 4. Fulfillment ledger splits
             if ($fulfillment === Order::FULFILLMENT_DELIVERY && $shippingDetail) {
-                $riderWallet = $this->resolveRiderWallet();
                 $riderShare = (float) $shippingDetail['rider_share'];
                 $platformShare = (float) $shippingDetail['platform_share'];
 
-                if ($riderWallet && $riderShare > 0) {
+                // The rider share falls back to the platform when no active
+                // rider wallet exists so the fee is never unaccounted.
+                $riderWallet = $this->resolveRiderWallet();
+                $riderWallet ??= $platformWallet;
+
+                if ($riderShare > 0) {
                     $this->wallets->credit(
                         $riderWallet, $riderShare,
-                        "Rider delivery share Order #{$order->id}",
+                        $riderWallet->id === $platformWallet->id
+                            ? "Unassigned rider delivery share Order #{$order->id}"
+                            : "Rider delivery share Order #{$order->id}",
                         'delivery_split', null, $order,
                     );
                 }
@@ -179,22 +199,26 @@ class MarketplaceService
                     );
                 }
             } elseif ($fulfillment === Order::FULFILLMENT_PICKUP) {
-                // ₱5 hub staff / ₱5 platform handling fee (FR-MKT-007)
+                // Handling fee halved: hub staff / platform (FR-MKT-007)
+                $handlingHalf = round($shippingAmount / 2, 2);
                 $hubId = $payload['hub_id'] ?? null;
-                $hubStaffWallet = $hubId
-                    ? optional(Hub::find($hubId)->staff)->id
-                    : null;
+                $hubStaffId = $hubId ? optional(Hub::find($hubId)->staff)->id : null;
 
-                if ($hubStaffWallet) {
-                    $staffWallet = $this->wallets->ensureWallet($hubStaffWallet, Wallet::TYPE_MERCHANT_EARNINGS);
-                    $this->wallets->credit(
-                        $staffWallet, 5.00,
-                        "Click-and-collect handling fee Order #{$order->id}",
-                        'pickup_handling_fee', null, $order,
-                    );
-                }
+                // When the hub has no bound staff, the hub share falls back to
+                // the platform so the collected fee is fully accounted.
+                $hubWallet = $hubStaffId
+                    ? $this->wallets->ensureWallet($hubStaffId, Wallet::TYPE_MERCHANT_EARNINGS)
+                    : $platformWallet;
+
                 $this->wallets->credit(
-                    $platformWallet, 5.00,
+                    $hubWallet, $handlingHalf,
+                    $hubWallet->id === $platformWallet->id
+                        ? "Unassigned hub handling fee Order #{$order->id}"
+                        : "Click-and-collect handling fee Order #{$order->id}",
+                    'pickup_handling_fee', null, $order,
+                );
+                $this->wallets->credit(
+                    $platformWallet, $handlingHalf,
                     "Click-and-collect handling fee Order #{$order->id}",
                     'pickup_handling_fee', null, $order,
                 );

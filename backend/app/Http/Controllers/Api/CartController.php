@@ -39,6 +39,13 @@ class CartController extends Controller
             'cart.*.quantity' => 'required|integer|min:1|max:100',
         ]);
 
+        // Authoritative sync: remove any cart rows absent from the payload so
+        // items the shopper removed in the UI are never charged at checkout.
+        $productIds = collect($validated['cart'])->pluck('product_id');
+        CartItem::where('customer_id', $request->user()->id)
+            ->whereNotIn('product_id', $productIds)
+            ->delete();
+
         foreach ($validated['cart'] as $row) {
             CartItem::updateOrCreate(
                 ['customer_id' => $request->user()->id, 'product_id' => $row['product_id']],

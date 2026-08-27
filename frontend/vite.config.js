@@ -15,7 +15,8 @@ export default defineConfig({
         theme_color: '#16a34a',
         background_color: '#ffffff',
         start_url: '/',
-        display: 'standalone',
+        display: 'fullscreen',
+        display_override: ['fullscreen', 'standalone'],
         orientation: 'portrait-primary',
         icons: [
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import client from '../../api/client.js';
-import { Spinner, EmptyState, useToast } from '../../components/ui.jsx';
+import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const EMPTY_FORM = {
   name: '',
@@ -22,12 +22,16 @@ export default function MerchantProducts({ user }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
 
-  const load = async () => {
+  const load = async (p = page) => {
     setLoading(true);
     try {
-      const res = await client.get('/merchant/products', { params: { per_page: 50 } });
+      const res = await client.get('/merchant/products', { params: { per_page: 20, page: p } });
       setProducts(res.data.data);
+      setPage(res.data.current_page || p);
+      setLastPage(res.data.last_page || 1);
     } catch {
       setProducts([]);
     } finally {
@@ -201,6 +205,28 @@ export default function MerchantProducts({ user }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {lastPage > 1 && (
+          <div className="flex items-center justify-center gap-3 pt-4">
+            <button
+              onClick={() => load(page - 1)}
+              disabled={page <= 1}
+              className="px-3 py-1.5 bg-ink-100 hover:bg-ink-200 disabled:opacity-40 text-ink-700 text-xs font-bold rounded-lg"
+            >
+              ← Prev
+            </button>
+            <span className="text-xs font-bold text-ink-500">
+              Page {page} of {lastPage}
+            </span>
+            <button
+              onClick={() => load(page + 1)}
+              disabled={page >= lastPage}
+              className="px-3 py-1.5 bg-ink-100 hover:bg-ink-200 disabled:opacity-40 text-ink-700 text-xs font-bold rounded-lg"
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>
