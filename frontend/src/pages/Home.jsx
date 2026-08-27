@@ -49,6 +49,7 @@ export default function Home({ user }) {
     staff: [
       { to: '/hub', label: 'Scan Parcels', desc: 'Inbound intake with camera', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', desc: 'Reconcile & OTP release', icon: PackageIcon },
+      { to: '/staff/mall', label: 'BeCoolBox Mall', desc: 'View official stock', icon: TagIcon },
       { to: '/referral', label: 'Referral Poster', desc: 'Print your QR poster', icon: ShareIcon },
     ],
     rider: [
@@ -71,23 +72,29 @@ export default function Home({ user }) {
       { to: '/track', label: 'Track', desc: 'Follow shipments', icon: MapPinIcon },
     ],
     admin: [
-      { to: '/hub', label: 'Hub Tools', desc: 'Operate as hub agent', icon: ScanIcon },
-      { to: '/delivery-cost', label: 'Rate Test', desc: 'Check pricing engine', icon: TagIcon },
+      { to: '/admin/merchants', label: 'Verify Merchants', desc: 'Approve & reject queue', icon: ScanIcon },
+      { to: '/admin/mall', label: 'BeCoolBox Mall', desc: 'Manage flagship store', icon: TagIcon },
+      { to: '/hub', label: 'Hub Tools', desc: 'Operate as hub agent', icon: PackageIcon },
+      { to: '/delivery-cost', label: 'Rate Test', desc: 'Check pricing engine', icon: MapPinIcon },
     ],
   }[user?.role] || [];
 
   return (
     <div className="space-y-5">
       {/* Hero */}
-      <div className="rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift">
-        <p className="text-white/70 text-sm">{Greeting()},</p>
-        <h2 className="text-2xl font-black tracking-tight mt-0.5">{user?.name?.split(' ')[0]}</h2>
-        <p className="text-white/75 text-sm mt-1">
-          {user?.role === 'staff' && 'Scan inbound parcels, reconcile inventory, and release with OTP.'}
-          {user?.role === 'rider' && 'Your prepaid wallet locks COD. Follow your batch route.'}
-          {user?.role === 'customer' && 'Track your parcels in real time and earn Suki points.'}
-          {user?.role === 'merchant' && 'Ship consolidated returns and earn points for supplies.'}
-        </p>
+      <div className="dark-section rounded-3xl p-5 shadow-lift-dark relative overflow-hidden">
+        <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-bayan-600/30 blur-3xl" />
+        <div className="absolute -left-10 bottom-0 w-32 h-32 rounded-full bg-bayan-500/20 blur-3xl" />
+        <div className="relative">
+          <p className="text-white/60 text-sm uppercase tracking-wider font-bold">{Greeting()},</p>
+          <h2 className="text-3xl font-black tracking-tight mt-1 gradient-text">{user?.name?.split(' ')[0]}</h2>
+          <p className="text-white/75 text-sm mt-1.5">
+            {user?.role === 'staff' && 'Scan inbound parcels, reconcile inventory, and release with OTP.'}
+            {user?.role === 'rider' && 'Your prepaid wallet locks COD. Follow your batch route.'}
+            {user?.role === 'customer' && 'Track your parcels in real time and earn Suki points.'}
+            {user?.role === 'merchant' && 'Ship consolidated returns and earn points for supplies.'}
+          </p>
+        </div>
       </div>
 
       {/* Stats */}

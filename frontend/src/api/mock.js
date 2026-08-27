@@ -201,6 +201,33 @@ export function mockRequest(url, method, data, params = {}) {
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
     return Promise.resolve(mockResponse({ data: list, total: list.length }));
   }
+  if (/^\/products\/\d+$/.test(path) && lower === 'get') {
+    const pid = Number(path.match(/products\/(\d+)/)[1]);
+    const product = PRODUCTS.find((p) => p.id === pid);
+    if (!product) return Promise.resolve(mockResponse({ data: null }, 404));
+    return Promise.resolve(mockResponse({
+      data: {
+        ...product,
+        merchant: { id: product.merchant_id, name: 'Aling Maria Merch' },
+        average_rating: 4.5,
+        review_count: 2,
+        can_review: true,
+        reviews: [
+          { id: 1, user: { id: 5, name: 'Juan Dela Cruz' }, rating: 5, review: 'Fresh and delicious!', created_at: new Date().toISOString() },
+          { id: 2, user: { id: 8, name: 'Maria Santos' }, rating: 4, review: 'Good quality.', created_at: new Date(Date.now() - 864e5).toISOString() },
+        ],
+      },
+    }));
+  }
+  if (/^\/products\/\d+\/reviews$/.test(path) && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: [
+      { id: 1, user: { id: 5, name: 'Juan Dela Cruz' }, rating: 5, review: 'Fresh and delicious!', created_at: new Date().toISOString() },
+      { id: 2, user: { id: 8, name: 'Maria Santos' }, rating: 4, review: 'Good quality.', created_at: new Date(Date.now() - 864e5).toISOString() },
+    ], total: 2 }));
+  }
+  if (/^\/products\/\d+\/review$/.test(path) && lower === 'post') {
+    return Promise.resolve(mockResponse({ id: 99, rating: data?.rating, review: data?.review || null }, 201));
+  }
   if (path === '/products/categories' && lower === 'get') {
     return Promise.resolve(mockResponse([...new Set(PRODUCTS.filter((p) => p.status === 'active').map((p) => p.category))]));
   }
@@ -229,7 +256,8 @@ export function mockRequest(url, method, data, params = {}) {
         total_amount: productTotal.toFixed(2),
         shipping_amount: shipping.toFixed(2),
         fulfillment_type: data?.fulfillment_type,
-        status: 'paid',
+        payment_method: data?.payment_method || 'gcash',
+        status: data?.payment_method === 'cod' ? 'pending_payment' : 'paid',
       },
     }));
   }
@@ -255,6 +283,45 @@ export function mockRequest(url, method, data, params = {}) {
     if (idx >= 0) PRODUCTS[idx] = { ...PRODUCTS[idx], status: 'archived' };
     return Promise.resolve(mockResponse({ message: 'Product archived.' }));
   }
+
+  // Module 1: Admin merchant verification
+  if (path === '/admin/merchants/pending' && lower === 'get') {
+    const PENDING = [
+      { id: 101, name: 'Rosie Bakes', phone: '09171234567', municipality: 'Naga City', status: 'pending_verification', verification_notes: '{"dti_sec_number":"DTI-2026-0001","government_id_url":null}', created_at: new Date().toISOString() },
+      { id: 102, name: 'Karding Appliances', phone: '09179876543', municipality: 'Naga City', status: 'pending_verification', verification_notes: '{"dti_sec_number":"SEC-2026-88","government_id_url":null}', created_at: new Date(Date.now() - 864e5).toISOString() },
+    ];
+    return Promise.resolve(mockResponse({ data: PENDING, total: PENDING.length }));
+  }
+  if (/^\/admin\/merchants\/\d+\/(approve|reject)$/.test(path) && lower === 'post') {
+    const action = path.split('/').pop();
+    const id = Number(path.match(/merchants\/(\d+)/)[1]);
+    return Promise.resolve(mockResponse({
+      message: action === 'approve' ? 'Merchant approved.' : 'Merchant rejected.',
+      merchant: { id, name: 'Rosie Bakes', status: action === 'approve' ? 'active' : 'rejected', verified_at: action === 'approve' ? new Date().toISOString() : null },
+    }));
+  }
+
+  // Module 2: BeCoolBox Mall
+  const MALL_PRODUCTS = [
+    { id: 201, merchant_id: 1, name: 'Bulk Bubble Wrap (50m)', description: 'Official BeCoolBox Mall item', price: '350.00', stock: 40, suki_points_award: 8, affiliate_percentage: '3.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
+    { id: 202, merchant_id: 1, name: 'Thermal Label Rolls (x100)', description: 'Official BeCoolBox Mall item', price: '220.00', stock: 80, suki_points_award: 5, affiliate_percentage: '0.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
+    { id: 203, merchant_id: 1, name: 'Cardboard Mailers (x50)', description: 'Official BeCoolBox Mall item', price: '480.00', stock: 25, suki_points_award: 10, affiliate_percentage: '5.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
+    { id: 204, merchant_id: 1, name: 'Bicol Pili Nuts (Official)', description: 'Official BeCoolBox Mall item', price: '145.00', stock: 60, suki_points_award: 4, affiliate_percentage: '8.00', image_url: null, category: 'Provincial Goods', status: 'active', is_official_mall: true },
+  ];
+  if (path === '/admin/mall/products' && lower === 'get') return Promise.resolve(mockResponse({ data: MALL_PRODUCTS, total: MALL_PRODUCTS.length }));
+  if (path === '/admin/mall/products' && lower === 'post') {
+    const p = { ...data, id: MALL_PRODUCTS.length + 200, merchant_id: 1, is_official_mall: true, status: 'active' };
+    MALL_PRODUCTS.push(p);
+    return Promise.resolve(mockResponse(p, 201));
+  }
+  if (/^\/admin\/mall\/products\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) {
+    const pid = Number(path.match(/products\/(\d+)/)[1]);
+    const idx = MALL_PRODUCTS.findIndex((p) => p.id === pid);
+    if (lower === 'put' && idx >= 0) MALL_PRODUCTS[idx] = { ...MALL_PRODUCTS[idx], ...data };
+    if (lower === 'delete' && idx >= 0) MALL_PRODUCTS[idx] = { ...MALL_PRODUCTS[idx], status: 'archived' };
+    return Promise.resolve(mockResponse(lower === 'put' ? MALL_PRODUCTS[idx] : { message: 'Mall product archived.' }));
+  }
+  if (path === '/staff/mall/inventory' && lower === 'get') return Promise.resolve(mockResponse({ data: MALL_PRODUCTS, total: MALL_PRODUCTS.length }));
 
   if (path === '/delivery/calculate' && lower === 'post') {
     const a = data?.dest_lat ?? SAN_JOSE.lat;

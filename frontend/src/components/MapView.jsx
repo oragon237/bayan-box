@@ -25,7 +25,7 @@ const ICONS = {
   }),
   pin: L.divIcon({
     className: '',
-    html: '<div style="width:12px;height:12px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+    html: '<div style="width:12px;height:12px;border-radius:9999px;background:#673de6;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
     iconSize: [12, 12],
     iconAnchor: [6, 6],
   }),

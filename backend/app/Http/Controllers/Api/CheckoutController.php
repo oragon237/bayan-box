@@ -23,6 +23,7 @@ class CheckoutController extends Controller
     {
         $validated = $request->validate([
             'fulfillment_type' => 'required|in:pickup,delivery',
+            'payment_method' => 'sometimes|in:gcash,maya,cod',
             'hub_id' => 'required_if:fulfillment_type,pickup|nullable|exists:hubs,id',
             'delivery_address' => 'required_if:fulfillment_type,delivery|nullable|string',
             'latitude' => ['required_if:fulfillment_type,delivery', 'nullable', 'numeric', 'between:-14,21'],
@@ -30,6 +31,8 @@ class CheckoutController extends Controller
             'municipality' => 'nullable|string|max:100',
             'referral_code' => 'nullable|string|max:15',
         ]);
+
+        $validated['payment_method'] = $validated['payment_method'] ?? 'gcash';
 
         $order = $this->marketplace->processCheckout($request->user(), $validated);
 

@@ -6,97 +6,49 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Semaphore SMS gateway — sends pickup OTPs and transit status updates
- * (FR-OFF-003). Falls back silently when the API key is absent so local
- * development never hard-fails.
+ * Semaphore SMS gateway (Module 1 — verification notifications).
+ *
+ * Sends SMS through Semaphore's v4 API. When SEMAPHORE_API_KEY is unset
+ * (local/demo), the send is skipped and logged instead of failing.
  */
 class SmsService
 {
-    protected string $apiKey;
-    protected string $senderName;
-
-    public function __construct()
+    public function send(string $phone, string $message): bool
     {
-        $this->apiKey = config('services.semaphore.api_key', env('SEMAPHORE_API_KEY', ''));
-        $this->senderName = config('services.semaphore.sender_name', env('SEMAPHORE_SENDER_NAME', 'BayanBox'));
-    }
+        $apiKey = config('services.semaphore.api_key');
 
-    /**
-     * Send a pickup OTP code to the recipient.
-     */
-    public function sendPickupOtp(string $phone, string $otp, string $trackingNumber): bool
-    {
-        $message = strtr(config('bayanbox.otp.sms_template'), [
-            '{otp}' => $otp,
-            '{ttl_minutes}' => config('bayanbox.otp.ttl_minutes', 48),
-            '{tracking}' => $trackingNumber,
-        ]);
-
-        return $this->send($phone, $message);
-    }
-
-    /**
-     * Send a generic status update (e.g. "Out for delivery").
-     */
-    public function sendStatusUpdate(string $phone, string $trackingNumber, string $status): bool
-    {
-        $message = sprintf(
-            'BayanBox update: parcel %s is now %s. Track at %s/track/%s',
-            $trackingNumber,
-            strtoupper(str_replace('_', ' ', $status)),
-            config('app.url', 'http://localhost:8000'),
-            $trackingNumber
-        );
-
-        return $this->send($phone, $message);
-    }
-
-    /**
-     * POST to Semaphore API.
-     */
-    protected function send(string $phone, string $message): bool
-    {
-        if (blank($this->apiKey)) {
-            Log::info('bayanbox.sms.skipped', compact('phone', 'message'));
+        if (blank($apiKey)) {
+            Log::info("SMS skipped (no Semaphore key): {$phone} → {$message}");
 
             return false;
-        }
-
-        // Normalise Philippine mobile number
-        $phone = preg_replace('/[^0-9]/', '', $phone);
-        if (strlen($phone) === 10) {
-            $phone = '63'.$phone;
-        } elseif (str_starts_with($phone, '0')) {
-            $phone = '63'.substr($phone, 1);
         }
 
         try {
-            $response = Http::timeout(10)
-                ->asForm()
-                ->post('https://api.semaphore.co/api/v4/messages', [
-                    'apikey' => $this->apiKey,
-                    'number' => $phone,
-                    'message' => $message,
-                    'sendername' => $this->senderName,
-                ]);
-
-            $success = $response->successful();
-
-            if (! $success) {
-                Log::warning('bayanbox.sms.failed', [
-                    'phone' => substr($phone, 0, 7).'****',
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-            }
-
-            return $success;
-        } catch (\Throwable $e) {
-            Log::error('bayanbox.sms.exception', [
-                'error' => $e->getMessage(),
+            $response = Http::asForm()->post('https://api.semaphore.co/api/v4/messages', [
+                'apikey' => $apiKey,
+                'number' => $phone,
+                'message' => $message,
             ]);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('Semaphore SMS failed: '.$e->getMessage());
 
             return false;
         }
+    }
+
+    public function merchantApproved(string $phone): void
+    {
+        $this->send($phone, 'Suki! Your BayanBox Merchant Account is now APPROVED. You can now upload products.');
+    }
+
+    public function merchantRejected(string $phone, ?string $reason): void
+    {
+        $message = 'Your BayanBox Merchant application was not approved.';
+        if ($reason) {
+            $message .= " Reason: {$reason}";
+        }
+        $this->send($phone, $message);
     }
 }

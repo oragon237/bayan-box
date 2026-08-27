@@ -23,13 +23,32 @@ class User extends Authenticatable
         'barangay',
         'municipality',
         'status',
+        'is_official_mall',
+        'verification_notes',
+        'verified_at',
     ];
 
     protected $hidden = ['password_hash', 'remember_token'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_official_mall' => 'boolean',
+        'verified_at' => 'datetime',
     ];
+
+    public const STATUS_PENDING = 'pending_verification';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_REJECTED = 'rejected';
+
+    public function isMall(): bool
+    {
+        return $this->is_official_mall === true;
+    }
+
+    public function scopePendingMerchants(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where('role', 'merchant')->where('status', self::STATUS_PENDING);
+    }
 
     public function password(): string
     {
@@ -101,6 +120,11 @@ class User extends Authenticatable
     public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Order::class, 'customer_id');
+    }
+
+    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProductReview::class);
     }
 
     public function wallet(string $type): ?Wallet

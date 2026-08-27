@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductReview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,9 +24,12 @@ class MarketplaceController extends Controller
     {
         return response()->json(
             Product::active()
-                ->with('merchant:id,name')
+                ->with(['merchant:id,name', 'images:id,product_id,image_url'])
+                ->withCount('reviews')
+                ->withAvg('reviews', 'rating')
                 ->when($request->input('category'), fn ($q, $c) => $q->where('category', $c))
                 ->when($request->input('q'), fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%"))
+                ->orderByDesc('is_official_mall') // BeCoolBox Mall pinned to top
                 ->latest()
                 ->paginate($request->integer('per_page', 24))
         );
@@ -38,5 +43,46 @@ class MarketplaceController extends Controller
         return response()->json(
             Product::active()->distinct()->orderBy('category')->pluck('category')
         );
+    }
+
+    /**
+     * GET /api/products/{id} — single product detail with ratings & reviews.
+     */
+    public function show(int $id, Request $request): JsonResponse
+    {
+        $product = Product::with([
+            'merchant:id,name',
+            'reviews.user:id,name',
+            'images:id,product_id,image_url',
+        ])->findOrFail($id);
+
+        $average = round((float) $product->reviews->avg('rating'), 2);
+        $product->setAttribute('average_rating', $average);
+        $product->setAttribute('review_count', $product->reviews->count());
+        $product->setAttribute('can_review', $this->canReview($request->user(), $id));
+
+        return response()->json(['data' => $product]);
+    }
+
+    /**
+     * A user can review when they have a paid/completed order for the product
+     * and have not yet written a review (Module 4 — verified buyers only).
+     */
+    protected function canReview($user, int $productId): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (ProductReview::where('user_id', $user->id)->where('product_id', $productId)->exists()) {
+            return false;
+        }
+
+        return OrderItem::where('product_id', $productId)
+            ->whereHas('order', fn ($q) => $q
+                ->where('customer_id', $user->id)
+                ->whereIn('status', ['paid', 'completed'])
+            )
+            ->exists();
     }
 }

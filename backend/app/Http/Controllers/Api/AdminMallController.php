@@ -5,37 +5,34 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductImage;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Merchant product catalog (FR-MKT-001..003).
+ * BeCoolBox Mall CRUD (Module 2).
  *
- * Merchants list, edit, and archive their own physical products with
- * per-product Suki Points awards and custom affiliate referral percentages.
+ * Admin manages the official flagship store's products (wholesale packaging
+ * supplies, official provincial goods, bulk thermal paper, mailers).
+ * These products carry the `is_official_mall` badge, are pinned to the top
+ * of the storefront, and route 100% to admin_earnings on checkout.
  */
-class MerchantProductController extends Controller
+class AdminMallController extends Controller
 {
     /**
-     * GET /api/merchant/products — my listed products.
+     * GET /api/admin/mall/products — list all mall products.
      */
     public function index(Request $request): JsonResponse
     {
         return response()->json(
-            Product::where('merchant_id', $request->user()->id)
-                ->latest()
-                ->paginate($request->integer('per_page', 20))
+            Product::officialMall()->with('merchant:id,name')->latest()->paginate($request->integer('per_page', 30))
         );
     }
 
     /**
-     * POST /api/merchant/products — upload a new product.
+     * POST /api/admin/mall/products — create a mall product.
      */
     public function store(Request $request): JsonResponse
     {
-        $this->assertVerifiedMerchant($request->user());
-
         $validated = $request->validate([
             'name' => 'required|string|max:150',
             'description' => 'nullable|string',
@@ -43,7 +40,7 @@ class MerchantProductController extends Controller
             'sale_price' => 'nullable|numeric|min:0|lt:price',
             'stock' => 'required|integer|min:0',
             'suki_points_award' => 'nullable|integer|min:0|max:10000',
-            'affiliate_percentage' => ['nullable', 'numeric', 'between:0,'.config('bayanbox.marketplace.max_affiliate_percentage', 50)],
+            'affiliate_percentage' => 'nullable|numeric|between:0,50',
             'image_url' => 'nullable|string|max:255',
             'gallery' => 'nullable|array',
             'gallery.*.image_url' => 'required|string|max:255',
@@ -51,8 +48,9 @@ class MerchantProductController extends Controller
             'availability' => 'nullable|in:available,out_of_stock,unavailable',
         ]);
 
-        $product = Product::create(array_merge($validated, [
-            'merchant_id' => $request->user()->id,
+        $product = Product::create(array_merge(collect($validated)->except('gallery')->toArray(), [
+            'merchant_id' => (int) config('bayanbox.ledger.platform_user_id', 1),
+            'is_official_mall' => true,
             'status' => 'active',
         ]));
 
@@ -62,11 +60,11 @@ class MerchantProductController extends Controller
     }
 
     /**
-     * PUT /api/merchant/products/{id} — update one of my products.
+     * PUT /api/admin/mall/products/{id} — update a mall product.
      */
     public function update(int $id, Request $request): JsonResponse
     {
-        $product = Product::where('merchant_id', $request->user()->id)->findOrFail($id);
+        $product = Product::officialMall()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:150',
@@ -75,7 +73,7 @@ class MerchantProductController extends Controller
             'sale_price' => 'nullable|numeric|min:0|lt:price',
             'stock' => 'sometimes|integer|min:0',
             'suki_points_award' => 'sometimes|integer|min:0|max:10000',
-            'affiliate_percentage' => ['sometimes', 'numeric', 'between:0,'.config('bayanbox.marketplace.max_affiliate_percentage', 50)],
+            'affiliate_percentage' => 'sometimes|numeric|between:0,50',
             'image_url' => 'nullable|string|max:255',
             'gallery' => 'nullable|array',
             'gallery.*.image_url' => 'required|string|max:255',
@@ -94,24 +92,14 @@ class MerchantProductController extends Controller
     }
 
     /**
-     * DELETE /api/merchant/products/{id} — archive a product.
+     * DELETE /api/admin/mall/products/{id} — archive a mall product.
      */
-    public function destroy(int $id, Request $request): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $product = Product::where('merchant_id', $request->user()->id)->findOrFail($id);
+        $product = Product::officialMall()->findOrFail($id);
         $product->update(['status' => 'archived']);
 
-        return response()->json(['message' => 'Product archived.']);
-    }
-
-    /**
-     * Module 1: Only verified (active) merchants may list public products.
-     */
-    protected function assertVerifiedMerchant($user): void
-    {
-        if ($user->role === 'merchant' && $user->status !== User::STATUS_ACTIVE) {
-            abort(403, 'Merchant account is not yet verified. Approval required.');
-        }
+        return response()->json(['message' => 'Mall product archived.']);
     }
 
     /**

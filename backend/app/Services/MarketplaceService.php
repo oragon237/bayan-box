@@ -72,16 +72,16 @@ class MarketplaceService
 
             $productTotal = 0.00;
 
-            // 1. Validate stock & sum the product total
+            // 1. Validate stock & sum the product total (sale price applied)
             foreach ($items as $cartItem) {
                 $product = $cartItem->product;
-                if (! $product || $product->status !== 'active') {
+                if (! $product || $product->status !== 'active' || $product->availability !== 'available') {
                     throw new RuntimeException("Product unavailable: {$product?->name}");
                 }
                 if ($product->stock < $cartItem->quantity) {
                     throw new RuntimeException("Insufficient stock for {$product->name}.");
                 }
-                $productTotal += $product->price * $cartItem->quantity;
+                $productTotal += $product->effectivePrice() * $cartItem->quantity;
             }
 
             // Platform wallet is shared across all splits
@@ -91,6 +91,7 @@ class MarketplaceService
             );
 
             // 2. Create the master order
+            $isCod = ($payload['payment_method'] ?? 'gcash') === 'cod';
             $order = Order::create([
                 'customer_id' => $customer->id,
                 'total_amount' => round($productTotal, 2),
@@ -101,13 +102,15 @@ class MarketplaceService
                 'latitude' => $fulfillment === Order::FULFILLMENT_DELIVERY ? ($payload['latitude'] ?? null) : null,
                 'longitude' => $fulfillment === Order::FULFILLMENT_DELIVERY ? ($payload['longitude'] ?? null) : null,
                 'referring_affiliate_id' => $affiliate?->id,
-                'status' => 'paid', // GCash/Maya escrow hold simulated as paid
+                'payment_method' => $payload['payment_method'] ?? 'gcash',
+                'status' => $isCod ? 'pending_payment' : 'paid', // COD: rider collects at delivery
             ]);
 
             // 3. Per-item: record receipt, deduct stock, split the ledger
             foreach ($items as $cartItem) {
                 $product = $cartItem->product;
-                $itemTotal = $product->price * $cartItem->quantity;
+                $unitPrice = $product->effectivePrice();
+                $itemTotal = $unitPrice * $cartItem->quantity;
                 $pointsAwarded = $product->suki_points_award * $cartItem->quantity;
 
                 $affiliatePayout = 0.00;
@@ -119,7 +122,7 @@ class MarketplaceService
                     'order_id' => $order->id,
                     'product_id' => $product->id,
                     'quantity' => $cartItem->quantity,
-                    'price_at_purchase' => $product->price,
+                    'price_at_purchase' => $unitPrice,
                     'suki_points_awarded' => $pointsAwarded,
                     'affiliate_payout_amount' => $affiliatePayout,
                 ]);
@@ -133,25 +136,41 @@ class MarketplaceService
                     throw new RuntimeException("Insufficient stock for {$product->name}.");
                 }
 
-                // Merchant share (configurable percentage), minus affiliate cut
-                $merchantPct = (float) config('bayanbox.marketplace.merchant_share_percent', 90.00);
-                $merchantPayout = round($itemTotal * ($merchantPct / 100), 2) - $affiliatePayout;
-                if ($merchantPayout > 0) {
-                    $merchantWallet = $this->wallets->ensureWallet($product->merchant_id, Wallet::TYPE_MERCHANT_EARNINGS);
+                // Module 2: BeCoolBox Mall — 100% to admin_earnings, 0% rake
+                if ($product->is_official_mall) {
+                    $adminPayout = round($itemTotal, 2) - $affiliatePayout;
+                    $adminWallet = $this->wallets->ensureWallet(
+                        (int) config('bayanbox.ledger.platform_user_id', 1),
+                        Wallet::TYPE_ADMIN_EARNINGS,
+                    );
+                    if ($adminPayout > 0) {
+                        $this->wallets->credit(
+                            $adminWallet, $adminPayout,
+                            "BeCoolBox Mall sale Order #{$order->id} — {$product->name}",
+                            'mall_sale', null, $order,
+                        );
+                    }
+                } else {
+                    // Merchant share (configurable percentage), minus affiliate cut
+                    $merchantPct = (float) config('bayanbox.marketplace.merchant_share_percent', 90.00);
+                    $merchantPayout = round($itemTotal * ($merchantPct / 100), 2) - $affiliatePayout;
+                    if ($merchantPayout > 0) {
+                        $merchantWallet = $this->wallets->ensureWallet($product->merchant_id, Wallet::TYPE_MERCHANT_EARNINGS);
+                        $this->wallets->credit(
+                            $merchantWallet, $merchantPayout,
+                            "Marketplace sale Order #{$order->id} — {$product->name}",
+                            'marketplace_sale', null, $order,
+                        );
+                    }
+
+                    // Platform commission (configurable percentage)
+                    $platformPct = (float) config('bayanbox.marketplace.platform_commission_percent', 10.00);
                     $this->wallets->credit(
-                        $merchantWallet, $merchantPayout,
-                        "Marketplace sale Order #{$order->id} — {$product->name}",
-                        'marketplace_sale', null, $order,
+                        $platformWallet, round($itemTotal * ($platformPct / 100), 2),
+                        "Platform commission Order #{$order->id}",
+                        'marketplace_commission', null, $order,
                     );
                 }
-
-                // Platform commission (configurable percentage)
-                $platformPct = (float) config('bayanbox.marketplace.platform_commission_percent', 10.00);
-                $this->wallets->credit(
-                    $platformWallet, round($itemTotal * ($platformPct / 100), 2),
-                    "Platform commission Order #{$order->id}",
-                    'marketplace_commission', null, $order,
-                );
 
                 // Affiliate: product-level commission to the referrer
                 if ($affiliate && $affiliatePayout > 0) {

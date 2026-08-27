@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'BayanBox — BodegaBarangay',
         short_name: 'BayanBox',
         description: 'Provincial Last-Mile Logistics OS',
-        theme_color: '#16a34a',
+        theme_color: '#673de6',
         background_color: '#ffffff',
         start_url: '/',
         display: 'fullscreen',

@@ -206,6 +206,40 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        // -----------------------------------------------------------------
+        // 9. BeCoolBox Mall (Module 2) — mark admin as flagship store
+        // -----------------------------------------------------------------
+        $admin = $created['admin'];
+        $admin->update([
+            'is_official_mall' => true,
+            'verified_at' => now(),
+            'status' => 'active',
+        ]);
+
+        foreach ([
+            ['name' => 'Bulk Bubble Wrap (50m)', 'category' => 'Packaging', 'price' => 350.00, 'stock' => 40, 'suki_points_award' => 8, 'affiliate_percentage' => 3.00],
+            ['name' => 'Thermal Label Rolls (x100)', 'category' => 'Packaging', 'price' => 220.00, 'stock' => 80, 'suki_points_award' => 5, 'affiliate_percentage' => 0.00],
+            ['name' => 'Cardboard Mailers (x50)', 'category' => 'Packaging', 'price' => 480.00, 'stock' => 25, 'suki_points_award' => 10, 'affiliate_percentage' => 5.00],
+            ['name' => 'Bicol Pili Nuts (Official)', 'category' => 'Provincial Goods', 'price' => 145.00, 'stock' => 60, 'suki_points_award' => 4, 'affiliate_percentage' => 8.00],
+        ] as $mallProduct) {
+            \App\Models\Product::firstOrCreate(
+                ['name' => $mallProduct['name']],
+                array_merge($mallProduct, [
+                    'merchant_id' => $admin->id,
+                    'description' => "Official BeCoolBox Mall item — {$mallProduct['name']}.",
+                    'image_url' => null,
+                    'status' => 'active',
+                    'is_official_mall' => true,
+                ]),
+            );
+        }
+
+        // Provision an admin_earnings wallet for mall sales
+        DB::table('wallets')->updateOrInsert(
+            ['user_id' => $admin->id, 'wallet_type' => 'admin_earnings'],
+            ['balance' => 0.00, 'currency' => 'PHP', 'created_at' => now(), 'updated_at' => now()],
+        );
+
         $this->command->info('BayanBox demo data seeded.');
     }
 }

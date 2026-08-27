@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import client from '../api/client.js';
 import {
   HomeIcon, MapPinIcon, StarIcon, WalletIcon, ScanIcon,
-  PackageIcon, RouteIcon, ShareIcon, TagIcon, LogoutIcon, BellIcon,
+  PackageIcon, RouteIcon, ShareIcon, TagIcon, LogoutIcon, BellIcon, CartIcon,
 } from './icons.jsx';
 import { useToast } from './ui.jsx';
 
@@ -14,13 +16,23 @@ const ROLE_LABEL = {
   provider: 'Skilled Worker',
 };
 
+const BUYER_ROLES = ['customer', 'merchant', 'admin'];
+
 function tabsFor(role) {
   const base = [{ to: '/', label: 'Home', icon: HomeIcon }];
+  const cart = { to: '/market', label: 'Cart', icon: CartIcon, cart: true };
   const map = {
+    admin: [
+      ...base,
+      { to: '/admin/merchants', label: 'Verify', icon: ScanIcon },
+      { to: '/admin/mall', label: 'Mall', icon: TagIcon },
+      cart,
+    ],
     staff: [
       ...base,
       { to: '/hub', label: 'Scan', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', icon: PackageIcon },
+      { to: '/staff/mall', label: 'Mall', icon: TagIcon },
       { to: '/referral', label: 'Referral', icon: ShareIcon },
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
@@ -33,12 +45,12 @@ function tabsFor(role) {
     merchant: [
       ...base,
       { to: '/merchant/products', label: 'Products', icon: PackageIcon },
-      { to: '/market', label: 'Shop', icon: TagIcon },
+      cart,
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
     customer: [
       ...base,
-      { to: '/market', label: 'Shop', icon: TagIcon },
+      cart,
       { to: '/track', label: 'Track', icon: MapPinIcon },
       { to: '/suki', label: 'Suki', icon: StarIcon },
     ],
@@ -54,6 +66,23 @@ function tabsFor(role) {
 export default function Shell({ user, online, queueCount, demo, onRoleChange, children, onLogout }) {
   const notify = useToast();
   const tabs = tabsFor(user?.role || 'customer');
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    if (!user || !BUYER_ROLES.includes(user.role)) return;
+    let active = true;
+    const load = () =>
+      client
+        .get('/cart')
+        .then((res) => {
+          if (active) setCartCount(res.data.items.reduce((s, i) => s + Number(i.quantity), 0));
+        })
+        .catch(() => {});
+    load();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, user?.role]);
 
   const logout = () => {
     onLogout();
@@ -63,18 +92,19 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
   return (
     <div className="min-h-screen bg-ink-100">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-gradient-to-br from-bayan-700 via-bayan-600 to-bayan-500 text-white shadow-lg">
+      <header className="sticky top-0 z-40 bg-ink-900 text-white shadow-lift-dark">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center font-black text-lg">
-                B
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-1.5 flex items-center justify-center">
+                <img
+                  src="/beboolbox-logo.png"
+                  alt="BayanBox"
+                  className="h-8 w-auto object-contain"
+                />
               </div>
               <div>
-                <h1 className="text-lg font-black tracking-tight leading-none">
-                  Bayan<span className="text-amber-400">Box</span>
-                </h1>
-                <p className="text-[11px] text-white/70 mt-0.5">
+                <p className="text-[11px] text-white/70 mt-0.5 leading-none">
                   {user ? `${ROLE_LABEL[user.role] || user.role}` : 'Provincial Last-Mile OS'}
                 </p>
               </div>
@@ -91,7 +121,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                   online ? 'bg-white/15' : 'bg-amber-500/90 text-amber-950'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-300 animate-pulse-soft' : 'bg-amber-900'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400 animate-pulse-soft' : 'bg-amber-900'}`} />
                 {online ? 'Online' : 'Offline'}
                 {queueCount > 0 && <span className="px-1 bg-white text-bayan-700 rounded-full text-[9px]">{queueCount}</span>}
               </span>
@@ -108,7 +138,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
           {user && (
             <div className="mt-2.5 flex items-center gap-2 text-xs">
               <span className="text-white/80 font-semibold">{user.name}</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-bold uppercase tracking-wide">
+              <span className="px-2 py-0.5 rounded-full bg-bayan-600 text-white text-[10px] font-bold uppercase tracking-wide">
                 {user.role}
               </span>
               {demo && (
@@ -145,20 +175,27 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
       {/* ── Bottom Tab Bar ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-ink-100 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
         <div className="max-w-5xl mx-auto grid grid-cols-5">
-          {tabs.map(({ to, label, icon: Icon }) => (
+          {tabs.map(({ to, label, icon: Icon, cart }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
+                `relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
                   isActive ? 'text-bayan-600' : 'text-ink-400 hover:text-ink-600'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={`w-5 h-5 ${isActive ? 'scale-110' : ''}`} />
+                  <span className="relative">
+                    <Icon className={`w-5 h-5 ${isActive ? 'scale-110' : ''}`} />
+                    {cart && cartCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-bayan-600 text-white text-[9px] font-black flex items-center justify-center leading-none">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </>
               )}

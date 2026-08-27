@@ -32,14 +32,31 @@ class AuthController extends Controller
             'referral_code' => 'nullable|string|max:15',
             'barangay' => 'nullable|string|max:100',
             'municipality' => 'nullable|string|max:100',
+            // Module 1: merchant verification documents
+            'dti_sec_number' => 'required_if:role,merchant|nullable|string|max:50',
+            'government_id_url' => 'nullable|string|max:255',
         ]);
+
+        $role = $validated['role'] ?? 'customer';
+        $isMerchant = $role === 'merchant';
+
+        $verificationNotes = null;
+        if ($isMerchant) {
+            $verificationNotes = json_encode([
+                'dti_sec_number' => $validated['dti_sec_number'] ?? null,
+                'government_id_url' => $validated['government_id_url'] ?? null,
+                'submitted_at' => now()->toIso8601String(),
+            ]);
+        }
 
         $user = User::create([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'email' => $validated['email'] ?? null,
             'password_hash' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'customer',
+            'role' => $role,
+            'status' => $isMerchant ? User::STATUS_PENDING : User::STATUS_ACTIVE, // Module 1
+            'verification_notes' => $verificationNotes,
             'affiliate_code' => $this->generateAffiliateCode(),
             'barangay' => $validated['barangay'] ?? null,
             'municipality' => $validated['municipality'] ?? null,

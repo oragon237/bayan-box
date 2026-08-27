@@ -16,7 +16,11 @@ import SukiPoints from './pages/customer/SukiPoints.jsx';
 import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
 import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import Marketplace from './pages/marketplace/Marketplace.jsx';
+import ProductDetail from './pages/marketplace/ProductDetail.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
+import AdminMerchants from './pages/admin/AdminMerchants.jsx';
+import AdminMall from './pages/admin/AdminMall.jsx';
+import StaffMall from './pages/staff/StaffMall.jsx';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -129,7 +133,11 @@ export default function App() {
           <Route path="/delivery-cost" element={<DeliveryCostPreview user={user} />} />
           <Route path="/referral" element={<ReferralQR user={user} />} />
           <Route path="/market" element={<Marketplace user={user} />} />
+          <Route path="/product/:id" element={<ProductDetail user={user} />} />
           <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
+          <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
+          <Route path="/admin/mall" element={<AdminMall user={user} />} />
+          <Route path="/staff/mall" element={<StaffMall user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>

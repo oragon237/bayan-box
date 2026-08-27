@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import { Spinner, EmptyState, useToast } from '../../components/ui.jsx';
 
@@ -6,12 +7,14 @@ const DEFAULT_COORDS = { lat: 13.6218, lng: 123.1948 }; // Naga default
 
 export default function Marketplace({ user }) {
   const notify = useToast();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Debounce search so we don't fire GET /products on every keystroke.
   useEffect(() => {
@@ -25,6 +28,7 @@ export default function Marketplace({ user }) {
 
   // Checkout state
   const [fulfillment, setFulfillment] = useState('pickup');
+  const [paymentMethod, setPaymentMethod] = useState('gcash');
   const [hubId, setHubId] = useState(1);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [coords, setCoords] = useState(DEFAULT_COORDS);
@@ -34,14 +38,18 @@ export default function Marketplace({ user }) {
 
   const loadProducts = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const params = { per_page: 50 };
       if (category) params.category = category;
       if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
       const res = await client.get('/products', { params });
-      setProducts(res.data.data);
-    } catch {
+      const list = Array.isArray(res.data.data) ? res.data.data : [];
+      setProducts(list);
+      if (list.length === 0) setLoadError('No products currently available.');
+    } catch (err) {
       setProducts([]);
+      setLoadError(err.response?.status === 401 ? 'Session expired. Please log in again.' : 'Could not load products. Check your connection.');
     } finally {
       setLoading(false);
     }
@@ -63,13 +71,29 @@ export default function Marketplace({ user }) {
           res.data.items.map((i) => ({
             ...i.product,
             quantity: i.quantity,
-            cart_item_id: i.id,
           })),
         );
       })
       .catch(() => {})
       .finally(() => setCartLoaded(true));
   }, []);
+
+  // Auto-sync the cart to the server whenever it changes, so items persist
+  // when the user navigates away and back. Debounced to avoid hammering the
+  // API on every add/quantity change, and gated on the initial server load.
+  const syncTimer = useRef(null);
+  useEffect(() => {
+    if (!cartLoaded) return;
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      client
+        .post('/cart/sync', {
+          cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })),
+        })
+        .catch(() => {});
+    }, 800);
+    return () => clearTimeout(syncTimer.current);
+  }, [cart, cartLoaded]);
 
   const addToCart = (product) => {
     setCart((prev) => {
@@ -117,6 +141,7 @@ export default function Marketplace({ user }) {
 
       const payload = {
         fulfillment_type: fulfillment,
+        payment_method: paymentMethod,
         referral_code: referralCode.trim() || null,
       };
       if (fulfillment === 'pickup') {
@@ -151,8 +176,9 @@ export default function Marketplace({ user }) {
         <div className="card p-4 border-green-200 bg-green-50">
           <p className="font-bold text-green-800">Order #{lastOrder.id} confirmed 🎉</p>
           <p className="text-sm text-green-700 mt-1">
-            Total ₱{Number(lastOrder.total_amount + lastOrder.shipping_amount).toLocaleString()} ·{' '}
-            {lastOrder.fulfillment_type === 'pickup' ? 'Click & collect' : 'Doorstep delivery'}
+            Total ₱{(Number(lastOrder.total_amount) + Number(lastOrder.shipping_amount)).toLocaleString()} ·{' '}
+            {lastOrder.fulfillment_type === 'pickup' ? 'Click & collect' : 'Doorstep delivery'} ·{' '}
+            {lastOrder.payment_method ? String(lastOrder.payment_method).toUpperCase() : ''}
           </p>
         </div>
       )}
@@ -193,6 +219,13 @@ export default function Marketplace({ user }) {
                 <div key={i} className="h-52 bg-ink-200 rounded-2xl animate-pulse-soft" />
               ))}
             </div>
+          ) : loadError && products.length === 0 ? (
+            <div className="card p-6 text-center">
+              <p className="text-ink-400 text-sm">{loadError}</p>
+              <button onClick={loadProducts} className="mt-3 px-4 py-2 bg-bayan-600 text-white text-xs font-bold rounded-xl">
+                Retry
+              </button>
+            </div>
           ) : products.length === 0 ? (
             <EmptyState icon="🛍️" title="No products yet" hint="Merchants are adding fresh local goods." />
           ) : (
@@ -200,13 +233,36 @@ export default function Marketplace({ user }) {
               {products.map((p) => (
                 <div key={p.id} className="card p-3 flex flex-col justify-between">
                   <div>
-                    <div className="h-28 rounded-xl bg-gradient-to-br from-bayan-100 to-ink-100 flex items-center justify-center text-4xl mb-2">
-                      🛒
-                    </div>
+                    <button
+                      onClick={() => navigate(`/product/${p.id}`)}
+                      className="w-full h-28 rounded-xl bg-gradient-to-br from-bayan-100 to-ink-100 flex items-center justify-center text-4xl mb-2 overflow-hidden transition hover:scale-[1.02]"
+                    >
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>🛒</span>
+                      )}
+                    </button>
                     <span className="inline-block bg-bayan-50 text-bayan-700 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">
                       {p.category}
                     </span>
-                    <h3 className="font-bold text-ink-800 text-sm leading-snug">{p.name}</h3>
+                    {p.is_official_mall && (
+                      <span className="inline-block bg-bayan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ml-1">
+                        BeCoolBox Official
+                      </span>
+                    )}
+                    <button
+                      onClick={() => navigate(`/product/${p.id}`)}
+                      className="block text-left w-full"
+                    >
+                      <h3 className="font-bold text-ink-800 text-sm leading-snug hover:text-bayan-700 transition">{p.name}</h3>
+                    </button>
+                    {p.reviews_count > 0 && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(p.reviews_avg_rating || 0)))}</span>
+                        <span className="text-[10px] text-ink-400">({p.reviews_count})</span>
+                      </div>
+                    )}
                     <p className="text-xs text-ink-400 mt-1 line-clamp-2">{p.description}</p>
                   </div>
                   <div className="mt-3">
@@ -350,12 +406,32 @@ export default function Marketplace({ user }) {
                   )}
                 </div>
 
+                {/* Payment method */}
+                <div>
+                  <span className="block text-xs font-semibold text-ink-500 mb-2">💳 Payment method</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'gcash', label: 'GCash', icon: '💚' },
+                      { value: 'maya', label: 'Maya', icon: '💜' },
+                      { value: 'cod', label: 'COD', icon: '💵' },
+                    ].map((m) => (
+                      <button
+                        key={m.value}
+                        onClick={() => setPaymentMethod(m.value)}
+                        className={`p-2 rounded-xl border text-xs font-bold ${paymentMethod === m.value ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}
+                      >
+                        {m.icon} {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   onClick={handleCheckout}
                   disabled={submitting}
                   className="w-full py-3 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white font-bold rounded-xl transition"
                 >
-                  {submitting ? 'Processing…' : 'Checkout via GCash/Maya'}
+                  {submitting ? 'Processing…' : paymentMethod === 'cod' ? 'Place order (Cash on Delivery)' : 'Checkout via GCash/Maya'}
                 </button>
               </div>
             </div>

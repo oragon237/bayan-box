@@ -12,16 +12,18 @@ class Product extends Model
     protected $fillable = [
         'merchant_id', 'name', 'description', 'price', 'stock',
         'suki_points_award', 'affiliate_percentage', 'image_url',
-        'category', 'status',
+        'category', 'status', 'is_official_mall', 'sale_price', 'availability',
     ];
 
     protected function casts(): array
     {
         return [
             'price' => 'decimal:2',
+            'sale_price' => 'decimal:2',
             'stock' => 'integer',
             'suki_points_award' => 'integer',
             'affiliate_percentage' => 'decimal:2',
+            'is_official_mall' => 'boolean',
         ];
     }
 
@@ -35,11 +37,39 @@ class Product extends Model
         return $this->hasMany(CartItem::class);
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
     /**
-     * Storefront visibility: active and physically in stock (FR-MKT-004).
+     * Current effective price (sale price when set).
+     */
+    public function effectivePrice(): float
+    {
+        return $this->sale_price !== null ? (float) $this->sale_price : (float) $this->price;
+    }
+
+    /**
+     * Storefront visibility: active, physically in stock, and marked available.
      */
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('status', 'active')->where('stock', '>', 0);
+        return $query->where('status', 'active')
+            ->where('stock', '>', 0)
+            ->where('availability', 'available');
+    }
+
+    /**
+     * BeCoolBox Mall flagship items (Module 2).
+     */
+    public function scopeOfficialMall(Builder $query): Builder
+    {
+        return $query->where('is_official_mall', true);
     }
 }

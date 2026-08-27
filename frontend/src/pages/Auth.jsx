@@ -49,13 +49,14 @@ export default function Auth({ onAuth }) {
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-10">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-white/15 backdrop-blur shadow-lift mb-4">
-            <span className="text-3xl font-black text-white">B</span>
+          <div className="inline-flex items-center justify-center bg-white/15 backdrop-blur-md rounded-3xl px-6 py-3 shadow-lift">
+            <img
+              src="/beboolbox-logo.png"
+              alt="BayanBox"
+              className="h-14 w-auto object-contain"
+            />
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            Bayan<span className="text-amber-400">Box</span>
-          </h1>
-          <p className="text-white/70 text-sm mt-1">BodegaBarangay · Provincial Last-Mile OS</p>
+          <p className="text-white/70 text-sm mt-3">BodegaBarangay · Provincial Last-Mile OS</p>
         </div>
 
         {/* Card */}

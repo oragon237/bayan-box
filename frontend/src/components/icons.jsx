@@ -66,6 +66,14 @@ export const TagIcon = (props) => (
   </svg>
 );
 
+export const CartIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="9" cy="20" r="1.5" />
+    <circle cx="17" cy="20" r="1.5" />
+    <path d="M3 4h2l2.2 11h11l2-8H6.5" />
+  </svg>
+);
+
 export const ShareIcon = (props) => (
   <svg {...base} {...props}>
     <circle cx="6" cy="12" r="2.5" />

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminMerchantController;
+use App\Http\Controllers\Api\AdminMallController;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
@@ -13,8 +15,11 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
+use App\Http\Controllers\Api\ProductReviewController;
 use App\Http\Controllers\Api\RiderController;
+use App\Http\Controllers\Api\StaffMallController;
 use App\Http\Controllers\Api\TrackingController;
+use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,9 +68,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
 
+    // Image upload (Phase A)
+    Route::post('/upload', [UploadController::class, 'store']);
+
     // Marketplace storefront + cart + checkout (PRD v4 §3.7)
     Route::get('/products', [MarketplaceController::class, 'index']);
     Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+    Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
+    Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+    Route::post('/products/{id}/review', [ProductReviewController::class, 'store'])->whereNumber('id');
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/sync', [CartController::class, 'sync']);
     Route::delete('/cart/items/{productId}', [CartController::class, 'remove']);
@@ -91,6 +102,11 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('hub')->group(fu
     // Referral poster (FR-AFF-001)
     Route::get('/affiliate/referral-qr', [AffiliateController::class, 'referralQr']);
     Route::get('/affiliate/referral-qr/poster', [AffiliateController::class, 'poster']);
+});
+
+// ---- Staff: BeCoolBox Mall inventory (Module 2) ----
+Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff/mall')->group(function () {
+    Route::get('/inventory', [StaffMallController::class, 'inventory']);
 });
 
 // ---- Rider (Rider PWA) ----
@@ -131,6 +147,17 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/promos', [PromoController::class, 'index']);
     Route::post('/promos', [PromoController::class, 'store']);
     Route::post('/promos/{id}/toggle', [PromoController::class, 'toggle']);
+
+    // Module 1: Merchant verification workflow
+    Route::get('/merchants/pending', [AdminMerchantController::class, 'pending']);
+    Route::post('/merchants/{id}/approve', [AdminMerchantController::class, 'approve']);
+    Route::post('/merchants/{id}/reject', [AdminMerchantController::class, 'reject']);
+
+    // Module 2: BeCoolBox Mall product CRUD
+    Route::get('/mall/products', [AdminMallController::class, 'index']);
+    Route::post('/mall/products', [AdminMallController::class, 'store']);
+    Route::put('/mall/products/{id}', [AdminMallController::class, 'update']);
+    Route::delete('/mall/products/{id}', [AdminMallController::class, 'destroy']);
 
     // Any role's referral poster
     Route::get('/affiliate/referral-qr/poster', [AffiliateController::class, 'poster']);
