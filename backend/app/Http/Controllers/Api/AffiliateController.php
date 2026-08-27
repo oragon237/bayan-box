@@ -113,20 +113,67 @@ class AffiliateController extends Controller
     }
 
     /**
-     * GET /api/affiliate/earnings — my affiliate wallet balance + ledger.
+     * GET /api/affiliate/earnings — my affiliate wallet balance + income sources.
      */
     public function earnings(Request $request): JsonResponse
     {
         $user = $request->user();
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
 
+        // Income sources grouped by transaction type
+        $sources = $wallet->ledgerTransactions()
+            ->where('direction', 'credit')
+            ->get()
+            ->groupBy('type')
+            ->map(fn ($rows) => round($rows->sum(fn ($r) => (float) $r->amount), 2))
+            ->sortDesc();
+
         return response()->json([
             'balance' => $wallet->balance,
             'referral_code' => $user->affiliate_code,
-            'referral_url' => url('/register?ref='.$user->affiliate_code),
+            'referral_url' => url('/login?ref='.$user->affiliate_code),
+            'affiliate_status' => $user->affiliate_status ?? 'pending',
+            'affiliate_documents' => $user->affiliate_documents ?? [],
             'min_cashout' => (float) config('bayanbox.affiliate.min_cashout', 200),
+            'income_sources' => $sources,
             'ledger' => $wallet->ledgerTransactions()->latest()->limit(50)->get(),
         ]);
+    }
+
+    /**
+     * POST /api/affiliate/upload-document — submit ID for affiliate activation.
+     */
+    public function uploadDocument(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_url' => 'required|string|max:255',
+            'document_type' => 'nullable|string|max:50',
+        ]);
+
+        $user = $request->user();
+        $docs = $user->affiliate_documents ?? [];
+        $docs[] = [
+            'document_type' => $validated['document_type'] ?? 'government_id',
+            'id_url' => $validated['id_url'],
+            'submitted_at' => now()->toIso8601String(),
+        ];
+
+        $user->update([
+            'affiliate_documents' => $docs,
+            'affiliate_status' => $user->affiliate_status ?? 'pending',
+        ]);
+
+        // Notify admins a document is awaiting review
+        app(\App\Services\NotificationService::class)->sendToRole(
+            'admin',
+            'Affiliate document submitted',
+            "{$user->name} submitted their affiliate requirement for approval.",
+            'affiliate_document',
+            '🪪',
+            ['user_id' => $user->id],
+        );
+
+        return response()->json(['message' => 'Document submitted for admin review.', 'affiliate_documents' => $docs]);
     }
 
     /**
@@ -154,7 +201,16 @@ class AffiliateController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Must be activated by admin to cash out
+        if (($user->affiliate_status ?? 'pending') !== 'active') {
+            return response()->json([
+                'message' => 'Admin must approve your affiliate account first. Submit your ID document via the Affiliate dashboard.',
+            ], 422);
+        }
+
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
+        $amount = round((float) $validated['amount'], 2);
         $amount = round((float) $validated['amount'], 2);
         $min = (float) config('bayanbox.affiliate.min_cashout', 200);
 

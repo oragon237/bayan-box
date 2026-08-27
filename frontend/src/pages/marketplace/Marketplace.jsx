@@ -193,12 +193,20 @@ export default function Marketplace({ user }) {
             <h2 className="text-2xl font-black tracking-tight">Local Marketplace</h2>
             <p className="text-white/75 text-sm mt-1">Support neighborhood merchants with direct same-day delivery.</p>
           </div>
-          <button
-            onClick={() => navigate('/providers')}
-            className="shrink-0 px-3 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl border border-white/20 transition"
-          >
-            🧑‍🔧 Skilled Workers
-          </button>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => navigate('/points-shop')}
+              className="px-3 py-2 bg-amber-500/90 hover:bg-amber-600 text-white text-xs font-bold rounded-xl border border-amber-400 transition"
+            >
+              🪙 Points Shop
+            </button>
+            <button
+              onClick={() => navigate('/providers')}
+              className="px-3 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl border border-white/20 transition"
+            >
+              🧑‍🔧 Skilled Workers
+            </button>
+          </div>
         </div>
       </div>
 
@@ -359,7 +367,7 @@ export default function Marketplace({ user }) {
                   <div key={item.id} className="flex justify-between items-center border-b pb-2 text-sm">
                     <div className="flex-1 pr-2 min-w-0">
                       <h4 className="font-bold text-ink-800 line-clamp-1">{item.name}</h4>
-                      <span className="text-xs text-ink-400">₱{Number(item.price).toLocaleString()} each</span>
+                      <span className="text-xs text-ink-400">{item.points_only ? `🪙 ${item.points_price} pts each` : `₱${Number(item.price).toLocaleString()} each`}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 bg-ink-100 hover:bg-ink-200 rounded font-bold text-xs">

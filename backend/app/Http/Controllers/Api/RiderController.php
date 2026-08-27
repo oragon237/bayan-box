@@ -127,4 +127,25 @@ class RiderController extends Controller
             'recent_transactions' => $wallet->ledgerTransactions()->latest()->limit(50)->get(),
         ]);
     }
+
+    /**
+     * POST /api/rider/emergency — report an emergency (item 11).
+     */
+    public function emergency(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'message' => 'nullable|string|max:500',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        $rider = $request->user();
+
+        app(\App\Services\NotificationService::class)->riderEmergency(
+            $rider->id,
+            $validated['message'] ?? "Rider {$rider->name} reported an emergency.",
+        );
+
+        return response()->json(['message' => 'Emergency reported to admins.']);
+    }
 }

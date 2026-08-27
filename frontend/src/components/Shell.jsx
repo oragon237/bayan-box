@@ -6,6 +6,7 @@ import {
   PackageIcon, RouteIcon, ShareIcon, TagIcon, LogoutIcon, BellIcon, CartIcon,
 } from './icons.jsx';
 import { useToast } from './ui.jsx';
+import NotificationsBell from './NotificationsBell.jsx';
 
 const ROLE_LABEL = {
   admin: 'Platform Admin',
@@ -57,10 +58,10 @@ function tabsFor(role) {
     customer: [
       ...base,
       cart,
+      { to: '/points-shop', label: 'Points', icon: StarIcon },
       { to: '/orders', label: 'Orders', icon: PackageIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },
       { to: '/track', label: 'Track', icon: MapPinIcon },
-      affiliate,
     ],
     provider: [
       ...base,
@@ -178,12 +179,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                   <option value="provider" className="text-ink-800">provider</option>
                 </select>
               )}
-              <button
-                className="ml-auto flex items-center gap-1.5 text-[11px] text-white/80 hover:text-white transition"
-                onClick={() => notify('Notifications coming soon.')}
-              >
-                <BellIcon className="w-3.5 h-3.5" /> Alerts
-              </button>
+              <NotificationsBell user={user} />
             </div>
           )}
         </div>

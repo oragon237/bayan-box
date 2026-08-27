@@ -174,4 +174,13 @@ return [
         'min_cashout' => env('AFFILIATE_MIN_CASHOUT', 200.00), // minimum cash-out threshold
     ],
 
+    /*
+    |----------------------------------------------------------------------
+    | In-app rewards (item 9)
+    |----------------------------------------------------------------------
+    */
+    'rewards' => [
+        'review_points' => env('REVIEW_POINTS', 5), // Suki points awarded for leaving a provider review
+    ],
+
 ];

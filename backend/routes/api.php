@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\MerchantOrderController;
 use App\Http\Controllers\Api\MerchantProfileController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\ProductReviewController;
@@ -84,6 +85,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/affiliate/qr', [AffiliateController::class, 'qr']);
     Route::post('/affiliate/cash-out', [AffiliateController::class, 'requestCashOut']);
     Route::get('/affiliate/cash-outs', [AffiliateController::class, 'cashOutHistory']);
+    Route::post('/affiliate/upload-document', [AffiliateController::class, 'uploadDocument']);
+
+    // Notifications (item 11)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->whereNumber('id');
 
     // Offline sync queue (FR-OFF-001/002)
     Route::post('/sync/offline-queue', [OfflineSyncController::class, 'sync']);
@@ -168,6 +176,9 @@ Route::middleware(['auth:sanctum', 'role:rider,admin'])->prefix('rider')->group(
     Route::post('/deliveries/{id}/refuse', [RiderDeliveryController::class, 'refuse']);
     Route::post('/deliveries/{id}/out-for-delivery', [RiderDeliveryController::class, 'outForDelivery']);
     Route::post('/deliveries/{id}/deliver', [RiderDeliveryController::class, 'deliver']);
+
+    // Emergency report (item 11)
+    Route::post('/emergency', [RiderController::class, 'emergency']);
 });
 
 // ---- Merchant ----
@@ -234,4 +245,5 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/affiliates/cash-outs', [AdminAffiliateController::class, 'cashOuts']);
     Route::post('/affiliates/cash-outs/{id}/approve', [AdminAffiliateController::class, 'approveCashOut'])->whereNumber('id');
     Route::post('/affiliates/cash-outs/{id}/decline', [AdminAffiliateController::class, 'declineCashOut'])->whereNumber('id');
+    Route::post('/affiliates/{id}/activate', [AdminAffiliateController::class, 'activate'])->whereNumber('id');
 });

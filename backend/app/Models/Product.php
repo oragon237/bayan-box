@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends Model
 {
     protected $fillable = [
-        'merchant_id', 'name', 'description', 'price', 'stock',
+        'merchant_id', 'name', 'description', 'price', 'sale_price', 'stock',
+        'points_price', 'points_only',
         'suki_points_award', 'affiliate_percentage', 'image_url',
-        'category', 'status', 'is_official_mall', 'sale_price', 'availability',
+        'category', 'status', 'is_official_mall', 'availability',
     ];
 
     protected function casts(): array
@@ -21,6 +22,8 @@ class Product extends Model
             'price' => 'decimal:2',
             'sale_price' => 'decimal:2',
             'stock' => 'integer',
+            'points_price' => 'integer',
+            'points_only' => 'boolean',
             'suki_points_award' => 'integer',
             'affiliate_percentage' => 'decimal:2',
             'is_official_mall' => 'boolean',
@@ -71,5 +74,13 @@ class Product extends Model
     public function scopeOfficialMall(Builder $query): Builder
     {
         return $query->where('is_official_mall', true);
+    }
+
+    /**
+     * Points-only products (buyable exclusively with Suki Points).
+     */
+    public function scopePointsOnly(Builder $query): Builder
+    {
+        return $query->where('points_only', true);
     }
 }

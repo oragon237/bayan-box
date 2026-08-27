@@ -71,6 +71,14 @@ class MerchantOrderController extends Controller
 
         $order->update(['fulfillment_status' => $validated['fulfillment_status']]);
 
+        // Item 11: notify the customer of the fulfillment update
+        app(\App\Services\NotificationService::class)->customerOrder(
+            $order->customer_id,
+            "Order #{$order->id} — ".str_replace('_', ' ', $validated['fulfillment_status']),
+            'Your order fulfillment status has been updated.',
+            ['order_id' => $order->id, 'fulfillment_status' => $validated['fulfillment_status']],
+        );
+
         return response()->json([
             'message' => "Order marked as {$validated['fulfillment_status']}.",
             'order' => $order->fresh(),

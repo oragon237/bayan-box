@@ -13,6 +13,7 @@ import RiderBatches from './pages/rider/RiderBatches.jsx';
 import RiderWallet from './pages/rider/RiderWallet.jsx';
 import CustomerTracking from './pages/customer/CustomerTracking.jsx';
 import CustomerBookings from './pages/customer/CustomerBookings.jsx';
+import PointsShop from './pages/customer/PointsShop.jsx';
 import MyOrders from './pages/customer/MyOrders.jsx';
 import SukiPoints from './pages/customer/SukiPoints.jsx';
 import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
@@ -179,6 +180,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/affiliate" element={<AffiliateDashboard user={user} />} />
           <Route path="/admin/affiliates" element={<AdminAffiliates user={user} />} />
           <Route path="/orders" element={<MyOrders user={user} />} />
+          <Route path="/points-shop" element={<PointsShop user={user} />} />
         </>
       )}
 

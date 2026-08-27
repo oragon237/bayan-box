@@ -147,6 +147,11 @@ class User extends Authenticatable
         return $this->hasOne(Wallet::class)->where('wallet_type', Wallet::TYPE_AFFILIATE_PAYOUT);
     }
 
+    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
     public function wallet(string $type): ?Wallet
     {
         return $this->wallets()->where('wallet_type', $type)->first();

@@ -75,8 +75,10 @@ class MarketplaceService
             }
 
             $productTotal = 0.00;
+            $pointsTotal = 0;
 
-            // 1. Validate stock & sum the product total (sale price applied)
+            // 1. Validate stock & sum the product total (sale price applied).
+            //    Points-only items are priced in Suki Points, not cash.
             foreach ($items as $cartItem) {
                 $product = $cartItem->product;
                 if (! $product || $product->status !== 'active' || $product->availability !== 'available') {
@@ -85,7 +87,11 @@ class MarketplaceService
                 if ($product->stock < $cartItem->quantity) {
                     throw new RuntimeException("Insufficient stock for {$product->name}.");
                 }
-                $productTotal += $product->effectivePrice() * $cartItem->quantity;
+                if ($product->points_only) {
+                    $pointsTotal += (int) $product->points_price * $cartItem->quantity;
+                } else {
+                    $productTotal += $product->effectivePrice() * $cartItem->quantity;
+                }
             }
 
             // Platform wallet is shared across all splits
@@ -110,7 +116,19 @@ class MarketplaceService
                 'status' => $isCod ? 'pending_payment' : 'paid', // COD: rider collects at delivery
             ]);
 
-            // 2b. Pay with affiliate earnings (use_affiliate_balance)
+            // 2b. Pay with Suki Points for points-only items
+            if ($pointsTotal > 0) {
+                $this->loyalty->burn(
+                    $customer,
+                    $pointsTotal,
+                    'points_purchase',
+                    "Points purchase Order #{$order->id}",
+                    $order,
+                );
+                $order->update(['payment_method' => 'points']);
+            }
+
+            // 2c. Pay with affiliate earnings (use_affiliate_balance)
             $totalDue = round((float) $productTotal + (float) $shippingAmount, 2);
             if (! empty($payload['use_affiliate_balance'])) {
                 $affiliateWallet = $this->wallets->ensureWallet($customer->id, Wallet::TYPE_AFFILIATE_PAYOUT);
@@ -153,6 +171,12 @@ class MarketplaceService
                     ->decrement('stock', $cartItem->quantity);
                 if ($affected === 0) {
                     throw new RuntimeException("Insufficient stock for {$product->name}.");
+                }
+
+                // Points-only items are redeemed with Suki Points — no cash
+                // ledger split (merchant/platform/affiliate payouts skip).
+                if ($product->points_only) {
+                    continue;
                 }
 
                 // Module 2: BeCoolBox Mall — 100% to admin_earnings, 0% rake
@@ -262,7 +286,14 @@ class MarketplaceService
                 );
             }
 
-            // 5. Clear the cart
+            // 5. Notify merchants of the new order (item 11)
+            $merchantIds = $items->map(fn ($i) => $i->product->merchant_id)->unique()->values();
+            $notifier = app(\App\Services\NotificationService::class);
+            foreach ($merchantIds as $mid) {
+                $notifier->merchantNewOrder($mid, $order->id);
+            }
+
+            // 6. Clear the cart
             CartItem::where('customer_id', $customer->id)->delete();
 
             return $order->load('items.product');

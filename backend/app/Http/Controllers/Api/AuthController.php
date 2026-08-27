@@ -77,6 +77,11 @@ class AuthController extends Controller
             }
         }
 
+        // Item 11: notify admins of a new merchant applicant
+        if ($isMerchant) {
+            app(\App\Services\NotificationService::class)->adminNewApplicant();
+        }
+
         return response()->json([
             'user' => $user->only(['id', 'name', 'phone', 'role', 'affiliate_code', 'barangay', 'municipality']),
             'token' => $user->createToken('bayanbox-pwa', [$user->role])->plainTextToken,

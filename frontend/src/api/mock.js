@@ -111,6 +111,7 @@ const PRODUCTS = [
   { id: 2, merchant_id: 4, name: 'Home-baked Pan de Sal', description: 'Warm pandesal, fresh daily.', price: '25.00', stock: 60, suki_points_award: 1, affiliate_percentage: '3.00', image_url: null, category: 'Home Cooks', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
   { id: 3, merchant_id: 4, name: 'Abaca Tote Bag', description: 'Handwoven abaca tote from local artisans.', price: '180.00', stock: 30, suki_points_award: 5, affiliate_percentage: '10.00', image_url: null, category: 'Local Crafts', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
   { id: 4, merchant_id: 4, name: 'Bicol Express Bagoong', description: 'Fiery bagoong for authentic Bicol express.', price: '95.00', stock: 45, suki_points_award: 3, affiliate_percentage: '0.00', image_url: null, category: 'Fresh Produce', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
+  { id: 11, merchant_id: 1, name: 'Official BayanBox Tumbler', description: 'Exclusive tumbler — redeem with Suki Points only.', price: '0.00', points_price: 300, points_only: true, stock: 25, suki_points_award: 0, affiliate_percentage: '0.00', image_url: null, category: 'Points Shop', status: 'active', is_official_mall: true, merchant: { id: 1, name: 'BayanBox Admin' } },
 ];
 
 let MOCK_CART = [];
@@ -196,7 +197,9 @@ export function mockRequest(url, method, data, params = {}) {
   if (path === '/products' && lower === 'get') {
     const q = (params?.q || '').toLowerCase();
     const cat = params?.category;
+    const pointsOnly = params?.points_only;
     let list = PRODUCTS.filter((p) => p.status === 'active' && p.stock > 0);
+    if (pointsOnly) list = list.filter((p) => p.points_only);
     if (cat) list = list.filter((p) => p.category === cat);
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
     return Promise.resolve(mockResponse({ data: list, total: list.length }));
@@ -412,6 +415,17 @@ export function mockRequest(url, method, data, params = {}) {
       total: 2,
     }));
   }
+
+    // Notifications (item 11)
+  if (path === '/notifications/unread-count' && lower === 'get') return Promise.resolve(mockResponse({ unread: 2 }));
+  if (path === '/notifications' && lower === 'get') {
+    return Promise.resolve(mockResponse({ data: [
+      { id: 1, title: 'New order received', body: 'You have a new order (#12) to fulfill.', type: 'merchant_order', icon: '📦', read_at: null, created_at: new Date().toISOString() },
+      { id: 2, title: 'Affiliate activated', body: 'You can now withdraw your earnings.', type: 'affiliate_status', icon: '✅', read_at: null, created_at: new Date().toISOString() },
+    ], total: 2 }));
+  }
+  if (path === '/notifications/read-all' && lower === 'post') return Promise.resolve(mockResponse({ message: 'All read.' }));
+  if (/^\/notifications\/\d+\/read$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Marked read.' }));
 
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {

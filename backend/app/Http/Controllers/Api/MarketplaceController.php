@@ -28,6 +28,7 @@ class MarketplaceController extends Controller
                 ->with(['merchant:id,name', 'images:id,product_id,image_url'])
                 ->withCount('reviews')
                 ->withAvg('reviews', 'rating')
+                ->when($request->boolean('points_only'), fn ($q) => $q->where('points_only', true))
                 ->when($request->input('category'), fn ($q, $c) => $q->where('category', $c))
                 ->when($request->input('q'), fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%"))
                 ->orderByDesc('is_official_mall') // BeCoolBox Mall pinned to top

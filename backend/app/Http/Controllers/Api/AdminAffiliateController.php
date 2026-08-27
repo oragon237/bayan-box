@@ -26,7 +26,7 @@ class AdminAffiliateController extends Controller
     {
         $affiliates = User::whereNotNull('affiliate_code')
             ->with('affiliateWallet')
-            ->select(['id', 'name', 'phone', 'role', 'affiliate_code', 'status'])
+            ->select(['id', 'name', 'phone', 'role', 'affiliate_code', 'affiliate_status', 'affiliate_documents', 'affiliate_activated_at', 'status'])
             ->get()
             ->map(fn ($u) => [
                 'id' => $u->id,
@@ -34,6 +34,9 @@ class AdminAffiliateController extends Controller
                 'phone' => $u->phone,
                 'role' => $u->role,
                 'affiliate_code' => $u->affiliate_code,
+                'affiliate_status' => $u->affiliate_status ?? 'pending',
+                'affiliate_documents' => $u->affiliate_documents ?? [],
+                'affiliate_activated_at' => $u->affiliate_activated_at,
                 'status' => $u->status,
                 'earnings' => (float) ($u->affiliateWallet?->balance ?? 0),
             ])
@@ -42,6 +45,33 @@ class AdminAffiliateController extends Controller
             ->values();
 
         return response()->json(['affiliates' => $affiliates]);
+    }
+
+    /**
+     * POST /api/admin/affiliates/{id}/activate — approve an affiliate to cash out.
+     */
+    public function activate(int $id): JsonResponse
+    {
+        $user = User::whereNotNull('affiliate_code')->findOrFail($id);
+
+        $user->update([
+            'affiliate_status' => 'active',
+            'affiliate_activated_at' => now(),
+        ]);
+
+        // Notify the affiliate
+        app(\App\Services\NotificationService::class)->send(
+            $user->id,
+            'Affiliate activated',
+            'Your affiliate account is now active. You can withdraw your earnings.',
+            'affiliate_status',
+            '✅',
+        );
+
+        return response()->json([
+            'message' => 'Affiliate activated. They can now withdraw earnings.',
+            'affiliate' => $user->only(['id', 'name', 'affiliate_status', 'affiliate_activated_at']),
+        ]);
     }
 
     /**

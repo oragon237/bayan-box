@@ -127,6 +127,17 @@ class ProviderController extends Controller
             ],
         );
 
+        // Item 9: encourage reviews by awarding the customer Suki points
+        if ($review->wasRecentlyCreated) {
+            app(\App\Services\LoyaltyService::class)->award(
+                $customer,
+                (int) config('bayanbox.rewards.review_points', 5),
+                'review_reward',
+                'Thanks for reviewing a provider! +points',
+                $review,
+            );
+        }
+
         return response()->json($review, 201);
     }
 

@@ -152,6 +152,9 @@ class AdminMerchantController extends Controller
         // Automated approval SMS via Semaphore.
         $this->sms->merchantApproved($merchant->phone);
 
+        // Item 11: in-app notification to the merchant
+        app(\App\Services\NotificationService::class)->merchantApproved($merchant->id);
+
         return response()->json([
             'message' => 'Merchant approved.',
             'merchant' => $merchant->only(['id', 'name', 'phone', 'status', 'verified_at']),

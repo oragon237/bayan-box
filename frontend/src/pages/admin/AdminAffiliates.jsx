@@ -51,6 +51,16 @@ export default function AdminAffiliates({ user }) {
     }
   };
 
+  const activate = async (id) => {
+    try {
+      const res = await client.post(`/admin/affiliates/${id}/activate`);
+      notify(res.data.message);
+      load();
+    } catch (err) {
+      notify(err.response?.data?.message || 'Could not activate.', 'error');
+    }
+  };
+
   const statusColor = (s) =>
     s === 'paid'
       ? 'bg-green-50 text-green-700 border-green-200'
@@ -116,12 +126,38 @@ export default function AdminAffiliates({ user }) {
       ) : (
         <div className="space-y-2">
           {affiliates.map((a) => (
-            <div key={a.id} className="card p-3 flex items-center justify-between text-sm">
-              <div>
-                <p className="font-bold text-ink-800">{a.name} <span className="text-[10px] text-ink-400">({a.role})</span></p>
-                <p className="text-xs text-ink-400">Code: {a.affiliate_code}</p>
+            <div key={a.id} className="card p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-ink-800">{a.name} <span className="text-[10px] text-ink-400">({a.role})</span></p>
+                  <p className="text-xs text-ink-400">Code: {a.affiliate_code}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-black text-ink-900">₱{Number(a.earnings).toLocaleString()}</p>
+                  <span className={`chip border ${a.affiliate_status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    {a.affiliate_status}
+                  </span>
+                </div>
               </div>
-              <p className="font-black text-ink-900">₱{Number(a.earnings).toLocaleString()}</p>
+
+              {a.affiliate_documents?.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {a.affiliate_documents.map((d, i) => (
+                    <a key={i} href={d.id_url} target="_blank" rel="noreferrer">
+                      <img src={d.id_url} alt="Requirement" className="w-16 h-16 rounded-lg object-cover border border-ink-200" />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {a.affiliate_status !== 'active' && (
+                <button
+                  onClick={() => activate(a.id)}
+                  className="mt-2 w-full py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl"
+                >
+                  ✅ Activate affiliate
+                </button>
+              )}
             </div>
           ))}
         </div>
