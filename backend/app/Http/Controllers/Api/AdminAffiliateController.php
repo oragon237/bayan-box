@@ -128,7 +128,8 @@ class AdminAffiliateController extends Controller
     {
         $cashOut = AffiliateCashOut::where('status', AffiliateCashOut::STATUS_PENDING)->findOrFail($id);
 
-        $wallet = $this->wallets->ensureWallet($cashOut->user_id, Wallet::TYPE_AFFILIATE_PAYOUT);
+        $walletType = $cashOut->wallet_type ?? Wallet::TYPE_AFFILIATE_PAYOUT;
+        $wallet = $this->wallets->ensureWallet($cashOut->user_id, $walletType);
 
         if ((float) $wallet->balance < (float) $cashOut->amount) {
             return response()->json(['message' => 'Insufficient affiliate balance for this payout.'], 422);

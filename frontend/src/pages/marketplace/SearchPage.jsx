@@ -6,27 +6,74 @@ import { EmptyState, useToast } from '../../components/ui.jsx';
 const RECENT = JSON.parse(localStorage.getItem('bayanbox_recent_searches') || '[]');
 const TRENDING = ['Fresh Produce', 'Packaging', 'On Sale', 'Abaca', 'Bicol'];
 
-function AdCard({ campaignId, product, onOpen, horizontal = false }) {
-  useEffect(() => { client.post(`/ads/${campaignId}/impression`).catch(() => {}); }, [campaignId]);
-  const click = () => { client.post(`/ads/${campaignId}/click`).catch(() => {}); onOpen(); };
+function SafeImg({ src, alt, className }) {
+  const [error, setError] = useState(false);
   return (
-    <div className={`card border border-purple-200/60 ${horizontal ? 'p-2 w-36 shrink-0 text-left' : 'p-3'}`}>
-      <div className={`relative bg-gradient-to-br from-purple-100 to-ink-100 overflow-hidden ${horizontal ? 'w-full h-20 rounded-lg mb-1.5' : 'w-16 h-16 rounded-lg shrink-0'}`}>
-        <button onClick={click} className="w-full h-full"><img src={product.image_url || 'https://placehold.co/200x200/673de6/ffffff?text=📦'} alt={product.name} className="w-full h-full object-cover" /></button>
-        <span className="absolute top-1 left-1 text-[9px] font-black bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Ad</span>
-      </div>
-      {horizontal ? (
-        <>
-          <h4 className="font-bold text-ink-800 text-xs line-clamp-1">{product.name}</h4>
-          <p className="text-sm font-black text-ink-900 mt-0.5">₱{Number(product.price).toLocaleString()}</p>
-        </>
-      ) : (
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black text-purple-600 uppercase">Sponsored</p>
-          <h4 className="font-bold text-ink-800 text-sm truncate">{product.name}</h4>
-          <p className="text-lg font-black text-ink-900">₱{Number(product.price).toLocaleString()}</p>
+    <img
+      src={error ? 'https://placehold.co/600x600/e0e0e3/55555c?text=📦' : src || 'https://placehold.co/600x600/e0e0e3/55555c?text=📦'}
+      alt={alt}
+      onError={() => setError(true)}
+      className={className}
+      loading="lazy"
+    />
+  );
+}
+
+function AdCard({ campaignId, product, user, notify, navigate, horizontal = false }) {
+  useEffect(() => { client.post(`/ads/${campaignId}/impression`).catch(() => {}); }, [campaignId]);
+  const click = () => { client.post(`/ads/${campaignId}/click`).catch(() => {}); navigate(`/product/${product.id}`); };
+
+  // Horizontal = compact card for the "Sponsored Items" top row
+  if (horizontal) {
+    return (
+      <div className="card p-2 w-36 shrink-0 text-left border border-purple-200/60">
+        <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-ink-50 mb-1.5">
+          <button onClick={click} className="w-full h-full"><SafeImg src={product.image_url} alt={product.name} className="w-full h-full object-cover" /></button>
+          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 text-[10px] font-semibold bg-purple-600 text-white rounded-md shadow">Sponsored</span>
         </div>
-      )}
+        <h4 className="font-bold text-ink-800 text-xs line-clamp-1">{product.name}</h4>
+        <p className="text-sm font-black text-ink-900 mt-0.5">₱{Number(product.price).toLocaleString()}</p>
+      </div>
+    );
+  }
+
+  // Full grid card — matches regular product cards
+  return (
+    <div className="card p-3 flex flex-col justify-between h-full border border-purple-200/60">
+      <div>
+        <div className="relative aspect-square w-full rounded-xl bg-gradient-to-br from-bayan-100 to-ink-100 overflow-hidden mb-2">
+          <button onClick={click} className="w-full h-full"><SafeImg src={product.image_url} alt={product.name} className="w-full h-full object-cover" /></button>
+          <span className="absolute top-2 left-2 px-2 py-0.5 text-xs font-semibold bg-purple-600 text-white rounded-md shadow">Sponsored</span>
+        </div>
+        <span className="inline-block bg-bayan-50 text-bayan-700 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">{product.category || 'General'}</span>
+        <button onClick={click} className="block text-left w-full">
+          <h3 className="font-bold text-ink-800 text-sm leading-snug hover:text-bayan-700 transition line-clamp-2">{product.name}</h3>
+        </button>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(product.reviews_avg_rating || 0) || 4))}</span>
+          <span className="text-[10px] text-ink-400">({product.reviews_count || 0})</span>
+          <span className="text-[10px] text-ink-400 ml-auto">{product.stock} in stock</span>
+        </div>
+      </div>
+      <div className="mt-3">
+        <div className="flex items-baseline gap-1.5 mb-2">
+          {product.sale_price ? (
+            <>
+              <span className="text-[10px] text-ink-400 line-through">₱{Number(product.price).toLocaleString()}</span>
+              <span className="text-lg font-black text-red-600">₱{Number(product.sale_price).toLocaleString()}</span>
+            </>
+          ) : (
+            <span className="text-lg font-black text-ink-900">₱{Number(product.price).toLocaleString()}</span>
+          )}
+        </div>
+        <button
+          onClick={() => { if (!user) { notify('Please log in.', 'info'); navigate('/login'); return; } client.post('/cart/sync', { cart: [{ product_id: product.id, quantity: 1 }] }).catch(() => {}); notify('Added to cart.', 'success'); }}
+          disabled={Number(product.stock) <= 0}
+          className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl"
+        >
+          {Number(product.stock) > 0 ? 'Add to Cart' : 'Out of Stock'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -186,7 +233,7 @@ export default function SearchPage({ user }) {
           <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">⭐ Sponsored Items</h3>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
             {sponsoredItems.map((s) => (
-              <AdCard key={s.campaign_id} campaignId={s.campaign_id} product={s.product} onOpen={() => navigate(`/product/${s.product.id}`)} horizontal />
+              <AdCard key={s.campaign_id} campaignId={s.campaign_id} product={s.product} user={user} notify={notify} navigate={navigate} horizontal />
             ))}
           </div>
         </div>
@@ -211,7 +258,7 @@ export default function SearchPage({ user }) {
                 {renderProduct(p, !!p.is_sponsored)}
                 {inlineAd && (
                   <div className="mb-4">
-                    <AdCard campaignId={inlineAd.id} product={inlineAd.product} onOpen={() => navigate(`/product/${inlineAd.product.id}`)} />
+                    <AdCard campaignId={inlineAd.id} product={inlineAd.product} user={user} notify={notify} navigate={navigate} />
                   </div>
                 )}
               </div>

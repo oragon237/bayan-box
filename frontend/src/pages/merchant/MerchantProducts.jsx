@@ -6,16 +6,19 @@ import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const EMPTY_FORM = {
   name: '',
+  unit: '',
   description: '',
   category: 'General',
   price: '',
   sale_price: '',
   stock: '',
+  low_stock_threshold: 5,
   suki_points_award: 0,
   affiliate_percentage: 0,
   image_url: '',
   gallery: [],
   availability: 'available',
+  status: 'active',
 };
 
 const CATEGORIES = ['General', 'Fresh Produce', 'Home Cooks', 'Local Crafts', 'Packaging', 'Provincial Goods', 'Office Supplies'];
@@ -56,16 +59,19 @@ export default function MerchantProducts({ user }) {
     setSaving(true);
     const payload = {
       name: form.name,
+      unit: form.unit || null,
       description: form.description,
       category: form.category,
       price: Number(form.price),
       sale_price: form.sale_price !== '' ? Number(form.sale_price) : null,
       stock: Number(form.stock),
+      low_stock_threshold: Number(form.low_stock_threshold || 5),
       suki_points_award: Number(form.suki_points_award || 0),
       affiliate_percentage: Number(form.affiliate_percentage || 0),
       image_url: form.image_url || null,
       gallery: (form.gallery || []).map((u) => ({ image_url: u })),
       availability: form.availability || 'available',
+      status: form.status || 'active',
     };
     try {
       if (editingId) {
@@ -89,16 +95,19 @@ export default function MerchantProducts({ user }) {
     setEditingId(p.id);
     setForm({
       name: p.name,
+      unit: p.unit || '',
       description: p.description || '',
       category: p.category,
       price: p.price,
       sale_price: p.sale_price || '',
       stock: p.stock,
+      low_stock_threshold: p.low_stock_threshold || 5,
       suki_points_award: p.suki_points_award,
       affiliate_percentage: p.affiliate_percentage,
       image_url: p.image_url || '',
       gallery: (p.images || []).map((i) => i.image_url),
       availability: p.availability || 'available',
+      status: p.status || 'active',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -128,6 +137,18 @@ export default function MerchantProducts({ user }) {
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-ink-500 mb-1">Name *</label>
             <input required value={form.name} onChange={set('name')} placeholder="e.g., Fresh Sili (250g)" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Unit (e.g., 250g, 1kg, 50m)</label>
+            <input value={form.unit} onChange={set('unit')} placeholder="e.g., 250g" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Status</label>
+            <select value={form.status} onChange={set('status')} className="field bg-white">
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Out of Stock</option>
+            </select>
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-ink-500 mb-1">Description</label>
@@ -168,12 +189,19 @@ export default function MerchantProducts({ user }) {
             <input required type="number" min="0" step="0.01" value={form.price} onChange={set('price')} placeholder="0.00" className="field" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-ink-500 mb-1">Sale price (₱) — ON SALE</label>
-            <input type="number" min="0" step="0.01" value={form.sale_price} onChange={set('sale_price')} placeholder="Optional discount" className="field" />
+            <label className="flex items-center gap-2 pt-5 cursor-pointer">
+              <input type="checkbox" checked={!!form.sale_price && form.sale_price !== ''} onChange={(e) => setForm({ ...form, sale_price: e.target.checked ? form.price || 0 : '' })} className="w-4 h-4 text-bayan-600" />
+              <span className="text-xs font-bold text-ink-700">On Sale</span>
+            </label>
+            <input type="number" min="0" step="0.01" value={form.sale_price} onChange={set('sale_price')} placeholder="Sale price (₱)" className="field" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Stock *</label>
             <input required type="number" min="0" value={form.stock} onChange={set('stock')} placeholder="0" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Low stock alert threshold</label>
+            <input type="number" min="1" value={form.low_stock_threshold} onChange={set('low_stock_threshold')} placeholder="5" className="field" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Suki points award</label>

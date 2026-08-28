@@ -24,11 +24,23 @@ class AffiliateController extends Controller
     ) {}
 
     /**
+     * Personal affiliate program is restricted to CUSTOMER, MERCHANT, RIDER,
+     * and PROVIDER. STAFF cannot participate personally (403).
+     */
+    protected function assertAffiliateEligible($user): void
+    {
+        if ($user->role === 'staff') {
+            abort(403, 'Staff accounts cannot participate in the personal affiliate program.');
+        }
+    }
+
+    /**
      * GET /api/affiliate/referral-qr — QR payload for the hub owner.
      */
     public function referralQr(Request $request): JsonResponse
     {
         $user = $request->user();
+        $this->assertAffiliateEligible($user);
 
         $hub = $user->role === 'admin'
             ? Hub::findOrFail($request->integer('hub_id', 0))
@@ -81,6 +93,7 @@ class AffiliateController extends Controller
      */
     public function registerReferral(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         $validated = $request->validate([
             'referral_code' => 'required|string|max:15',
         ]);
@@ -117,6 +130,7 @@ class AffiliateController extends Controller
      */
     public function earnings(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         $user = $request->user();
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
 
@@ -145,6 +159,7 @@ class AffiliateController extends Controller
      */
     public function uploadDocument(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         $validated = $request->validate([
             'id_url' => 'required|string|max:255',
             'document_type' => 'nullable|string|max:50',
@@ -181,6 +196,7 @@ class AffiliateController extends Controller
      */
     public function qr(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         $user = $request->user();
         $payload = url('/register?ref='.$user->affiliate_code);
 
@@ -196,6 +212,7 @@ class AffiliateController extends Controller
      */
     public function requestCashOut(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
         ]);
@@ -253,6 +270,7 @@ class AffiliateController extends Controller
      */
     public function cashOutHistory(Request $request): JsonResponse
     {
+        $this->assertAffiliateEligible($request->user());
         return response()->json(
             AffiliateCashOut::where('user_id', $request->user()->id)
                 ->orderByDesc('created_at')

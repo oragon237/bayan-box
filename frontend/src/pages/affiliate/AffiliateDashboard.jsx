@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/ImageUploader.jsx';
 import { useToast } from '../../components/ui.jsx';
 
+const AFFILIATE_ROLES = ['customer', 'merchant', 'rider', 'provider'];
+
 export default function AffiliateDashboard({ user }) {
   const notify = useToast();
+  const navigate = useNavigate();
+
   const [data, setData] = useState(null);
   const [cashOuts, setCashOuts] = useState([]);
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [docUrl, setDocUrl] = useState('');
-  const [uploading, setUploading] = useState(false);
+const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     try {
@@ -28,6 +33,16 @@ export default function AffiliateDashboard({ user }) {
   useEffect(() => {
     load();
   }, []);
+
+  // Staff are not eligible for the personal affiliate program (after hooks)
+  if (user && !AFFILIATE_ROLES.includes(user.role)) {
+    return (
+      <div className="card p-6 text-center space-y-3">
+        <p className="text-ink-400 text-sm">The personal affiliate program is not available for your account type.</p>
+        <button onClick={() => navigate('/')} className="px-5 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl">Back to dashboard</button>
+      </div>
+    );
+  }
 
   const requestCashOut = async () => {
     if (!amount || Number(amount) < 1) {

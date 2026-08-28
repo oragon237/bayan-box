@@ -38,10 +38,12 @@ class MerchantProductController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:150',
+            'unit' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0|lt:price',
             'stock' => 'required|integer|min:0',
+            'low_stock_threshold' => 'nullable|integer|min:1|max:1000',
             'suki_points_award' => 'nullable|integer|min:0|max:10000',
             'affiliate_percentage' => ['nullable', 'numeric', 'between:0,'.config('bayanbox.marketplace.max_affiliate_percentage', 50)],
             'image_url' => 'nullable|string|max:255',
@@ -49,6 +51,7 @@ class MerchantProductController extends Controller
             'gallery.*.image_url' => 'required|string|max:255',
             'category' => 'nullable|string|max:50',
             'availability' => 'nullable|in:available,out_of_stock,unavailable',
+            'status' => 'nullable|in:active,draft,archived',
         ]);
 
         $product = Product::create(array_merge($validated, [

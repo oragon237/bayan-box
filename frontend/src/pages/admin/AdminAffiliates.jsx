@@ -86,7 +86,14 @@ export default function AdminAffiliates({ user }) {
     }
   };
 
-  const statusColor = (s) =>
+  const ROLE_BADGE = {
+  customer: 'bg-bayan-50 text-bayan-700 border-bayan-200',
+  merchant: 'bg-purple-50 text-purple-700 border-purple-200',
+  rider: 'bg-orange-50 text-orange-700 border-orange-200',
+  provider: 'bg-teal-50 text-teal-700 border-teal-200',
+};
+
+const statusColor = (s) =>
     s === 'paid' ? 'bg-green-50 text-green-700 border-green-200'
       : s === 'declined' ? 'bg-red-50 text-red-600 border-red-200'
       : 'bg-amber-50 text-amber-700 border-amber-200';
@@ -180,7 +187,7 @@ export default function AdminAffiliates({ user }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-ink-800 truncate">
                     {a.name}
-                    <span className="ml-1.5 text-[10px] text-ink-400">({a.role})</span>
+                    <span className={`ml-1.5 chip border ${ROLE_BADGE[a.role] || 'bg-ink-50 text-ink-600 border-ink-200'}`}>{a.role}</span>
                   </p>
                   <p className="text-xs text-ink-400 truncate">Code: {a.affiliate_code} · {a.municipality || '—'}</p>
                 </div>
@@ -252,7 +259,7 @@ export default function AdminAffiliates({ user }) {
               <p>📱 {detail.phone}</p>
               <p>🔗 Code: {detail.affiliate_code}</p>
               <p>📍 {detail.municipality || '—'}{detail.barangay ? `, ${detail.barangay}` : ''}</p>
-              <p>🎭 Role: <span className="font-bold text-ink-700 capitalize">{detail.role}</span></p>
+              <p>🎭 Role: <span className={`chip border ${ROLE_BADGE[detail.role] || 'bg-ink-50 text-ink-600 border-ink-200'}`}>{detail.role}</span></p>
               <p>💰 Earnings: <span className="font-bold text-ink-900">₱{Number(detail.earnings).toLocaleString()}</span></p>
               <p>📋 Affiliate status: <span className={`chip border ${detail.affiliate_status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{detail.affiliate_status}</span></p>
               <p>🕐 Joined: {detail.created_at ? new Date(detail.created_at).toLocaleDateString() : '—'}</p>

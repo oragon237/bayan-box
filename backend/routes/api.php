@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\MerchantOrderController;
+use App\Http\Controllers\Api\MerchantDashboardController;
 use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\NotificationController;
@@ -155,6 +156,11 @@ Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant')->
     Route::get('/ads/rates', [MerchantAdController::class, 'rates']);
     Route::post('/ads', [MerchantAdController::class, 'store']);
     Route::post('/ads/{id}/pause', [MerchantAdController::class, 'togglePause'])->whereNumber('id');
+
+    // Merchant dashboard, reports, cash-out
+    Route::get('/dashboard', [MerchantDashboardController::class, 'dashboard']);
+    Route::get('/reports', [MerchantDashboardController::class, 'reports']);
+    Route::post('/cash-out', [MerchantDashboardController::class, 'requestCashOut']);
 });
 
 // ---- Staff (Hub PWA) ----

@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends Model
 {
     protected $fillable = [
-        'merchant_id', 'name', 'description', 'price', 'sale_price', 'stock',
+        'merchant_id', 'name', 'unit', 'description', 'price', 'sale_price', 'stock',
+        'low_stock_threshold',
         'points_price', 'points_only',
         'suki_points_award', 'affiliate_percentage', 'image_url',
         'category', 'status', 'is_official_mall', 'availability',
@@ -22,6 +23,7 @@ class Product extends Model
             'price' => 'decimal:2',
             'sale_price' => 'decimal:2',
             'stock' => 'integer',
+            'low_stock_threshold' => 'integer',
             'points_price' => 'integer',
             'points_only' => 'boolean',
             'suki_points_award' => 'integer',

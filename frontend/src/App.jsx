@@ -26,6 +26,8 @@ import ProductDetail from './pages/marketplace/ProductDetail.jsx';
 import ProvidersList from './pages/marketplace/ProvidersList.jsx';
 import HireProvider from './pages/marketplace/HireProvider.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
+import MerchantDashboard from './pages/merchant/MerchantDashboard.jsx';
+import MerchantReports from './pages/merchant/MerchantReports.jsx';
 import MerchantAds from './pages/merchant/MerchantAds.jsx';
 import MerchantOrders from './pages/merchant/MerchantOrders.jsx';
 import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
@@ -154,7 +156,7 @@ export default function App() {
 function MainRoutes({ user, onAuth }) {
   return (
     <Routes>
-      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : <MarketplaceHome user={user} />} />
+      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : <MarketplaceHome user={user} />} />
       <Route path="/search" element={<SearchPage user={user} />} />
       <Route path="/marketplace/category/:slug" element={<SearchPage user={user} />} />
       <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
@@ -180,6 +182,8 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
           <Route path="/merchant/orders" element={<MerchantOrders user={user} />} />
           <Route path="/merchant/ads" element={<MerchantAds user={user} />} />
+          <Route path="/merchant/dashboard" element={<MerchantDashboard user={user} />} />
+          <Route path="/merchant/reports" element={<MerchantReports user={user} />} />
           <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
           <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
           <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />

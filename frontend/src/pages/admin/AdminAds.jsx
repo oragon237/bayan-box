@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import client from '../../api/client.js';
+import ImageUploader from '../../components/ImageUploader.jsx';
 import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const STATUS_STYLE = {
@@ -179,6 +180,21 @@ export default function AdminAds({ user }) {
             <div>
               <label className="block text-xs font-semibold text-ink-500 mb-1">Ad title</label>
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="field" />
+
+              {/* Image upload + preview */}
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-ink-500 mb-1">
+                  {form.type === 'home_slide' ? 'Banner image *' : 'Product image'}
+                </label>
+                <ImageUploader value={form.image_url} onChange={(url) => setForm({ ...form, image_url: url })} folder="ads" label="Upload image" />
+                <div className="mt-2 text-xs text-ink-500 bg-ink-50 p-2 rounded-md">
+                  {form.type === 'home_slide' ? (
+                    <>💡 Recommended: <b>1200 × 450px</b> or <b>1200 × 400px</b> (3:1 / 16:6) · WebP, PNG, JPG · Max 2MB</>
+                  ) : (
+                    <>💡 Recommended: <b>500 × 500px</b> or <b>800 × 800px</b> (1:1 square) · WebP, PNG, JPG · Max 2MB</>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -198,10 +214,6 @@ export default function AdminAds({ user }) {
 
             {form.type === 'home_slide' ? (
               <>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-500 mb-1">Banner image URL</label>
-                  <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="field" />
-                </div>
                 <div>
                   <label className="block text-xs font-semibold text-ink-500 mb-1">CTA link / route</label>
                   <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} className="field" />

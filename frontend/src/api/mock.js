@@ -469,6 +469,27 @@ export function mockRequest(url, method, data, params = {}) {
   }
   if (/^\/admin\/ads\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) return Promise.resolve(mockResponse({ message: 'Ad ' + (lower === 'put' ? 'updated.' : 'deleted.') }));
 
+    // Merchant dashboard + reports
+  if (path === '/merchant/dashboard' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      store: { name: 'Mang Juan Store', status: 'active', verified: true },
+      kpis: { revenue_this_month: 630, revenue_lifetime: 1890, pending_orders: 2, units_sold: 12, wallet_balance: 1200 },
+      pending_orders: [{ id: 14, total_amount: '150.00', customer: { id: 5, name: 'Juan Dela Cruz' }, items: [{ product: { name: 'Fresh Sili' } }] }],
+      low_stock: [{ id: 4, name: 'Gabi (1kg)', stock: 3, low_stock_threshold: 5, price: 55 }],
+    }));
+  }
+  if (path === '/merchant/reports' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      summary: { orders: 6, revenue: 630, units: 12 },
+      trend: [{ date: '2026-08-26', revenue: 120, orders: 2 }, { date: '2026-08-27', revenue: 300, orders: 3 }, { date: '2026-08-28', revenue: 210, orders: 1 }],
+      best_sellers: [{ product_id: 1, name: 'Fresh Sili (250g)', category: 'Fresh Produce', units_sold: 12, revenue: 480, current_stock: 100, conversion_rate: 10.7 }],
+      wallet: { balance: 1200, history: [], withdrawals: [] },
+    }));
+  }
+  if (path === '/merchant/cash-out' && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Withdrawal requested.', cash_out: { id: 5, amount: data?.amount, status: 'pending' } }, 201));
+  }
+
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {
     return Promise.resolve(mockResponse({ data: PRODUCTS, total: PRODUCTS.length }));

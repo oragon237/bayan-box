@@ -13,7 +13,7 @@ class AffiliateCashOut extends Model
     public const STATUS_DECLINED = 'declined';
 
     protected $fillable = [
-        'user_id', 'amount', 'status', 'requested_at',
+        'user_id', 'wallet_type', 'amount', 'status', 'requested_at',
         'approved_at', 'approved_by', 'decline_reason',
     ];
 

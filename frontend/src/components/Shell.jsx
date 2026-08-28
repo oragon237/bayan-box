@@ -40,19 +40,18 @@ function tabsFor(role) {
       affiliate,
     ],
     merchant: [
-      ...base,
-      onSale,
+      dash,
+      affiliate,
       cart,
       { to: '/merchant/ads', label: 'Ads', icon: ShareIcon },
       { to: '/merchant/orders', label: 'Orders', icon: PackageIcon },
-      { to: '/merchant/products', label: 'Products', icon: StarIcon },
     ],
     customer: [
       ...base,
-      onSale,
       cart,
-      { to: '/points-shop', label: 'Points', icon: StarIcon },
+      affiliate,
       { to: '/orders', label: 'Orders', icon: PackageIcon },
+      { to: '/points-shop', label: 'Points', icon: StarIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },
     ],
     provider: [
