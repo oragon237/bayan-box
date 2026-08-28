@@ -113,11 +113,6 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                 alt="BayanBox"
                 className="h-8 w-auto object-contain"
               />
-              <div>
-                <p className="text-[11px] text-white/70 mt-0.5 leading-none">
-                  {user ? `${ROLE_LABEL[user.role] || user.role}` : 'Provincial Last-Mile OS'}
-                </p>
-              </div>
             </div>
 
             <div className="flex items-center gap-2">
