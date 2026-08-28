@@ -20,31 +20,65 @@ class AdminAffiliateController extends Controller
     ) {}
 
     /**
-     * GET /api/admin/affiliates — list all accounts with affiliate earnings.
+     * GET /api/admin/affiliates — list accounts with affiliate earnings.
+     * Supports pagination, search, role/city/barangay filters, and sorting.
      */
     public function index(Request $request): JsonResponse
     {
-        $affiliates = User::whereNotNull('affiliate_code')
+        $query = User::whereNotNull('affiliate_code')
             ->with('affiliateWallet')
-            ->select(['id', 'name', 'phone', 'role', 'affiliate_code', 'affiliate_status', 'affiliate_documents', 'affiliate_activated_at', 'status'])
-            ->get()
-            ->map(fn ($u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'phone' => $u->phone,
-                'role' => $u->role,
-                'affiliate_code' => $u->affiliate_code,
-                'affiliate_status' => $u->affiliate_status ?? 'pending',
-                'affiliate_documents' => $u->affiliate_documents ?? [],
-                'affiliate_activated_at' => $u->affiliate_activated_at,
-                'status' => $u->status,
-                'earnings' => (float) ($u->affiliateWallet?->balance ?? 0),
-            ])
-            ->filter(fn ($u) => $u['earnings'] > 0 || $request->boolean('all'))
-            ->sortByDesc('earnings')
-            ->values();
+            ->select(['users.*']);
 
-        return response()->json(['affiliates' => $affiliates]);
+        // Search: name / phone / affiliate code
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('phone', 'ilike', "%{$search}%")
+                    ->orWhere('affiliate_code', 'ilike', "%{$search}%");
+            });
+        }
+
+        // Role filter
+        if ($role = $request->input('role')) {
+            $query->where('role', $role);
+        }
+
+        // Location filters
+        if ($city = $request->input('city')) {
+            $query->where('municipality', 'ilike', "%{$city}%");
+        }
+        if ($barangay = $request->input('barangay')) {
+            $query->where('barangay', 'ilike', "%{$barangay}%");
+        }
+
+        // Earnings sort (join affiliate wallet balance)
+        $sort = $request->input('sort', 'desc');
+        $query->leftJoin('wallets as aw', function ($join) {
+            $join->on('aw.user_id', '=', 'users.id')
+                ->where('aw.wallet_type', '=', 'affiliate_payout');
+        })
+        ->selectRaw('COALESCE(aw.balance, 0) as earnings_balance')
+        ->orderBy('earnings_balance', $sort === 'asc' ? 'asc' : 'desc');
+
+        $affiliates = $query->paginate($request->integer('per_page', 20));
+
+        $affiliates->getCollection()->transform(fn ($u) => [
+            'id' => $u->id,
+            'name' => $u->name,
+            'phone' => $u->phone,
+            'role' => $u->role,
+            'municipality' => $u->municipality,
+            'barangay' => $u->barangay,
+            'affiliate_code' => $u->affiliate_code,
+            'affiliate_status' => $u->affiliate_status ?? 'pending',
+            'affiliate_documents' => $u->affiliate_documents ?? [],
+            'affiliate_activated_at' => $u->affiliate_activated_at,
+            'status' => $u->status,
+            'created_at' => $u->created_at,
+            'earnings' => (float) ($u->earnings_balance ?? 0),
+        ]);
+
+        return response()->json($affiliates);
     }
 
     /**

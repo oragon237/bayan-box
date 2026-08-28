@@ -2,24 +2,41 @@ import { useRef, useState } from 'react';
 import client from '../api/client.js';
 import { useToast } from './ui.jsx';
 
+const ACCEPT = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp'];
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
 /**
- * Reusable image upload control (Phase A).
- * Uploads a file to POST /api/upload, returns the optimized URL via onChange.
- * Supports multiple values for a gallery.
+ * Reusable image upload control.
+ * Click-to-upload or drag-and-drop, with type/size validation. Uploads to
+ * POST /api/upload and returns the optimized URL via onChange.
  */
 export default function ImageUploader({ value, onChange, label = 'Product image', multiple = false, folder = 'products' }) {
   const notify = useToast();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const values = multiple ? value || [] : value ? [value] : [];
 
+  const validate = (file) => {
+    if (!ACCEPT.includes(file.type)) {
+      notify('Invalid file type. Use PNG, JPG, JPEG, WebP, or GIF.', 'error');
+      return false;
+    }
+    if (file.size > MAX_SIZE) {
+      notify('File too large. Maximum size is 5MB.', 'error');
+      return false;
+    }
+    return true;
+  };
+
   const handleFiles = async (files) => {
-    if (!files.length) return;
+    const valid = Array.from(files).filter(validate);
+    if (!valid.length) return;
     setUploading(true);
     const uploaded = [];
     try {
-      for (const file of files) {
+      for (const file of valid) {
         const fd = new FormData();
         fd.append('image', file);
         fd.append('folder', folder);
@@ -63,19 +80,42 @@ export default function ImageUploader({ value, onChange, label = 'Product image'
         </div>
       )}
 
-      <button
-        type="button"
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          handleFiles(e.dataTransfer?.files || []);
+        }}
         onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        className="w-full py-2.5 bg-ink-100 hover:bg-ink-200 disabled:opacity-50 text-ink-700 text-xs font-bold rounded-xl border border-dashed border-ink-300"
+        className={`w-full py-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition ${
+          dragging ? 'border-bayan-600 bg-bayan-50' : 'border-ink-300 bg-ink-50 hover:bg-ink-100'
+        }`}
       >
-        {uploading ? 'Uploading…' : multiple ? '📷 Add images' : '📷 Upload image'}
-      </button>
+        {uploading ? (
+          <>
+            <span className="w-6 h-6 border-2 border-bayan-600 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold text-ink-600">Uploading…</span>
+          </>
+        ) : (
+          <>
+            <span className="text-2xl">📷</span>
+            <span className="text-xs font-bold text-ink-700">
+              {multiple ? 'Click or drag images here' : 'Click or drag an image here'}
+            </span>
+            <span className="text-[10px] text-ink-400">PNG, JPG, JPEG, WebP · Max 5MB</span>
+          </>
+        )}
+      </div>
 
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/bmp"
+        accept={ACCEPT.join(',')}
         multiple={multiple}
         hidden
         onChange={(e) => {

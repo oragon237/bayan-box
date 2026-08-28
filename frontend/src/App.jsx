@@ -15,24 +15,31 @@ import CustomerTracking from './pages/customer/CustomerTracking.jsx';
 import CustomerBookings from './pages/customer/CustomerBookings.jsx';
 import PointsShop from './pages/customer/PointsShop.jsx';
 import MyOrders from './pages/customer/MyOrders.jsx';
+import CartPage from './pages/cart/CartPage.jsx';
 import SukiPoints from './pages/customer/SukiPoints.jsx';
 import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
 import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
-import Marketplace from './pages/marketplace/Marketplace.jsx';
+import MarketplaceHome from './pages/marketplace/MarketplaceHome.jsx';
+import SearchPage from './pages/marketplace/SearchPage.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
 import ProvidersList from './pages/marketplace/ProvidersList.jsx';
 import HireProvider from './pages/marketplace/HireProvider.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
+import MerchantAds from './pages/merchant/MerchantAds.jsx';
 import MerchantOrders from './pages/merchant/MerchantOrders.jsx';
 import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
 import AdminMerchants from './pages/admin/AdminMerchants.jsx';
+import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminMerchantList from './pages/admin/AdminMerchantList.jsx';
 import AdminMall from './pages/admin/AdminMall.jsx';
 import AdminRiders from './pages/admin/AdminRiders.jsx';
 import AdminAffiliates from './pages/admin/AdminAffiliates.jsx';
+import AdminBanners from './pages/admin/AdminBanners.jsx';
+import AdminAds from './pages/admin/AdminAds.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
+import StaffDashboard from './pages/staff/StaffDashboard.jsx';
 import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
 import ProviderProfile from './pages/provider/ProviderProfile.jsx';
 import ProviderJobs from './pages/provider/ProviderJobs.jsx';
@@ -147,7 +154,11 @@ export default function App() {
 function MainRoutes({ user, onAuth }) {
   return (
     <Routes>
-      <Route path="/" element={<Marketplace user={user} />} />
+      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : <MarketplaceHome user={user} />} />
+      <Route path="/search" element={<SearchPage user={user} />} />
+      <Route path="/marketplace/category/:slug" element={<SearchPage user={user} />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
+      <Route path="/staff/dashboard" element={<StaffDashboard user={user} />} />
       <Route path="/product/:id" element={<ProductDetail user={user} />} />
       <Route path="/providers" element={<ProvidersList user={user} />} />
       <Route path="/hire/:id" element={<HireProvider user={user} />} />
@@ -168,6 +179,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/referral" element={<ReferralQR user={user} />} />
           <Route path="/merchant/products" element={<MerchantProducts user={user} />} />
           <Route path="/merchant/orders" element={<MerchantOrders user={user} />} />
+          <Route path="/merchant/ads" element={<MerchantAds user={user} />} />
           <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
           <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
           <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />
@@ -179,8 +191,11 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/provider/jobs" element={<ProviderJobs user={user} />} />
           <Route path="/affiliate" element={<AffiliateDashboard user={user} />} />
           <Route path="/admin/affiliates" element={<AdminAffiliates user={user} />} />
+          <Route path="/admin/banners" element={<AdminBanners user={user} />} />
+          <Route path="/admin/ads" element={<AdminAds user={user} />} />
           <Route path="/orders" element={<MyOrders user={user} />} />
           <Route path="/points-shop" element={<PointsShop user={user} />} />
+          <Route path="/cart" element={<CartPage user={user} />} />
         </>
       )}
 

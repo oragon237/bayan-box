@@ -50,6 +50,11 @@ class Product extends Model
         return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
     /**
      * Current effective price (sale price when set).
      */

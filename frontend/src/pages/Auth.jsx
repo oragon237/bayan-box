@@ -46,8 +46,8 @@ export default function Auth({ onAuth }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bayan-800 via-bayan-700 to-bayan-500 flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-5 py-10">
+    <div className="relative w-screen -ml-[calc(50vw-50%)] bg-gradient-to-br from-bayan-800 via-bayan-700 to-bayan-500 -mt-4 -mb-28 min-h-[calc(100vh-152px)]">
+      <div className="flex flex-col items-center justify-center px-5 py-10">
         {/* Brand */}
         <div className="text-center mb-8">
           <img
@@ -141,18 +141,6 @@ export default function Auth({ onAuth }) {
         <p className="text-white/60 text-xs mt-6 text-center max-w-xs">
           Works offline. Trusted sari-sari stores power deliveries across the province.
         </p>
-
-        <button
-          onClick={async () => {
-            const { enterDemoMode } = await import('../api/mock.js');
-            enterDemoMode();
-            const user = JSON.parse(localStorage.getItem('bayanbox_user'));
-            onAuth(user);
-          }}
-          className="mt-4 px-6 py-3 rounded-2xl bg-white/15 backdrop-blur hover:bg-white/20 text-white font-bold text-sm transition border border-white/20"
-        >
-          Explore UI Demo (no backend required)
-        </button>
       </div>
     </div>
   );

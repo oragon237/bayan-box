@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/ImageUploader.jsx';
 import { EmptyState, useToast } from '../../components/ui.jsx';
@@ -17,10 +18,11 @@ const EMPTY_FORM = {
   availability: 'available',
 };
 
-const CATEGORIES = ['General', 'Fresh Produce', 'Home Cooks', 'Local Crafts'];
+const CATEGORIES = ['General', 'Fresh Produce', 'Home Cooks', 'Local Crafts', 'Packaging', 'Provincial Goods', 'Office Supplies'];
 
 export default function MerchantProducts({ user }) {
   const notify = useToast();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -231,6 +233,9 @@ export default function MerchantProducts({ user }) {
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => startEdit(p)} className="px-3 py-1.5 bg-ink-100 hover:bg-ink-200 text-ink-700 text-xs font-bold rounded-lg">
                     Edit
+                  </button>
+                  <button onClick={() => navigate(`/merchant/ads?product=${p.id}`)} className="px-3 py-1.5 bg-bayan-50 hover:bg-bayan-100 text-bayan-700 text-xs font-bold rounded-lg">
+                    📢 Advertise
                   </button>
                   {p.status === 'active' && (
                     <button onClick={() => archive(p)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-lg">

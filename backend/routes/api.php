@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminAdController;
 use App\Http\Controllers\Api\AdminAffiliateController;
-use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminMallController;
+use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminRiderController;
+use App\Http\Controllers\Api\AdTrackingController;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
@@ -16,6 +19,7 @@ use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\MerchantOrderController;
+use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfflineSyncController;
@@ -25,6 +29,7 @@ use App\Http\Controllers\Api\ProviderController;
 use App\Http\Controllers\Api\RiderController;
 use App\Http\Controllers\Api\RiderDeliveryController;
 use App\Http\Controllers\Api\StaffDeliveryController;
+use App\Http\Controllers\Api\StaffDashboardController;
 use App\Http\Controllers\Api\StaffMallController;
 use App\Http\Controllers\Api\TrackingController;
 use App\Http\Controllers\Api\UploadController;
@@ -49,6 +54,13 @@ Route::get('/products/categories', [MarketplaceController::class, 'categories'])
 Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
 Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
 Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+
+// Public banners
+Route::get('/banners', [BannerController::class, 'index']);
+
+// Ad impression/click tracking (public)
+Route::post('/ads/{id}/impression', [AdTrackingController::class, 'impression'])->whereNumber('id');
+Route::post('/ads/{id}/click', [AdTrackingController::class, 'click'])->whereNumber('id');
 
 // Public provider directory — browse workers without login (item 7)
 Route::get('/providers', [ProviderController::class, 'index']);
@@ -137,6 +149,12 @@ Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant')->
     // Merchant order fulfillment
     Route::get('/orders', [MerchantOrderController::class, 'index']);
     Route::post('/orders/{id}/status', [MerchantOrderController::class, 'updateStatus'])->whereNumber('id');
+
+    // Merchant ads
+    Route::get('/ads', [MerchantAdController::class, 'index']);
+    Route::get('/ads/rates', [MerchantAdController::class, 'rates']);
+    Route::post('/ads', [MerchantAdController::class, 'store']);
+    Route::post('/ads/{id}/pause', [MerchantAdController::class, 'togglePause'])->whereNumber('id');
 });
 
 // ---- Staff (Hub PWA) ----
@@ -162,6 +180,23 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::get('/deliveries/unassigned', [StaffDeliveryController::class, 'unassigned']);
     Route::post('/deliveries/{id}/assign', [StaffDeliveryController::class, 'assign']);
     Route::get('/sales/today', [StaffDeliveryController::class, 'todaySales']);
+    Route::get('/dashboard', [StaffDashboardController::class, 'index']);
+});
+
+// ---- Admin: banner management ----
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/banners', [BannerController::class, 'adminIndex']);
+    Route::post('/banners', [BannerController::class, 'store']);
+    Route::put('/banners/{id}', [BannerController::class, 'update'])->whereNumber('id');
+    Route::delete('/banners/{id}', [BannerController::class, 'destroy'])->whereNumber('id');
+
+    // Admin ad oversight
+    Route::get('/ads', [AdminAdController::class, 'index']);
+    Route::put('/ads/{id}', [AdminAdController::class, 'update'])->whereNumber('id');
+    Route::delete('/ads/{id}', [AdminAdController::class, 'destroy'])->whereNumber('id');
+    Route::put('/ads/{id}/status', [AdminAdController::class, 'setStatus'])->whereNumber('id');
+    Route::put('/ad-rates', [AdminAdController::class, 'updateRates']);
+    Route::post('/merchants/{id}/grant-credits', [AdminAdController::class, 'grantCredits'])->whereNumber('id');
 });
 
 // ---- Rider (Rider PWA) ----
@@ -202,6 +237,7 @@ Route::middleware(['auth:sanctum', 'role:provider,admin'])->prefix('bookings')->
 // ---- Admin (Platform) ----
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard']);
+    Route::get('/overview', [AdminController::class, 'overview']);
     Route::get('/delivery-rate-settings', [AdminController::class, 'rateSettings']);
     Route::put('/delivery-rate-settings/{id}', [AdminController::class, 'updateRateSetting']);
     Route::post('/hubs', [AdminController::class, 'createHub']);

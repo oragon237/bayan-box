@@ -198,10 +198,16 @@ export function mockRequest(url, method, data, params = {}) {
     const q = (params?.q || '').toLowerCase();
     const cat = params?.category;
     const pointsOnly = params?.points_only;
+    const onSale = params?.on_sale;
     let list = PRODUCTS.filter((p) => p.status === 'active' && p.stock > 0);
     if (pointsOnly) list = list.filter((p) => p.points_only);
+    if (onSale) list = list.filter((p) => p.sale_price);
     if (cat) list = list.filter((p) => p.category === cat);
-    if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
+    if (q) list = list.filter((p) => (p.name + ' ' + (p.description || '')).toLowerCase().includes(q));
+    if (params?.sort === 'reviews') list = [...list].sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0));
+    if (params?.sort === 'sales') list = [...list].sort((a, b) => (b.units_sold || 0) - (a.units_sold || 0));
+    if (params?.sort === 'price_asc') list = [...list].sort((a, b) => Number(a.price) - Number(b.price));
+    if (params?.sort === 'price_desc') list = [...list].sort((a, b) => Number(b.price) - Number(a.price));
     return Promise.resolve(mockResponse({ data: list, total: list.length }));
   }
   if (/^\/products\/\d+$/.test(path) && lower === 'get') {
@@ -384,7 +390,11 @@ export function mockRequest(url, method, data, params = {}) {
 
   // Admin affiliate management
   if (path === '/admin/affiliates' && lower === 'get') {
-    return Promise.resolve(mockResponse({ affiliates: [{ id: 5, name: 'Juan Dela Cruz', role: 'customer', affiliate_code: 'JUAN01', earnings: 500 }, { id: 4, name: 'Aling Maria', role: 'merchant', affiliate_code: 'MARIA01', earnings: 250 }] }));
+    const list = [
+      { id: 5, name: 'Juan Dela Cruz', phone: '09170000005', role: 'customer', municipality: 'Naga City', barangay: 'San Jose', affiliate_code: 'JUAN01', affiliate_status: 'active', affiliate_documents: [], affiliate_activated_at: new Date().toISOString(), status: 'active', created_at: new Date().toISOString(), earnings: 500 },
+      { id: 4, name: 'Aling Maria', phone: '09170000004', role: 'merchant', municipality: 'Naga City', barangay: 'Poblacion', affiliate_code: 'MARIA01', affiliate_status: 'pending', affiliate_documents: [{ document_type: 'government_id', id_url: 'https://placehold.co/400x300/673de6/ffffff?text=ID' }], affiliate_activated_at: null, status: 'active', created_at: new Date().toISOString(), earnings: 250 },
+    ];
+    return Promise.resolve(mockResponse({ data: list, total: list.length, current_page: 1, last_page: 1, per_page: 20 }));
   }
   if (path === '/admin/affiliates/cash-outs' && lower === 'get') {
     return Promise.resolve(mockResponse({ data: [{ id: 1, user: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, amount: 250, status: 'pending', requested_at: new Date().toISOString() }], total: 1 }));
@@ -426,6 +436,38 @@ export function mockRequest(url, method, data, params = {}) {
   }
   if (path === '/notifications/read-all' && lower === 'post') return Promise.resolve(mockResponse({ message: 'All read.' }));
   if (/^\/notifications\/\d+\/read$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Marked read.' }));
+
+  // Banners (public + admin)
+  if (path === '/banners' && lower === 'get') {
+    return Promise.resolve(mockResponse([
+      { id: 1, title: 'Summer Sale', image_url: 'https://placehold.co/800x300/673de6/ffffff?text=Summer+Sale', link_url: '/?on_sale=1', link_type: 'internal', sort_order: 0, is_active: true },
+      { id: 2, title: 'Points Shop', image_url: 'https://placehold.co/800x300/f59e0b/ffffff?text=Points+Shop', link_url: '/points-shop', link_type: 'internal', sort_order: 1, is_active: true },
+    ]));
+  }
+  if (path === '/staff/dashboard' && lower === 'get') {
+    return Promise.resolve(mockResponse({ pending_merchant_approvals: 2, pending_cashouts: 1, disputed_orders: 0, low_stock_items: 3 }));
+  }
+
+    // Merchant ads
+  if (path === '/merchant/ads/rates' && lower === 'get') {
+    return Promise.resolve(mockResponse({ rates: [{ type: 'sponsored', label: 'Top Placement / Sponsored Search', daily_rate: 50 }, { type: 'homepage_featured', label: 'Homepage Featured Carousel', daily_rate: 100 }, { type: 'flash_deal', label: 'Flash Deal / On Sale Booster', daily_rate: 30 }] }));
+  }
+  if (path === '/merchant/ads' && lower === 'get') {
+    return Promise.resolve(mockResponse({ campaigns: [{ id: 1, product: { id: 1, name: 'Fresh Sili (250g)', image_url: null, price: '40.00' }, ad_type: 'sponsored', daily_rate: '50.00', duration_days: 3, total_cost: '150.00', start_date: new Date().toISOString(), end_date: new Date(Date.now() + 3 * 864e5).toISOString(), status: 'active', payment_method: 'wallet', impressions: 120, clicks: 18, conversions: 3, days_remaining: 2 }] }));
+  }
+  if (path === '/merchant/ads' && lower === 'post') {
+    return Promise.resolve(mockResponse({ message: 'Ad campaign launched!', campaign: {} }, 201));
+  }
+  if (/^\/merchant\/ads\/\d+\/pause$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Paused.', campaign: {} }));
+
+  // Admin ads
+  if (path === '/admin/ads' && lower === 'get') {
+    if (params?.type === 'home_slide') {
+      return Promise.resolve(mockResponse({ data: [{ id: 1, type: 'home_slide', title: 'Summer Sale', image_url: 'https://placehold.co/800x300/673de6/ffffff?text=Summer', link_url: '/?on_sale=1', display_order: 0, status: 'active', impressions: 0, clicks: 0, start_date: new Date().toISOString(), end_date: null }], total: 1, active: 1, paused: 0, expired: 0 }));
+    }
+    return Promise.resolve(mockResponse({ data: [{ id: 1, type: 'product', title: 'Fresh Sili Ad', product: { id: 1, name: 'Fresh Sili (250g)', image_url: null, price: '40.00' }, merchant: { id: 4, name: 'Aling Maria' }, ad_type: 'sponsored', daily_rate: '50.00', display_order: 0, keywords: 'chili, sili', start_date: new Date().toISOString(), end_date: new Date(Date.now() + 2 * 864e5).toISOString(), status: 'active', impressions: 120, clicks: 18, conversions: 3 }], total: 1, active: 1, paused: 0, expired: 0 }));
+  }
+  if (/^\/admin\/ads\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) return Promise.resolve(mockResponse({ message: 'Ad ' + (lower === 'put' ? 'updated.' : 'deleted.') }));
 
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {

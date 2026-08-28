@@ -19,22 +19,126 @@ use Illuminate\Http\Request;
 class MarketplaceController extends Controller
 {
     /**
-     * GET /api/products — active storefront grid.
+     * GET /api/products — active storefront grid with search/filter/sort.
      */
     public function index(Request $request): JsonResponse
     {
-        return response()->json(
-            Product::active()
-                ->with(['merchant:id,name', 'images:id,product_id,image_url'])
-                ->withCount('reviews')
-                ->withAvg('reviews', 'rating')
-                ->when($request->boolean('points_only'), fn ($q) => $q->where('points_only', true))
-                ->when($request->input('category'), fn ($q, $c) => $q->where('category', $c))
-                ->when($request->input('q'), fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%"))
-                ->orderByDesc('is_official_mall') // BeCoolBox Mall pinned to top
-                ->latest()
-                ->paginate($request->integer('per_page', 24))
-        );
+        $query = Product::active()
+            ->with(['merchant:id,name,barangay,municipality', 'images:id,product_id,image_url'])
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating');
+
+        // Extended search: name, description, or merchant/store name
+        if ($q = trim((string) $request->input('q'))) {
+            $query->where(function ($qry) use ($q) {
+                $qry->where('name', 'ilike', "%{$q}%")
+                    ->orWhere('description', 'ilike', "%{$q}%")
+                    ->orWhereHas('merchant', fn ($m) => $m->where('name', 'ilike', "%{$q}%"));
+            });
+        }
+
+        // Category filter
+        if ($request->input('category')) {
+            $query->where('category', $request->input('category'));
+        }
+
+        // Location filters (merchant's city / barangay)
+        if ($city = $request->input('city')) {
+            $query->whereHas('merchant', fn ($m) => $m->where('municipality', 'ilike', "%{$city}%"));
+        }
+        if ($barangay = $request->input('barangay')) {
+            $query->whereHas('merchant', fn ($m) => $m->where('barangay', 'ilike', "%{$barangay}%"));
+        }
+
+        // On-sale filter: only products with an active discount price
+        if ($request->boolean('on_sale')) {
+            $query->whereNotNull('sale_price')->whereColumn('sale_price', '<', 'price');
+        }
+
+        // Points-only filter
+        if ($request->boolean('points_only')) {
+            $query->where('points_only', true);
+        }
+
+        // Sorting
+        switch ($request->input('sort')) {
+            case 'reviews':
+                $query->orderByDesc('reviews_count');
+                break;
+            case 'sales':
+                $query->withSum('orderItems as units_sold', 'quantity')->orderByDesc('units_sold');
+                break;
+            case 'price_asc':
+                $query->orderBy('price');
+                break;
+            case 'price_desc':
+                $query->orderByDesc('price');
+                break;
+            default:
+                $query->orderByDesc('is_official_mall')->latest();
+        }
+
+        $paginator = $query->paginate($request->integer('per_page', 24));
+
+        // Ad injection: tag sponsored products + provide featured/sponsored sets
+        $activeAds = \App\Models\AdCampaign::active()
+            ->whereIn('ad_type', ['sponsored', 'homepage_featured', 'flash_deal'])
+            ->with('product:id,name,image_url,price,sale_price,stock,merchant_id')
+            ->get();
+
+        $sponsoredIds = $activeAds->where('ad_type', 'sponsored')->pluck('product_id');
+        $featuredCampaigns = $activeAds->where('ad_type', 'homepage_featured')->values();
+        $flashIds = $activeAds->where('ad_type', 'flash_deal')->pluck('product_id');
+
+        // Sponsored items matching the query/category (for the search "Sponsored Items" row)
+        $queryTerm = trim((string) $request->input('q'));
+        $catTerm = $request->input('category');
+        $cityTerm = $request->input('city');
+        $sponsored = $activeAds->where('ad_type', 'sponsored')->map(function ($ad) use ($queryTerm, $catTerm, $cityTerm) {
+            $product = $ad->product;
+            $match = false;
+            if ($queryTerm) {
+                $match = stripos($product->name, $queryTerm) !== false
+                    || stripos((string) $product->description, $queryTerm) !== false;
+            }
+            if (! $match && $catTerm) {
+                $match = $product->category === $catTerm;
+            }
+            // Fallback: any active sponsored ad
+            return ['matched' => $match || $cityTerm, 'ad' => $ad];
+        });
+
+        // Prefer matches; fall back to any sponsored ads (up to 3)
+        $sponsoredItems = $sponsored->sortByDesc('matched')->take(3)->map(fn ($s) => [
+            'campaign_id' => $s['ad']->id,
+            'product' => $s['ad']->product,
+            'ad_type' => $s['ad']->ad_type,
+        ])->values();
+
+        // Attach ad campaign info to each product in the page
+        $campaignByProduct = $activeAds->keyBy('product_id');
+        $paginator->getCollection()->transform(function ($product) use ($campaignByProduct, $sponsoredIds, $flashIds) {
+            $product->setAttribute('is_sponsored', $sponsoredIds->contains($product->id));
+            $product->setAttribute('is_flash_deal', $flashIds->contains($product->id));
+            if ($campaign = $campaignByProduct->get($product->id)) {
+                $product->setAttribute('ad_campaign_id', $campaign->id);
+            }
+            return $product;
+        });
+
+        // Sponsored products first
+        $sorted = $paginator->getCollection()->sortByDesc(fn ($p) => (int) $p->is_sponsored)->values();
+        $paginator->setCollection($sorted);
+
+        $response = $paginator->toArray();
+        $response['featured_campaigns'] = $featuredCampaigns->map(fn ($c) => [
+            'id' => $c->id,
+            'product' => $c->product,
+            'daily_rate' => $c->daily_rate,
+        ]);
+        $response['sponsored_items'] = $sponsoredItems;
+
+        return response()->json($response);
     }
 
     /**

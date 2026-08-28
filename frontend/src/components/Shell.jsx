@@ -8,36 +8,28 @@ import {
 import { useToast } from './ui.jsx';
 import NotificationsBell from './NotificationsBell.jsx';
 
-const ROLE_LABEL = {
-  admin: 'Platform Admin',
-  staff: 'Hub Agent',
-  rider: 'Rider',
-  merchant: 'Merchant',
-  customer: 'Customer',
-  provider: 'Skilled Worker',
-};
-
 const BUYER_ROLES = ['customer', 'merchant', 'admin'];
 
 function tabsFor(role) {
   const base = [{ to: '/', label: 'Shop', icon: HomeIcon }];
-  const cart = { to: '/', label: 'Cart', icon: CartIcon, cart: true };
+  const dash = { to: '/', label: 'Dashboard', icon: HomeIcon };
+  const cart = { to: '/cart', label: 'Cart', icon: CartIcon, cart: true };
+  const onSale = { to: '/?on_sale=1', label: 'Deals', icon: TagIcon };
   const affiliate = { to: '/affiliate', label: 'Affiliate', icon: ShareIcon };
   const map = {
     guest: [base[0]],
     admin: [
-      ...base,
+      dash,
       { to: '/admin/merchant-list', label: 'Merchants', icon: PackageIcon },
       { to: '/admin/riders', label: 'Riders', icon: RouteIcon },
       { to: '/admin/affiliates', label: 'Affiliates', icon: ShareIcon },
-      { to: '/admin/mall', label: 'Mall', icon: TagIcon },
+      { to: '/admin/ads', label: 'Ads', icon: TagIcon },
     ],
     staff: [
-      ...base,
+      dash,
       { to: '/hub', label: 'Scan', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', icon: PackageIcon },
       { to: '/staff/dispatch', label: 'Dispatch', icon: RouteIcon },
-      affiliate,
       { to: '/staff/mall', label: 'Mall', icon: TagIcon },
     ],
     rider: [
@@ -49,19 +41,19 @@ function tabsFor(role) {
     ],
     merchant: [
       ...base,
-      { to: '/merchant/orders', label: 'Orders', icon: PackageIcon },
+      onSale,
       cart,
-      affiliate,
+      { to: '/merchant/ads', label: 'Ads', icon: ShareIcon },
+      { to: '/merchant/orders', label: 'Orders', icon: PackageIcon },
       { to: '/merchant/products', label: 'Products', icon: StarIcon },
-      { to: '/merchant/profile', label: 'Profile', icon: StarIcon },
     ],
     customer: [
       ...base,
+      onSale,
       cart,
       { to: '/points-shop', label: 'Points', icon: StarIcon },
       { to: '/orders', label: 'Orders', icon: PackageIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },
-      { to: '/track', label: 'Track', icon: MapPinIcon },
     ],
     provider: [
       ...base,
@@ -118,11 +110,33 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
             <div className="flex items-center gap-2">
               {user ? (
                 <>
+                  <span className="hidden sm:block text-white/80 font-semibold text-sm">{user.name}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-bayan-600 text-white text-[10px] font-bold uppercase tracking-wide">
+                    {user.role}
+                  </span>
+                  {demo && (
+                    <select
+                      value={user.role}
+                      onChange={(e) => {
+                        const updated = { ...user, role: e.target.value };
+                        localStorage.setItem('bayanbox_user', JSON.stringify(updated));
+                        onRoleChange?.(updated);
+                      }}
+                      className="bg-white/20 text-white text-[10px] font-bold rounded-lg px-2 py-1 border border-white/20 outline-none cursor-pointer"
+                    >
+                      <option value="staff" className="text-ink-800">staff</option>
+                      <option value="rider" className="text-ink-800">rider</option>
+                      <option value="customer" className="text-ink-800">customer</option>
+                      <option value="merchant" className="text-ink-800">merchant</option>
+                      <option value="provider" className="text-ink-800">provider</option>
+                    </select>
+                  )}
                   {demo && (
                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1.5 rounded-full bg-amber-400 text-amber-950">
                       Demo
                     </span>
                   )}
+                  <NotificationsBell user={user} />
                   <span
                     className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${
                       online ? 'bg-white/15' : 'bg-amber-500/90 text-amber-950'
@@ -150,33 +164,6 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
               )}
             </div>
           </div>
-
-          {user && (
-            <div className="mt-2.5 flex items-center gap-2 text-xs">
-              <span className="text-white/80 font-semibold">{user.name}</span>
-              <span className="px-2 py-0.5 rounded-full bg-bayan-600 text-white text-[10px] font-bold uppercase tracking-wide">
-                {user.role}
-              </span>
-              {demo && (
-                <select
-                  value={user.role}
-                  onChange={(e) => {
-                    const updated = { ...user, role: e.target.value };
-                    localStorage.setItem('bayanbox_user', JSON.stringify(updated));
-                    onRoleChange?.(updated);
-                  }}
-                  className="bg-white/20 text-white text-[10px] font-bold rounded-lg px-2 py-1 border border-white/20 outline-none cursor-pointer"
-                >
-                  <option value="staff" className="text-ink-800">staff</option>
-                  <option value="rider" className="text-ink-800">rider</option>
-                  <option value="customer" className="text-ink-800">customer</option>
-                  <option value="merchant" className="text-ink-800">merchant</option>
-                  <option value="provider" className="text-ink-800">provider</option>
-                </select>
-              )}
-              <NotificationsBell user={user} />
-            </div>
-          )}
         </div>
       </header>
 

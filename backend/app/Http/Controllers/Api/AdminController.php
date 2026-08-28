@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AffiliateCashOut;
 use App\Models\DeliveryRateSetting;
 use App\Models\Hub;
+use App\Models\Order;
 use App\Models\Parcel;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +33,63 @@ class AdminController extends Controller
                 ->pluck('count', 'status'),
             'pending_deliveries' => Parcel::whereIn('status', ['received_at_hub', 'out_for_delivery'])->count(),
             'avg_delivery_fee' => Parcel::where('calculated_delivery_fee', '>', 0)->avg('calculated_delivery_fee'),
+        ]);
+    }
+
+    /**
+     * GET /api/admin/overview — comprehensive system overview (Task 2).
+     */
+    public function overview(): JsonResponse
+    {
+        $orders = Order::whereIn('status', ['paid', 'pending_payment', 'assigned', 'out_for_delivery', 'delivered', 'completed'])->get();
+
+        $totalRevenue = (float) $orders->sum(fn ($o) => (float) $o->total_amount + (float) $o->shipping_amount);
+        $totalOrders = $orders->count();
+        $gmv = (float) $orders->sum('total_amount');
+        $aov = $totalOrders > 0 ? round($gmv / $totalOrders, 2) : 0;
+
+        $orderStatus = Order::selectRaw("status, count(*) as count")
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $lowStock = Product::where('status', 'active')->where('stock', '<=', 5)->count();
+        $activeListings = Product::where('status', 'active')->count();
+        $pointsItems = Product::where('points_only', true)->where('stock', '>', 0)->count();
+
+        $pendingCashOuts = AffiliateCashOut::where('status', AffiliateCashOut::STATUS_PENDING)->count();
+        $affiliateCommissions = \App\Models\LedgerTransaction::where('type', 'affiliate_commission')
+            ->where('direction', 'credit')
+            ->sum('amount');
+
+        return response()->json([
+            'financial' => [
+                'total_revenue' => round($totalRevenue, 2),
+                'gmv' => round($gmv, 2),
+                'total_orders' => $totalOrders,
+                'average_order_value' => $aov,
+            ],
+            'users' => [
+                'customers' => User::where('role', 'customer')->where('status', 'active')->count(),
+                'merchants' => User::where('role', 'merchant')->where('status', 'active')->count(),
+                'riders' => User::where('role', 'rider')->where('status', 'active')->count(),
+                'providers' => User::where('role', 'provider')->where('status', 'active')->count(),
+                'affiliates' => User::whereNotNull('affiliate_code')->count(),
+                'pending_merchants' => User::where('role', 'merchant')->where('status', 'pending_verification')->count(),
+            ],
+            'affiliate' => [
+                'commissions_distributed' => round((float) $affiliateCommissions, 2),
+                'pending_cashouts' => $pendingCashOuts,
+            ],
+            'orders' => [
+                'status_breakdown' => $orderStatus,
+                'in_transit' => (int) Order::whereIn('status', ['assigned', 'out_for_delivery'])->count(),
+                'delivered' => (int) Order::whereIn('status', ['delivered', 'completed'])->count(),
+            ],
+            'mall' => [
+                'active_listings' => $activeListings,
+                'low_stock' => $lowStock,
+                'points_items' => $pointsItems,
+            ],
         ]);
     }
 

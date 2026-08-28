@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+const CATEGORIES = ['Packaging', 'Provincial Goods', 'Office Supplies', 'Promotional Items', 'Merchandise', 'Points Shop'];
 import client from '../../api/client.js';
+import ImageUploader from '../../components/ImageUploader.jsx';
 import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const EMPTY_FORM = {
@@ -11,6 +13,7 @@ const EMPTY_FORM = {
   suki_points_award: 0,
   affiliate_percentage: 0,
   image_url: '',
+  gallery: [],
 };
 
 export default function AdminMall({ user }) {
@@ -49,6 +52,7 @@ export default function AdminMall({ user }) {
       suki_points_award: Number(form.suki_points_award || 0),
       affiliate_percentage: Number(form.affiliate_percentage || 0),
       image_url: form.image_url || null,
+      gallery: (form.gallery || []).map((u) => ({ image_url: u })),
     };
     try {
       if (editingId) {
@@ -79,6 +83,7 @@ export default function AdminMall({ user }) {
       suki_points_award: p.suki_points_award,
       affiliate_percentage: p.affiliate_percentage,
       image_url: p.image_url || '',
+      gallery: (p.images || []).map((i) => i.image_url),
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -118,11 +123,17 @@ export default function AdminMall({ user }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Category</label>
-            <input value={form.category} onChange={set('category')} placeholder="Packaging" className="field" />
+            <select value={form.category} onChange={set('category')} className="field bg-white">
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-ink-500 mb-1">Image URL</label>
-            <input value={form.image_url} onChange={set('image_url')} placeholder="https://…" className="field" />
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Main image</label>
+            <ImageUploader value={form.image_url} onChange={(url) => setForm({ ...form, image_url: url })} folder="products" label="Upload main image" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Gallery</label>
+            <ImageUploader value={form.gallery} onChange={(gallery) => setForm({ ...form, gallery })} multiple folder="products" label="Add gallery images" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-ink-500 mb-1">Price (₱) *</label>

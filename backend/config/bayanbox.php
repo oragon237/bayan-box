@@ -183,4 +183,18 @@ return [
         'review_points' => env('REVIEW_POINTS', 5), // Suki points awarded for leaving a provider review
     ],
 
+    /*
+    |----------------------------------------------------------------------
+    | Product Advertising (merchant ad campaigns)
+    |----------------------------------------------------------------------
+    */
+    'ads' => [
+        'rates' => [
+            'sponsored' => env('AD_SPONSORED_RATE', 50.00),           // ₱50/day
+            'homepage_featured' => env('AD_HOMEPAGE_FEATURED_RATE', 100.00), // ₱100/day
+            'flash_deal' => env('AD_FLASH_DEAL_RATE', 30.00),          // ₱30/day
+        ],
+        'max_duration_days' => 30,
+    ],
+
 ];
