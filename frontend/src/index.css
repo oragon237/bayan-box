@@ -36,6 +36,8 @@
   .field {
     @apply w-full px-3 py-2 bg-ink-50 border border-ink-200 rounded-xl text-sm focus:ring-2 focus:ring-bayan-500 focus:border-bayan-500 outline-none transition placeholder:text-ink-400;
   }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .gradient-text {
     @apply bg-gradient-to-r from-bayan-400 via-bayan-600 to-bayan-500 bg-clip-text text-transparent;
   }

@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@turf/turf": "^7.4.0",
     "axios": "^1.7.7",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
+    "maplibre-gl": "^6.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"

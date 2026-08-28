@@ -97,7 +97,6 @@ export default function SearchPage({ user }) {
 
   const [products, setProducts] = useState([]);
   const [sponsoredItems, setSponsoredItems] = useState([]);
-  const [featuredCampaigns, setFeaturedCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -131,7 +130,6 @@ export default function SearchPage({ user }) {
       setProducts((prev) => (reset ? list : [...prev, ...list]));
       if (reset) {
         setSponsoredItems(res.data.sponsored_items || []);
-        setFeaturedCampaigns(res.data.featured_campaigns || []);
       }
       setHasMore(res.data.current_page < res.data.last_page);
     } catch {
@@ -251,19 +249,11 @@ export default function SearchPage({ user }) {
             </div>
           </div>
         ) : (
-          products.map((p, i) => {
-            const inlineAd = featuredCampaigns.length > 0 && (i === 1 || (i > 0 && i % 8 === 0)) ? featuredCampaigns[0] : null;
-            return (
-              <div key={p.id}>
-                {renderProduct(p, !!p.is_sponsored)}
-                {inlineAd && (
-                  <div className="mb-4">
-                    <AdCard campaignId={inlineAd.id} product={inlineAd.product} user={user} notify={notify} navigate={navigate} />
-                  </div>
-                )}
-              </div>
-            );
-          })
+          products.map((p) => (
+            <div key={p.id} className="h-full">
+              {renderProduct(p, !!p.is_sponsored)}
+            </div>
+          ))
         )}
       </div>
 

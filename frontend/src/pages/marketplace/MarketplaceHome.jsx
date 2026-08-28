@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import { Spinner } from '../../components/ui.jsx';
@@ -18,6 +18,11 @@ export default function MarketplaceHome({ user }) {
   const [bannerIdx, setBannerIdx] = useState(0);
   const [onSale, setOnSale] = useState([]);
   const [loading, setLoading] = useState(true);
+  const saleScroller = useRef(null);
+
+  const scrollBy = (dir) => {
+    saleScroller.current?.scrollBy({ left: dir * 260, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     Promise.all([
@@ -67,20 +72,43 @@ export default function MarketplaceHome({ user }) {
       {/* On Sale carousel */}
       {onSale.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">🔥 On Sale Deals</h3>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-            {onSale.map((p) => (
-              <button key={p.id} onClick={() => navigate(`/product/${p.id}`)} className="card p-2 w-36 shrink-0 text-left">
-                <div className="w-full h-20 rounded-lg bg-gradient-to-br from-bayan-100 to-ink-100 overflow-hidden flex items-center justify-center text-2xl mb-1.5">
-                  {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : '🛒'}
-                </div>
-                <h4 className="font-bold text-ink-800 text-xs line-clamp-1">{p.name}</h4>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-[10px] text-ink-400 line-through">₱{Number(p.price).toLocaleString()}</span>
-                  <span className="text-sm font-black text-red-600">₱{Number(p.sale_price).toLocaleString()}</span>
-                </div>
-              </button>
-            ))}
+          <div className="flex items-center justify-between px-1 mb-3">
+            <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider">🔥 On Sale Deals</h3>
+            <div className="flex gap-1.5">
+              <button onClick={() => scrollBy(-1)} className="w-8 h-8 rounded-full bg-white border border-ink-200 flex items-center justify-center text-sm font-bold text-ink-600 hover:bg-ink-50 shadow-sm transition">‹</button>
+              <button onClick={() => scrollBy(1)} className="w-8 h-8 rounded-full bg-white border border-ink-200 flex items-center justify-center text-sm font-bold text-ink-600 hover:bg-ink-50 shadow-sm transition">›</button>
+            </div>
+          </div>
+          <div ref={saleScroller} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-2 -mx-4 px-4">
+            {onSale.map((p) => {
+              const pct = p.sale_price ? Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100) : 0;
+              return (
+                <button key={p.id} onClick={() => navigate(`/product/${p.id}`)} className="card p-2.5 w-52 shrink-0 snap-start text-left">
+                  <div className="relative w-full h-28 rounded-lg bg-gradient-to-br from-bayan-100 to-ink-100 overflow-hidden mb-2">
+                    <img
+                      src={p.image_url || 'https://placehold.co/400x400/e0e0e3/55555c?text=📦'}
+                      alt={p.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = 'https://placehold.co/400x400/e0e0e3/55555c?text=📦'; }}
+                    />
+                    {pct > 0 && (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow">-{pct}% OFF</span>
+                    )}
+                  </div>
+                  <h4 className="font-bold text-ink-800 text-sm leading-snug line-clamp-1">{p.name}</h4>
+                  {p.reviews_count > 0 && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(p.reviews_avg_rating || 0) || 4))}</span>
+                      <span className="text-[10px] text-ink-400">({p.reviews_count})</span>
+                    </div>
+                  )}
+                  <div className="flex items-baseline gap-1.5 mt-1.5">
+                    <span className="text-xs text-ink-400 line-through">₱{Number(p.price).toLocaleString()}</span>
+                    <span className="text-base font-black text-red-600">₱{Number(p.sale_price).toLocaleString()}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
+import DeliveryMap from '../../components/DeliveryMap.jsx';
+import { calculateDeliveryFee, fetchDrivingDistance, formatFeeSummary } from '../../lib/distance.js';
 import { EmptyState, Spinner, useToast } from '../../components/ui.jsx';
 
-const DEFAULT_COORDS = { lat: 13.6218, lng: 123.1948 }; // Naga default
+const DEFAULT_COORDS = { lat: 13.6218, lng: 123.1948 }; // Naga default (hub origin)
 
 export default function CartPage({ user }) {
   const notify = useToast();
@@ -20,6 +22,10 @@ export default function CartPage({ user }) {
   const [lastOrder, setLastOrder] = useState(null);
   const [useAffiliateBalance, setUseAffiliateBalance] = useState(false);
   const [affiliateBalance, setAffiliateBalance] = useState(0);
+
+  // Delivery estimate
+  const [deliveryEstimate, setDeliveryEstimate] = useState(null);
+  const [routeGeometry, setRouteGeometry] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -47,6 +53,27 @@ export default function CartPage({ user }) {
     if (!user) return;
     client.get('/affiliate/earnings').then((res) => setAffiliateBalance(Number(res.data.balance || 0))).catch(() => {});
   }, [user]);
+
+  // Fetch driving distance + fee when delivery coords are set (hub origin → customer)
+  useEffect(() => {
+    if (fulfillment !== 'delivery' || !coords.lat || !coords.lng) {
+      setDeliveryEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    const origin = [DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]; // hub
+    const destination = [coords.lng, coords.lat];
+    fetchDrivingDistance(origin, destination).then((route) => {
+      if (cancelled) return;
+      setRouteGeometry(route.geometry);
+      setDeliveryEstimate({
+        distanceKm: route.distanceKm,
+        durationMins: route.durationMins,
+        fee: calculateDeliveryFee(route.distanceKm),
+      });
+    });
+    return () => { cancelled = true; };
+  }, [fulfillment, coords.lat, coords.lng]);
 
   const addToCart = (product) => {
     setCart((prev) => {
@@ -150,8 +177,21 @@ export default function CartPage({ user }) {
           <div className="card p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-ink-500">Subtotal</span><span className="font-bold">₱{cartTotal.toLocaleString()}</span></div>
             {pointsTotal > 0 && <div className="flex justify-between text-sm"><span className="text-ink-500">Points items</span><span className="font-bold text-amber-600">🪙 {pointsTotal}</span></div>}
-            <div className="flex justify-between text-sm"><span className="text-ink-500">{fulfillment === 'pickup' ? 'Click & collect fee' : 'Delivery fee'}</span><span className="font-bold">{fulfillment === 'pickup' ? '₱10' : 'Calculated at checkout'}</span></div>
-            <div className="flex justify-between font-black text-lg border-t pt-2"><span>Total</span><span>₱{cartTotal.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm">
+              <span className="text-ink-500">{fulfillment === 'pickup' ? 'Click & collect fee' : 'Delivery fee'}</span>
+              <span className="font-bold">
+                {fulfillment === 'pickup' ? '₱10' : deliveryEstimate ? `₱${deliveryEstimate.fee}` : 'Calculating…'}
+              </span>
+            </div>
+            {fulfillment === 'delivery' && deliveryEstimate && (
+              <p className="text-[11px] text-bayan-600 font-semibold">
+                {formatFeeSummary(deliveryEstimate.distanceKm, deliveryEstimate.fee)} · ~{deliveryEstimate.durationMins} min
+              </p>
+            )}
+            <div className="flex justify-between font-black text-lg border-t pt-2">
+              <span>Total</span>
+              <span>₱{(cartTotal + (fulfillment === 'delivery' ? deliveryEstimate?.fee || 0 : 10)).toLocaleString()}</span>
+            </div>
           </div>
 
           {/* Checkout details */}
@@ -173,6 +213,12 @@ export default function CartPage({ user }) {
                     <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" className="field" />
                     <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: Number(e.target.value) })} placeholder="Longitude" className="field" />
                   </div>
+                  <DeliveryMap
+                    origin={[DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
+                    destination={[coords.lng, coords.lat]}
+                    routeGeometry={routeGeometry}
+                    className="w-full h-48 rounded-xl"
+                  />
                 </div>
               )}
             </div>

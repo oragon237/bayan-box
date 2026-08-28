@@ -2,13 +2,6 @@ import { useState } from 'react';
 import client from '../api/client.js';
 import { useToast, Spinner } from '../components/ui.jsx';
 
-const ROLES = [
-  { value: 'customer', label: 'Shopper', emoji: null, desc: 'Track parcels & earn Suki points' },
-  { value: 'merchant', label: 'Merchant', emoji: null, desc: 'Sell & consolidate returns' },
-  { value: 'rider', label: 'Rider', emoji: null, desc: 'Deliver & manage COD' },
-  { value: 'provider', label: 'Skilled Worker', emoji: null, desc: 'Take service jobs' },
-];
-
 export default function Auth({ onAuth }) {
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState('customer');
@@ -55,13 +48,13 @@ export default function Auth({ onAuth }) {
             alt="BayanBox"
             className="h-14 w-auto mx-auto object-contain"
           />
-          <p className="text-white/70 text-sm mt-3">BodegaBarangay · Provincial Last-Mile OS</p>
+          <p className={`text-white/70 text-sm mt-3 ${mode === 'register' ? 'hidden' : ''}`}>BodegaBarangay · Provincial Last-Mile OS</p>
         </div>
 
         {/* Card */}
-        <div className="w-full max-w-sm bg-white rounded-3xl shadow-lift p-6 animate-fade-up">
+        <div className="w-full max-w-sm bg-white rounded-3xl shadow-lift p-5 animate-fade-up max-h-[calc(100vh-150px)] overflow-y-auto no-scrollbar">
           {/* Tabs */}
-          <div className="grid grid-cols-2 bg-ink-100 rounded-2xl p-1 mb-5">
+          <div className="grid grid-cols-2 bg-ink-100 rounded-2xl p-1 mb-4">
             {['login', 'register'].map((m) => (
               <button
                 key={m}
@@ -75,13 +68,13 @@ export default function Auth({ onAuth }) {
             ))}
           </div>
 
-          <form onSubmit={submit} className="space-y-3.5">
+          <form onSubmit={submit} className={mode === 'register' ? 'space-y-2.5' : 'space-y-3.5'}>
             {mode === 'register' && (
-              <input className="input" placeholder="Full name" value={form.name} onChange={set('name')} required />
+              <input className="input py-2 text-sm" placeholder="Full name" value={form.name} onChange={set('name')} required />
             )}
 
             <input
-              className="input"
+              className="input py-2 text-sm"
               placeholder="Mobile number (0917…)"
               inputMode="tel"
               value={form.phone}
@@ -90,7 +83,7 @@ export default function Auth({ onAuth }) {
             />
 
             <input
-              className="input"
+              className="input py-2 text-sm"
               placeholder="Password"
               type="password"
               value={form.password}
@@ -101,29 +94,48 @@ export default function Auth({ onAuth }) {
 
             {mode === 'register' && (
               <>
-                {/* Role selector */}
+                {/* Role selector — compact toggle */}
                 <div className="grid grid-cols-2 gap-2">
-                  {ROLES.map((r) => (
-                    <button
-                      type="button"
-                      key={r.value}
-                      onClick={() => setRole(r.value)}
-                      className={`p-3 rounded-2xl border text-left transition ${
-                        role === r.value
-                          ? 'border-bayan-600 bg-bayan-50 ring-2 ring-bayan-500/30'
-                          : 'border-ink-200 hover:border-ink-300'
-                      }`}
-                    >
-                      <span className={`block text-sm font-bold ${role === r.value ? 'text-bayan-700' : 'text-ink-700'}`}>
-                        {r.label}
-                      </span>
-                      <span className="block text-[11px] text-ink-400 mt-0.5 leading-tight">{r.desc}</span>
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRole('customer')}
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border ${
+                      role === 'customer' ? 'border-bayan-600 bg-bayan-50 text-bayan-700' : 'border-ink-200 text-ink-600'
+                    }`}
+                  >
+                    🛍️ Shopper
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('merchant')}
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border ${
+                      role === 'merchant' ? 'border-bayan-600 bg-bayan-50 text-bayan-700' : 'border-ink-200 text-ink-600'
+                    }`}
+                  >
+                    🏪 Merchant
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('rider')}
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border ${
+                      role === 'rider' ? 'border-bayan-600 bg-bayan-50 text-bayan-700' : 'border-ink-200 text-ink-600'
+                    }`}
+                  >
+                    🛵 Rider
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('provider')}
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border ${
+                      role === 'provider' ? 'border-bayan-600 bg-bayan-50 text-bayan-700' : 'border-ink-200 text-ink-600'
+                    }`}
+                  >
+                    🧑‍🔧 Worker
+                  </button>
                 </div>
 
                 <input
-                  className="input"
+                  className="input py-2 text-sm"
                   placeholder="Referral code (optional — scan a store poster)"
                   value={form.referral_code}
                   onChange={set('referral_code')}
@@ -131,7 +143,7 @@ export default function Auth({ onAuth }) {
               </>
             )}
 
-            <button type="submit" className="btn-primary flex items-center justify-center gap-2" disabled={busy}>
+            <button type="submit" className="btn-primary flex items-center justify-center gap-2 !py-2.5 !text-sm" disabled={busy}>
               {busy && <Spinner size="sm" className="!text-white" />}
               {mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>

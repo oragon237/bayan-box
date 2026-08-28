@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import MapView from './MapView.jsx';
+import DeliveryMap from './DeliveryMap.jsx';
+import { calculateDeliveryFee, fetchDrivingDistance } from '../lib/distance.js';
 import { useToast, Spinner } from './ui.jsx';
 import { TagIcon, MapPinIcon } from './icons.jsx';
 
@@ -34,19 +35,29 @@ export default function DeliveryCostPreview({ user, hubCoords = null }) {
 
     setCalculation({ loading: true });
     try {
-      const response = await axios.post(
-        '/api/delivery/calculate',
-        {
-          origin_lat: origin.lat,
-          origin_lng: origin.lng,
-          dest_lat: customerPin.lat,
-          dest_lng: customerPin.lng,
-          municipality,
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('bayanbox_token') || ''}` } },
-      );
+      // Frontend: fetch driving distance & calculate fee
+      const route = await fetchDrivingDistance([origin.lng, origin.lat], [customerPin.lng, customerPin.lat]);
+      const frontendFee = calculateDeliveryFee(route.distanceKm);
 
-      setCalculation({ loading: false, ...response.data });
+      // Backend: get the 85/15 split (also serves as verification)
+      const response = await axios.post('/api/delivery/calculate', {
+        origin_lat: origin.lat, origin_lng: origin.lng,
+        dest_lat: customerPin.lat, dest_lng: customerPin.lng,
+        municipality,
+      }).catch(() => null);
+
+      const backend = response?.data;
+      setCalculation({
+        loading: false,
+        distance_km: route.distanceKm,
+        duration_mins: route.durationMins,
+        total_delivery_fee: backend?.total_delivery_fee ?? frontendFee,
+        rider_share: backend?.rider_share ?? Math.round(frontendFee * 0.85),
+        platform_share: backend?.platform_share ?? Math.round(frontendFee * 0.15),
+        base_fare: backend?.base_fare ?? 40,
+        per_km_surcharge: backend?.per_km_surcharge ?? Math.max(0, (route.distanceKm - 2) * 10),
+        route_geometry: route.geometry,
+      });
     } catch (err) {
       console.error('Calculation failure:', err);
       notify('Unable to calculate right now. Try again.', 'error');
@@ -65,12 +76,17 @@ export default function DeliveryCostPreview({ user, hubCoords = null }) {
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-black tracking-tight">Delivery Fee Calculator</h2>
-        <p className="text-sm text-ink-400">Drop a pin on the map to preview your exact last-mile rate.</p>
+        <p className="text-sm text-ink-400">Click the map to preview your exact last-mile rate.</p>
       </div>
 
       {/* Map */}
       <div className="card !p-0 overflow-hidden" style={{ height: 300 }}>
-        <MapView markers={markers} onPick={onMapPick} />
+        <DeliveryMap
+          origin={origin?.lat ? [origin.lng, origin.lat] : undefined}
+          destination={customerPin?.lat ? [customerPin.lng, customerPin.lat] : undefined}
+          routeGeometry={calculation.route_geometry}
+          onPick={onMapPick}
+        />
       </div>
 
       {/* Municipality selector */}
