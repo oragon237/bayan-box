@@ -14,6 +14,7 @@ class Wallet extends Model
     public const TYPE_PROVIDER_EARNINGS = 'provider_earnings';
     public const TYPE_PLATFORM_EARNINGS = 'platform_earnings';
     public const TYPE_ADMIN_EARNINGS = 'admin_earnings';
+    public const TYPE_SALES_ESCROW = 'sales_escrow';
 
     protected $fillable = [
         'user_id', 'wallet_type', 'balance', 'currency',

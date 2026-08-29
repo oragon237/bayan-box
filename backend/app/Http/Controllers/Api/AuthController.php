@@ -108,7 +108,11 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user->only(['id', 'name', 'phone', 'role', 'affiliate_code', 'barangay', 'municipality', 'status']),
-            'token' => $user->createToken('bayanbox-pwa', [$user->role])->plainTextToken,
+            'token' => $user->createToken(
+                'bayanbox-pwa',
+                [$user->role],
+                now()->addMinutes((int) config('sanctum.expiration', 1440)),
+            )->plainTextToken,
         ]);
     }
 

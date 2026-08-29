@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LedgerTransaction;
+use App\Models\Order;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -136,6 +137,56 @@ class WalletService
             ['user_id' => $userId, 'wallet_type' => $walletType],
             ['balance' => 0.00, 'currency' => 'PHP'],
         );
+    }
+
+    /**
+     * Reverse ALL payouts issued for an order (Fix #2 — refunds).
+     *
+     * Finds every ledger credit referencing this order and creates a matching
+     * debit to reverse it. Idempotent: only reverses credits not already
+     * reversed.
+     */
+    public function refundOrder(Order $order, string $reason = 'Order refunded'): void
+    {
+        $platformUserId = (int) config('bayanbox.ledger.platform_user_id', 1);
+        $escrow = $this->ensureWallet($platformUserId, Wallet::TYPE_SALES_ESCROW);
+
+        // Reverse every recipient payout back into the escrow pool.
+        // The `sales_receipt` (escrow money-in) is intentionally excluded — it
+        // has already been disbursed; refunds move money back INTO escrow.
+        $payouts = LedgerTransaction::where('reference_type', Order::class)
+            ->where('reference_id', $order->id)
+            ->where('direction', 'credit')
+            ->where('type', '!=', 'sales_receipt')
+            ->get();
+
+        DB::transaction(function () use ($payouts, $escrow, $reason, $order) {
+            foreach ($payouts as $payout) {
+                $alreadyReversed = LedgerTransaction::where('reference_type', Order::class)
+                    ->where('reference_id', $order->id)
+                    ->where('type', $payout->type.'_refund')
+                    ->where('direction', 'debit')
+                    ->where('wallet_id', $payout->wallet_id)
+                    ->exists();
+
+                if ($alreadyReversed) {
+                    continue;
+                }
+
+                $wallet = Wallet::find($payout->wallet_id);
+                if (! $wallet) {
+                    continue;
+                }
+
+                $this->transfer(
+                    $wallet, $escrow,
+                    (float) abs($payout->amount),
+                    "{$reason} — Order #{$order->id}",
+                    $payout->type.'_refund',
+                    $order,
+                );
+            }
+        });
     }
 
     /**

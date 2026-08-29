@@ -16,31 +16,80 @@ use Illuminate\Http\Request;
 class ProviderController extends Controller
 {
     /**
-     * GET /api/providers — list verified providers (skills, rating, badges).
+     * GET /api/providers — searchable, filterable, sortable provider directory.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $providers = User::where('role', 'provider')
+        $query = User::where('role', 'provider')
             ->where('status', 'active')
             ->with('providerProfile')
             ->withCount('providerReviews')
-            ->withAvg('providerReviews', 'rating')
-            ->get()
-            ->map(fn ($p) => $this->shapeProvider($p));
+            ->withAvg('providerReviews', 'rating');
 
-        return response()->json(['providers' => $providers]);
+        // Keyword search (name or skills)
+        if ($q = trim((string) $request->input('q'))) {
+            $query->where(function ($qry) use ($q) {
+                $qry->where('name', 'ilike', "%{$q}%")
+                    ->orWhereHas('providerProfile', fn ($pp) => $pp->whereJsonContains('skills', $q));
+            });
+        }
+
+        // Skill filter
+        if ($skill = $request->input('skill')) {
+            $query->whereHas('providerProfile', fn ($pp) => $pp->whereJsonContains('skills', $skill));
+        }
+
+        // Availability filter
+        if ($availability = $request->input('availability')) {
+            $query->whereHas('providerProfile', fn ($pp) => $pp->where('availability', $availability));
+        }
+
+        // Location filter (municipality match)
+        if ($location = $request->input('location')) {
+            $query->where('municipality', 'ilike', "%{$location}%");
+        }
+
+        // Sort
+        switch ($request->input('sort')) {
+            case 'top_rated':
+                $query->orderByDesc('provider_reviews_avg_rating');
+                break;
+            case 'top_viewed':
+                $query->orderByDesc(ProviderProfile::select('profile_views')->whereColumn('provider_profiles.user_id', 'users.id'));
+                break;
+            case 'lowest_rate':
+                $query->orderBy(ProviderProfile::select('hourly_rate')->whereColumn('provider_profiles.user_id', 'users.id'));
+                break;
+            case 'closest':
+                $query->orderBy('municipality');
+                break;
+            default:
+                $query->orderByDesc('provider_reviews_avg_rating');
+        }
+
+        $providers = $query->paginate($request->integer('per_page', 12))
+            ->withQueryString();
+
+        $providers->getCollection()->transform(fn ($p) => $this->shapeProvider($p));
+
+        return response()->json($providers);
     }
 
     /**
-     * GET /api/providers/{id} — provider detail with reviews.
+     * GET /api/providers/{id} — provider detail with reviews (tracks a view).
      */
-    public function show(int $id): JsonResponse
+    public function show(int $id, Request $request): JsonResponse
     {
         $provider = User::where('role', 'provider')
             ->with(['providerProfile', 'providerReviews.customer:id,name'])
             ->withCount('providerReviews')
             ->withAvg('providerReviews', 'rating')
             ->findOrFail($id);
+
+        // Track a profile view for the "Top Viewed" sort
+        if ($provider->providerProfile) {
+            $provider->providerProfile->increment('profile_views');
+        }
 
         return response()->json(['provider' => $this->shapeProvider($provider)]);
     }
@@ -157,6 +206,10 @@ class ProviderController extends Controller
             'is_official' => (bool) ($profile?->is_official ?? false),
             'picture_url' => $profile?->picture_url,
             'skills' => $profile?->skills ?? [],
+            'availability' => $profile?->availability ?? 'available_now',
+            'hourly_rate' => $profile?->hourly_rate,
+            'completed_jobs' => $profile?->completed_jobs ?? 0,
+            'profile_views' => $profile?->profile_views ?? 0,
             'average_rating' => round((float) $provider->provider_reviews_avg_rating, 2),
             'review_count' => (int) $provider->provider_reviews_count,
         ];

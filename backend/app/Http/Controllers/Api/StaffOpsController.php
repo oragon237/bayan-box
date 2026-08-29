@@ -108,7 +108,13 @@ class StaffOpsController extends Controller
         // Manual: specific rider
         if ($request->input('rider_id')) {
             $rider = User::where('role', 'rider')->where('status', 'active')->findOrFail($request->input('rider_id'));
-            $order->update(['rider_id' => $rider->id, 'status' => 'assigned']);
+            $order->update([
+                'rider_id' => $rider->id,
+                'status' => 'assigned',
+                'delivery_state' => \App\Models\Order::STATE_READY_FOR_PICKUP,
+                'dispatch_method' => 'manual',
+                'assigned_by_id' => $request->user()->id,
+            ]);
 
             return response()->json(['message' => "Assigned to {$rider->name}.", 'order' => $order->fresh()]);
         }
@@ -119,6 +125,11 @@ class StaffOpsController extends Controller
         if (! $rider) {
             return response()->json(['message' => 'No active riders available.'], 202);
         }
+
+        $order->update([
+            'dispatch_method' => 'auto',
+            'assigned_by_id' => $request->user()->id,
+        ]);
 
         return response()->json(['message' => "Auto-assigned to {$rider->name}.", 'order' => $order->fresh()]);
     }
@@ -169,6 +180,11 @@ class StaffOpsController extends Controller
         $order = Order::findOrFail($id);
         $order->update(['status' => $validated['status']]);
 
+        // Fix #1: releasing COD cash at delivery triggers the deferred payout
+        if ($validated['status'] === 'delivered' && $order->payment_method === 'cod') {
+            app(\App\Services\MarketplaceService::class)->releaseOrderPayouts($order->fresh());
+        }
+
         return response()->json(['message' => 'Order status updated.', 'order' => $order->fresh()]);
     }
 
@@ -195,25 +211,133 @@ class StaffOpsController extends Controller
         ]);
 
         $ticket = SupportTicket::findOrFail($id);
+
+        // Fix #2: a refunded ticket must reverse the original order payouts
+        if ($validated['action'] === 'refunded' && $ticket->order_id) {
+            $order = Order::find($ticket->order_id);
+            if ($order) {
+                app(\App\Services\WalletService::class)->refundOrder($order, $validated['note']);
+            }
+        }
+
         $ticket->update(['status' => $validated['action'], 'resolution_note' => $validated['note']]);
 
         return response()->json(['message' => 'Ticket resolved.', 'ticket' => $ticket->fresh()]);
     }
 
     /**
-     * POST /api/staff/ops/hazards — toggle a barangay hazard zone.
+     * GET /api/staff/ops/history — filterable delivery history.
      */
-    public function setHazards(Request $request): JsonResponse
+    public function history(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'zones' => 'required|array',
-            'zones.*.name' => 'required|string|max:100',
-            'zones.*.impassable' => 'required|boolean',
+        $query = Order::with([
+            'customer:id,name,phone',
+            'items.product:id,name,merchant_id',
+            'items.product.merchant:id,name,barangay,municipality',
+            'rider:id,name',
+            'assignedBy:id,name',
+        ])->where('fulfillment_type', Order::FULFILLMENT_DELIVERY);
+
+        // Status filter
+        if ($request->input('status') && $request->input('status') !== 'all') {
+            $query->where('status', $request->input('status'));
+        } else {
+            $query->whereIn('status', ['delivered', 'cancelled', 'disputed']);
+        }
+
+        // Date range
+        if ($from = $request->input('startDate')) {
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::parse($from)->startOfDay());
+        }
+        if ($to = $request->input('endDate')) {
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::parse($to)->endOfDay());
+        }
+
+        // Search: order id, customer, merchant, rider
+        if ($q = trim((string) $request->input('search'))) {
+            $query->where(function ($qry) use ($q) {
+                $qry->where('id', 'ilike', "%{$q}%")
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'ilike', "%{$q}%"))
+                    ->orWhereHas('items.product.merchant', fn ($m) => $m->where('name', 'ilike', "%{$q}%"))
+                    ->orWhereHas('rider', fn ($r) => $r->where('name', 'ilike', "%{$q}%"));
+            });
+        }
+
+        $orders = $query->orderByDesc('created_at')
+            ->paginate($request->integer('per_page', 10));
+
+        $orders->getCollection()->transform(fn ($o) => [
+            'id' => $o->id,
+            'display_id' => 'ORD-'.str_pad((string) $o->id, 5, '0', STR_PAD_LEFT),
+            'created_at' => $o->created_at->toDateTimeString(),
+            'status' => $o->status,
+            'delivery_state' => $o->delivery_state,
+            'merchant' => $o->items?->first()?->product?->merchant,
+            'customer' => $o->customer,
+            'delivery_address' => $o->delivery_address,
+            'rider' => $o->rider,
+            'dispatch_method' => $o->dispatch_method ?? ($o->rider_id ? 'auto' : null),
+            'assigned_by' => $o->assignedBy,
+            'total_amount' => $o->total_amount,
+            'shipping_amount' => $o->shipping_amount,
+            'trip_duration_min' => $this->tripDuration($o),
+            'payment_method' => $o->payment_method,
         ]);
 
-        $this->settings->set('hazards', ['zones' => $validated['zones']]);
+        return response()->json($orders);
+    }
 
-        return response()->json(['message' => 'Hazard zones updated.', 'zones' => $validated['zones']]);
+    /**
+     * GET /api/staff/ops/orders/{id}/audit — full lifecycle audit + POD.
+     */
+    public function audit(int $id): JsonResponse
+    {
+        $order = Order::with([
+            'customer:id,name,phone',
+            'items.product:id,name,merchant_id',
+            'items.product.merchant:id,name',
+            'rider:id,name,phone',
+            'assignedBy:id,name',
+        ])->findOrFail($id);
+
+        // Customer rating/feedback from product reviews on this order's items
+        $productIds = $order->items->pluck('product_id');
+        $reviews = \App\Models\ProductReview::with('user:id,name')
+            ->whereIn('product_id', $productIds)
+            ->where('user_id', $order->customer_id)
+            ->get();
+
+        return response()->json([
+            'order' => $order,
+            'lifecycle' => [
+                'order_placed' => $order->created_at?->toDateTimeString(),
+                'merchant_ready' => $order->ready_at?->toDateTimeString(),
+                'raider_accepted' => $order->accepted_at?->toDateTimeString(),
+                'picked_up' => $order->rider_pickup_at?->toDateTimeString(),
+                'completed' => $order->updated_at?->toDateTimeString(),
+                'cancelled_reason' => $order->cancel_reason,
+            ],
+            'proof_of_delivery' => [
+                'pin' => $order->delivery_pin,
+                'photo_url' => $order->delivery_photo_url,
+                'dispatch_method' => $order->dispatch_method,
+                'assigned_by' => $order->assignedBy?->name,
+            ],
+            'reviews' => $reviews->map(fn ($r) => [
+                'user' => $r->user?->name,
+                'rating' => $r->rating,
+                'review' => $r->review,
+                'created_at' => $r->created_at->toDateTimeString(),
+            ]),
+        ]);
+    }
+
+    protected function tripDuration(Order $o): ?int
+    {
+        $start = $o->ready_at ?? $o->created_at;
+        $end = $o->status === 'delivered' ? $o->updated_at : null;
+
+        return $start && $end ? max(0, $start->diffInMinutes($end)) : null;
     }
 
     /**

@@ -33,7 +33,7 @@ function tabsFor(role) {
       { to: '/staff/mall', label: 'Mall', icon: TagIcon },
     ],
     rider: [
-      ...base,
+      dash,
       { to: '/rider', label: 'Route', icon: RouteIcon },
       { to: '/rider/deliveries', label: 'Deliveries', icon: PackageIcon },
       { to: '/rider/wallet', label: 'Wallet', icon: WalletIcon },

@@ -94,6 +94,11 @@ class RiderDeliveryController extends Controller
 
         $this->assignments->markDelivered($order);
 
-        return response()->json(['message' => 'Delivery completed.', 'order' => $order]);
+        // Fix #1: COD cash is collected at delivery — release deferred payouts
+        if ($order->payment_method === 'cod') {
+            app(\App\Services\MarketplaceService::class)->releaseOrderPayouts($order->fresh());
+        }
+
+        return response()->json(['message' => 'Delivery completed.', 'order' => $order->fresh()]);
     }
 }

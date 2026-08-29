@@ -149,7 +149,6 @@ export default function SearchPage({ user }) {
     localStorage.setItem('bayanbox_recent_searches', JSON.stringify(next));
   };
 
-  const trackImpression = (id) => client.post(`/ads/${id}/impression`).catch(() => {});
   const trackClick = (id) => client.post(`/ads/${id}/click`).catch(() => {});
 
   const renderProduct = (p, isAd = false) => (
@@ -165,6 +164,11 @@ export default function SearchPage({ user }) {
         <button onClick={() => navigate(`/product/${p.id}`)} className="block text-left w-full">
           <h3 className="font-bold text-ink-800 text-sm leading-snug hover:text-bayan-700 transition">{p.name}</h3>
         </button>
+        {p.merchant?.id && (
+          <button onClick={() => navigate(`/store/${p.merchant.id}`)} className="text-[10px] font-semibold text-bayan-700 hover:underline mt-0.5">
+            🏪 {p.merchant.name}
+          </button>
+        )}
         {p.reviews_count > 0 && <div className="flex items-center gap-1 mt-0.5"><span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(p.reviews_avg_rating || 0)))}</span><span className="text-[10px] text-ink-400">({p.reviews_count})</span></div>}
       </div>
       <div className="mt-3">

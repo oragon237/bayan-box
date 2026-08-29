@@ -22,8 +22,9 @@ import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
 import MarketplaceHome from './pages/marketplace/MarketplaceHome.jsx';
 import SearchPage from './pages/marketplace/SearchPage.jsx';
+import MerchantStorefront from './pages/marketplace/MerchantStorefront.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
-import ProvidersList from './pages/marketplace/ProvidersList.jsx';
+import ProviderDirectory from './pages/marketplace/ProviderDirectory.jsx';
 import HireProvider from './pages/marketplace/HireProvider.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
 import MerchantDashboard from './pages/merchant/MerchantDashboard.jsx';
@@ -45,6 +46,7 @@ import StaffMall from './pages/staff/StaffMall.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import StaffDashboard from './pages/staff/StaffDashboard.jsx';
 import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
+import RiderDashboard from './pages/rider/RiderDashboard.jsx';
 import ProviderProfile from './pages/provider/ProviderProfile.jsx';
 import ProviderJobs from './pages/provider/ProviderJobs.jsx';
 
@@ -158,14 +160,16 @@ export default function App() {
 function MainRoutes({ user, onAuth }) {
   return (
     <Routes>
-      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : <MarketplaceHome user={user} />} />
+      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : user?.role === 'rider' ? <RiderDashboard user={user} /> : <MarketplaceHome user={user} />} />
+      <Route path="/rider/dashboard" element={<RiderDashboard user={user} />} />
       <Route path="/search" element={<SearchPage user={user} />} />
+      <Route path="/store/:id" element={<MerchantStorefront user={user} />} />
       <Route path="/marketplace/category/:slug" element={<SearchPage user={user} />} />
       <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
       <Route path="/staff/dashboard" element={<StaffDashboard user={user} />} />
       <Route path="/product/:id" element={<ProductDetail user={user} />} />
-      <Route path="/providers" element={<ProvidersList user={user} />} />
-      <Route path="/hire/:id" element={<HireProvider user={user} />} />
+<Route path="/providers" element={<ProviderDirectory user={user} />} />
+          <Route path="/hire/:id" element={<HireProvider user={user} />} />
       <Route path="/login" element={<Auth onAuth={onAuth} />} />
 
       {user && (

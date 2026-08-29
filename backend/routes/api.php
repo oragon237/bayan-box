@@ -22,14 +22,17 @@ use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\MerchantOrderController;
 use App\Http\Controllers\Api\MerchantPayoutController;
 use App\Http\Controllers\Api\MerchantDashboardController;
+use App\Http\Controllers\Api\MerchantStoreController;
 use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OrderStateController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\ProductReviewController;
 use App\Http\Controllers\Api\ProviderController;
 use App\Http\Controllers\Api\RiderController;
+use App\Http\Controllers\Api\RiderDashboardController;
 use App\Http\Controllers\Api\RiderDeliveryController;
 use App\Http\Controllers\Api\StaffDeliveryController;
 use App\Http\Controllers\Api\StaffDashboardController;
@@ -58,6 +61,10 @@ Route::get('/products/categories', [MarketplaceController::class, 'categories'])
 Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
 Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
 Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+
+// Public merchant storefront
+Route::get('/merchants/{id}/store', [MerchantStoreController::class, 'store'])->whereNumber('id');
+Route::get('/merchants/{id}/reviews', [MerchantStoreController::class, 'reviews'])->whereNumber('id');
 
 // Public banners
 Route::get('/banners', [BannerController::class, 'index']);
@@ -120,6 +127,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Customer order tracking
     Route::get('/orders', [MerchantOrderController::class, 'customerOrders']);
+
+    // Order lifecycle state machine
+    Route::get('/orders/{id}/state', [OrderStateController::class, 'show'])->whereNumber('id');
+    Route::post('/orders/{id}/state/{action}', [OrderStateController::class, 'transition'])->whereNumber('id');
+    Route::post('/orders/{id}/generate-pin', [OrderStateController::class, 'generatePin'])->whereNumber('id');
 
     // Image upload (Phase A)
     Route::post('/upload', [UploadController::class, 'store']);
@@ -204,6 +216,8 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::post('/ops/incidents/{id}/resolve', [StaffOpsController::class, 'resolveIncident'])->whereNumber('id');
     Route::get('/ops/dispatch', [StaffOpsController::class, 'dispatch']);
     Route::post('/ops/dispatch/{orderId}/assign', [StaffOpsController::class, 'assign'])->whereNumber('orderId');
+    Route::get('/ops/history', [StaffOpsController::class, 'history']);
+    Route::get('/ops/orders/{id}/audit', [StaffOpsController::class, 'audit'])->whereNumber('id');
     Route::get('/ops/status-board', [StaffOpsController::class, 'statusBoard']);
     Route::put('/ops/orders/{id}/status', [StaffOpsController::class, 'forceStatus'])->whereNumber('id');
     Route::get('/ops/tickets', [StaffOpsController::class, 'tickets']);
@@ -250,6 +264,10 @@ Route::middleware(['auth:sanctum', 'role:rider,admin'])->prefix('rider')->group(
     Route::post('/deliveries/{id}/refuse', [RiderDeliveryController::class, 'refuse']);
     Route::post('/deliveries/{id}/out-for-delivery', [RiderDeliveryController::class, 'outForDelivery']);
     Route::post('/deliveries/{id}/deliver', [RiderDeliveryController::class, 'deliver']);
+
+    // Rider dashboard (priority orders + earnings)
+    Route::get('/dashboard', [RiderDashboardController::class, 'overview']);
+    Route::get('/earnings', [RiderDashboardController::class, 'earnings']);
 
     // Emergency report (item 11)
     Route::post('/emergency', [RiderController::class, 'emergency']);

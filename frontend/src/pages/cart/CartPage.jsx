@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
 import { calculateDeliveryFee, fetchDrivingDistance, formatFeeSummary } from '../../lib/distance.js';
+import { geocodeAddress } from '../../lib/geocode.js';
 import { EmptyState, Spinner, useToast } from '../../components/ui.jsx';
 
 const DEFAULT_COORDS = { lat: 13.6218, lng: 123.1948 }; // Naga default (hub origin)
@@ -26,6 +27,45 @@ export default function CartPage({ user }) {
   // Delivery estimate
   const [deliveryEstimate, setDeliveryEstimate] = useState(null);
   const [routeGeometry, setRouteGeometry] = useState(null);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geoError, setGeoError] = useState('');
+
+  // Auto-detect location from the typed delivery address (debounced)
+  const geoTimer = useRef(null);
+  useEffect(() => {
+    if (fulfillment !== 'delivery' || !deliveryAddress.trim()) {
+      setGeoError('');
+      return;
+    }
+    clearTimeout(geoTimer.current);
+    setGeocoding(true);
+    geoTimer.current = setTimeout(async () => {
+      const result = await geocodeAddress(deliveryAddress.trim());
+      if (result) {
+        setCoords(result);
+        setGeoError('');
+      } else {
+        setGeoError('Could not auto-locate this address. Enter coordinates manually below.');
+      }
+      setGeocoding(false);
+    }, 700);
+    return () => clearTimeout(geoTimer.current);
+  }, [deliveryAddress, fulfillment]);
+
+  // Use device GPS to auto-fill coordinates
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { notify('Geolocation not supported.', 'error'); return; }
+    setGeocoding(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: Number(pos.coords.latitude.toFixed(6)), lng: Number(pos.coords.longitude.toFixed(6)) });
+        setGeoError('');
+        setGeocoding(false);
+      },
+      () => { setGeoError('Location access denied. Enter coordinates manually.'); setGeocoding(false); },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  };
 
   useEffect(() => {
     if (!user) {
@@ -208,10 +248,15 @@ export default function CartPage({ user }) {
                 <select value={hubId} onChange={(e) => setHubId(Number(e.target.value))} className="field mt-2 bg-white"><option value={1}>Nena San Jose Sari-Sari</option></select>
               ) : (
                 <div className="mt-2 space-y-2">
-                  <input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Delivery address" className="field" />
+                  <div className="relative">
+                    <input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Delivery address" aria-label="Delivery address" className="field pr-9" />
+                    {geocoding && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-bayan-600 font-bold animate-pulse-soft">Locating…</span>}
+                  </div>
+                  {geoError && <p className="text-[11px] text-red-600 font-semibold">{geoError}</p>}
+                  <button onClick={useMyLocation} type="button" className="w-full py-2 bg-ink-100 hover:bg-ink-200 text-ink-700 text-xs font-bold rounded-xl">📍 Use my current location</button>
                   <div className="grid grid-cols-2 gap-2">
-                    <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" className="field" />
-                    <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: Number(e.target.value) })} placeholder="Longitude" className="field" />
+                    <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" aria-label="Latitude" className="field" />
+                    <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: Number(e.target.value) })} placeholder="Longitude" aria-label="Longitude" className="field" />
                   </div>
                   <DeliveryMap
                     origin={[DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}

@@ -217,8 +217,14 @@ export default function ProductDetail({ user }) {
               </div>
             )}
             <div className="bg-ink-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-ink-500">Seller</p>
-              <p className="font-bold text-ink-700 truncate">{product.merchant?.name || 'BayanBox'}</p>
+<p className="text-xs text-ink-500">Seller</p>
+                {product.merchant?.id ? (
+                  <button onClick={() => navigate(`/store/${product.merchant.id}`)} className="font-bold text-bayan-700 truncate hover:underline">
+                    🏪 {product.merchant.name}
+                  </button>
+                ) : (
+                  <p className="font-bold text-ink-700 truncate">BayanBox</p>
+                )}
             </div>
           </div>
 

@@ -179,52 +179,6 @@ class MarketplaceService
                     continue;
                 }
 
-                // Module 2: BeCoolBox Mall — 100% to admin_earnings, 0% rake
-                if ($product->is_official_mall) {
-                    $adminPayout = round($itemTotal, 2) - $affiliatePayout;
-                    $adminWallet = $this->wallets->ensureWallet(
-                        (int) config('bayanbox.ledger.platform_user_id', 1),
-                        Wallet::TYPE_ADMIN_EARNINGS,
-                    );
-                    if ($adminPayout > 0) {
-                        $this->wallets->credit(
-                            $adminWallet, $adminPayout,
-                            "BeCoolBox Mall sale Order #{$order->id} — {$product->name}",
-                            'mall_sale', null, $order,
-                        );
-                    }
-                } else {
-                    // Merchant share (configurable percentage), minus affiliate cut
-                    $merchantPct = (float) config('bayanbox.marketplace.merchant_share_percent', 90.00);
-                    $merchantPayout = round($itemTotal * ($merchantPct / 100), 2) - $affiliatePayout;
-                    if ($merchantPayout > 0) {
-                        $merchantWallet = $this->wallets->ensureWallet($product->merchant_id, Wallet::TYPE_MERCHANT_EARNINGS);
-                        $this->wallets->credit(
-                            $merchantWallet, $merchantPayout,
-                            "Marketplace sale Order #{$order->id} — {$product->name}",
-                            'marketplace_sale', null, $order,
-                        );
-                    }
-
-                    // Platform commission (configurable percentage)
-                    $platformPct = (float) config('bayanbox.marketplace.platform_commission_percent', 10.00);
-                    $this->wallets->credit(
-                        $platformWallet, round($itemTotal * ($platformPct / 100), 2),
-                        "Platform commission Order #{$order->id}",
-                        'marketplace_commission', null, $order,
-                    );
-                }
-
-                // Affiliate: product-level commission to the referrer
-                if ($affiliate && $affiliatePayout > 0) {
-                    $affiliateWallet = $this->wallets->ensureWallet($affiliate->id, Wallet::TYPE_AFFILIATE_PAYOUT);
-                    $this->wallets->credit(
-                        $affiliateWallet, $affiliatePayout,
-                        "Affiliate reward Order #{$order->id} — {$product->name}",
-                        'affiliate_commission', null, $order,
-                    );
-                }
-
                 // Customer: Suki Points (FR-MKT-002)
                 if ($pointsAwarded > 0) {
                     $this->loyalty->award(
@@ -234,56 +188,10 @@ class MarketplaceService
                 }
             }
 
-            // 4. Fulfillment ledger splits
-            if ($fulfillment === Order::FULFILLMENT_DELIVERY && $shippingDetail) {
-                $riderShare = (float) $shippingDetail['rider_share'];
-                $platformShare = (float) $shippingDetail['platform_share'];
-
-                // The rider share falls back to the platform when no active
-                // rider wallet exists so the fee is never unaccounted.
-                $riderWallet = $this->resolveRiderWallet();
-                $riderWallet ??= $platformWallet;
-
-                if ($riderShare > 0) {
-                    $this->wallets->credit(
-                        $riderWallet, $riderShare,
-                        $riderWallet->id === $platformWallet->id
-                            ? "Unassigned rider delivery share Order #{$order->id}"
-                            : "Rider delivery share Order #{$order->id}",
-                        'delivery_split', null, $order,
-                    );
-                }
-                if ($platformShare > 0) {
-                    $this->wallets->credit(
-                        $platformWallet, $platformShare,
-                        "Platform delivery share Order #{$order->id}",
-                        'delivery_split', null, $order,
-                    );
-                }
-            } elseif ($fulfillment === Order::FULFILLMENT_PICKUP) {
-                // Handling fee halved: hub staff / platform (FR-MKT-007)
-                $handlingHalf = round($shippingAmount / 2, 2);
-                $hubId = $payload['hub_id'] ?? null;
-                $hubStaffId = $hubId ? optional(Hub::find($hubId)->staff)->id : null;
-
-                // When the hub has no bound staff, the hub share falls back to
-                // the platform so the collected fee is fully accounted.
-                $hubWallet = $hubStaffId
-                    ? $this->wallets->ensureWallet($hubStaffId, Wallet::TYPE_MERCHANT_EARNINGS)
-                    : $platformWallet;
-
-                $this->wallets->credit(
-                    $hubWallet, $handlingHalf,
-                    $hubWallet->id === $platformWallet->id
-                        ? "Unassigned hub handling fee Order #{$order->id}"
-                        : "Click-and-collect handling fee Order #{$order->id}",
-                    'pickup_handling_fee', null, $order,
-                );
-                $this->wallets->credit(
-                    $platformWallet, $handlingHalf,
-                    "Click-and-collect handling fee Order #{$order->id}",
-                    'pickup_handling_fee', null, $order,
-                );
+            // 4. Release payouts via escrow — deferred for COD until the rider
+            //    collects cash at delivery (Fix #1 + #3).
+            if (! $isCod) {
+                $this->releaseOrderPayouts($order);
             }
 
             // 5. Notify merchants of the new order (item 11)
@@ -298,6 +206,131 @@ class MarketplaceService
 
             return $order->load('items.product');
         });
+    }
+
+    /**
+     * Release marketplace payouts through a sales-escrow wallet.
+     *
+     * Fix #3: the customer's payment is first credited to a `sales_escrow`
+     * wallet ("money received"), then each split is TRANSFERRED out of escrow
+     * to the merchant / platform / affiliate / admin / rider / hub wallets —
+     * linking both sides of every movement for a full audit trail.
+     *
+     * Fix #1: COD orders skip this at checkout (cash not yet collected) and
+     * call it once the rider marks the order delivered.
+     */
+    public function releaseOrderPayouts(Order $order): void
+    {
+        $totalDue = round((float) $order->total_amount + (float) $order->shipping_amount, 2);
+
+        // Idempotent: only release once per order
+        $released = \App\Models\LedgerTransaction::where('reference_type', Order::class)
+            ->where('reference_id', $order->id)
+            ->where('type', 'sales_receipt')
+            ->exists();
+
+        if ($released || $totalDue <= 0) {
+            return;
+        }
+
+        $platformUserId = (int) config('bayanbox.ledger.platform_user_id', 1);
+        $escrow = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_SALES_ESCROW);
+        $platformWallet = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_PLATFORM_EARNINGS);
+
+        // 1. Money received from the customer
+        $this->wallets->credit(
+            $escrow, $totalDue,
+            "Customer payment received Order #{$order->id}",
+            'sales_receipt', null, $order,
+        );
+
+        // 2. Disburse per product
+        foreach ($order->items as $item) {
+            $product = $item->product;
+            if (! $product || $product->points_only) {
+                continue;
+            }
+
+            $itemTotal = (float) $item->price_at_purchase * $item->quantity;
+            $affiliatePayout = (float) $item->affiliate_payout_amount;
+
+            if ($product->is_official_mall) {
+                // BeCoolBox Mall: 100% to admin_earnings, 0% rake
+                $adminPayout = round($itemTotal, 2) - $affiliatePayout;
+                $adminWallet = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_ADMIN_EARNINGS);
+                if ($adminPayout > 0) {
+                    $this->wallets->transfer($escrow, $adminWallet, $adminPayout,
+                        "BeCoolBox Mall sale Order #{$order->id} — {$product->name}",
+                        'mall_sale', $order);
+                }
+            } else {
+                // Merchant 90% (minus affiliate cut)
+                $merchantPct = (float) config('bayanbox.marketplace.merchant_share_percent', 90.00);
+                $merchantPayout = round($itemTotal * ($merchantPct / 100), 2) - $affiliatePayout;
+                if ($merchantPayout > 0) {
+                    $merchantWallet = $this->wallets->ensureWallet($product->merchant_id, Wallet::TYPE_MERCHANT_EARNINGS);
+                    $this->wallets->transfer($escrow, $merchantWallet, $merchantPayout,
+                        "Marketplace sale Order #{$order->id} — {$product->name}",
+                        'marketplace_sale', $order);
+                }
+
+                // Platform 10% commission
+                $platformPct = (float) config('bayanbox.marketplace.platform_commission_percent', 10.00);
+                $this->wallets->transfer($escrow, $platformWallet, round($itemTotal * ($platformPct / 100), 2),
+                    "Platform commission Order #{$order->id}",
+                    'marketplace_commission', $order);
+            }
+
+            // Affiliate commission
+            if ($affiliatePayout > 0 && $order->referring_affiliate_id) {
+                $affiliate = User::find($order->referring_affiliate_id);
+                if ($affiliate) {
+                    $affiliateWallet = $this->wallets->ensureWallet($affiliate->id, Wallet::TYPE_AFFILIATE_PAYOUT);
+                    $this->wallets->transfer($escrow, $affiliateWallet, $affiliatePayout,
+                        "Affiliate reward Order #{$order->id} — {$product->name}",
+                        'affiliate_commission', $order);
+                }
+            }
+        }
+
+        // 3. Fulfillment split (from stored shipping_amount)
+        if ($order->fulfillment_type === Order::FULFILLMENT_DELIVERY && $order->shipping_amount > 0) {
+            $shipping = (float) $order->shipping_amount;
+            $riderShare = round($shipping * 0.85, 2);
+            $platformShare = round($shipping - $riderShare, 2);
+
+            $riderWallet = $this->resolveRiderWallet();
+            $riderWallet ??= $platformWallet;
+
+            if ($riderShare > 0) {
+                $this->wallets->transfer($escrow, $riderWallet, $riderShare,
+                    $riderWallet->id === $platformWallet->id
+                        ? "Unassigned rider delivery share Order #{$order->id}"
+                        : "Rider delivery share Order #{$order->id}",
+                    'delivery_split', $order);
+            }
+            if ($platformShare > 0) {
+                $this->wallets->transfer($escrow, $platformWallet, $platformShare,
+                    "Platform delivery share Order #{$order->id}",
+                    'delivery_split', $order);
+            }
+        } elseif ($order->fulfillment_type === Order::FULFILLMENT_PICKUP && $order->shipping_amount > 0) {
+            $handlingHalf = round((float) $order->shipping_amount / 2, 2);
+            $hubStaffId = $order->hub_id ? optional(Hub::find($order->hub_id)->staff)->id : null;
+            $hubWallet = $hubStaffId
+                ? $this->wallets->ensureWallet($hubStaffId, Wallet::TYPE_MERCHANT_EARNINGS)
+                : $platformWallet;
+
+            $this->wallets->transfer($escrow, $hubWallet, $handlingHalf,
+                $hubWallet->id === $platformWallet->id
+                    ? "Unassigned hub handling fee Order #{$order->id}"
+                    : "Click-and-collect handling fee Order #{$order->id}",
+                'pickup_handling_fee', $order);
+
+            $this->wallets->transfer($escrow, $platformWallet, $handlingHalf,
+                "Click-and-collect handling fee Order #{$order->id}",
+                'pickup_handling_fee', $order);
+        }
     }
 
     /**
