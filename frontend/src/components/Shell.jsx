@@ -24,6 +24,7 @@ function tabsFor(role) {
       { to: '/admin/riders', label: 'Riders', icon: RouteIcon },
       { to: '/admin/settings', label: 'Settings', icon: StarIcon },
       { to: '/admin/ads', label: 'Ads', icon: TagIcon },
+      { to: '/admin/finance', label: 'Finance', icon: WalletIcon },
     ],
     staff: [
       dash,
@@ -31,6 +32,7 @@ function tabsFor(role) {
       { to: '/hub/inventory', label: 'Inventory', icon: PackageIcon },
       { to: '/staff/dispatch', label: 'Dispatch', icon: RouteIcon },
       { to: '/staff/mall', label: 'Mall', icon: TagIcon },
+      { to: '/staff/finance', label: 'Finance', icon: WalletIcon },
     ],
     rider: [
       dash,
@@ -62,7 +64,7 @@ function tabsFor(role) {
       { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
     ],
   };
-  return (map[role] || base).slice(0, 5);
+  return (map[role] || base).slice(0, 6);
 }
 
 export default function Shell({ user, online, queueCount, demo, onRoleChange, children, onLogout }) {
@@ -171,7 +173,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
 
       {/* ── Bottom Tab Bar ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-ink-100 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
-        <div className="max-w-5xl mx-auto grid grid-cols-5">
+        <div className="max-w-5xl mx-auto grid grid-cols-6">
           {tabs.map(({ to, label, icon: Icon, cart }) => (
             <NavLink
               key={to}

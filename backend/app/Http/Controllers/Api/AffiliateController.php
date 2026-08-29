@@ -25,13 +25,27 @@ class AffiliateController extends Controller
 
     /**
      * Personal affiliate program is restricted to CUSTOMER, MERCHANT, RIDER,
-     * and PROVIDER. STAFF cannot participate personally (403).
+     * and PROVIDER. STAFF and ADMIN cannot participate personally (403) — they
+     * manage/operate the program instead.
      */
     protected function assertAffiliateEligible($user): void
     {
-        if ($user->role === 'staff') {
-            abort(403, 'Staff accounts cannot participate in the personal affiliate program.');
+        if (in_array($user->role, ['staff', 'admin'], true)) {
+            abort(403, 'Staff and admin accounts cannot participate in the personal affiliate program.');
         }
+    }
+
+    /**
+     * GET /api/r/{code} — public QR redirect: {base}/api/r/{code} →
+     * frontend /login?ref={code} so scanning a poster links the referral
+     * before registration.
+     */
+    public function redirectReferral(string $code): \Illuminate\Http\RedirectResponse
+    {
+        $frontendUrl = rtrim(config('bayanbox.affiliate.frontend_url', 'http://localhost:3000'), '/');
+        $code = preg_replace('/[^A-Za-z0-9]/', '', $code);
+
+        return redirect($frontendUrl.'/login?ref='.$code);
     }
 
     /**
@@ -40,7 +54,6 @@ class AffiliateController extends Controller
     public function referralQr(Request $request): JsonResponse
     {
         $user = $request->user();
-        $this->assertAffiliateEligible($user);
 
         $hub = $user->role === 'admin'
             ? Hub::findOrFail($request->integer('hub_id', 0))
@@ -142,8 +155,14 @@ class AffiliateController extends Controller
             ->map(fn ($rows) => round($rows->sum(fn ($r) => (float) $r->amount), 2))
             ->sortDesc();
 
+        // Commission still held in escrow during the grace period (FR-AFF-004)
+        $pending = \App\Models\PendingAffiliateCommission::where('affiliate_id', $user->id)
+            ->where('status', \App\Models\PendingAffiliateCommission::STATUS_PENDING)
+            ->sum('amount');
+
         return response()->json([
             'balance' => $wallet->balance,
+            'pending' => round((float) $pending, 2),
             'referral_code' => $user->affiliate_code,
             'referral_url' => url('/login?ref='.$user->affiliate_code),
             'affiliate_status' => $user->affiliate_status ?? 'pending',

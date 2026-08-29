@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DeliveryBatch;
 use App\Models\Parcel;
 use App\Models\RiderLocation;
+use App\Models\Wallet;
 use App\Services\ParcelService;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
@@ -112,7 +113,9 @@ class RiderController extends Controller
     }
 
     /**
-     * GET /api/rider/wallet — prepaid wallet balance + ledger.
+     * GET /api/rider/wallet — prepaid wallet balance + ledger, plus the
+     * parcel delivery earnings (provider_earnings) wallet so riders see all
+     * of their income sources in one place.
      */
     public function wallet(Request $request): JsonResponse
     {
@@ -121,10 +124,17 @@ class RiderController extends Controller
         $wallet = $this->walletService->ensureWallet($rider->id, 'rider_prepaid');
         $wallet->load('ledgerTransactions');
 
+        $parcelEarnings = $this->walletService->ensureWallet($rider->id, Wallet::TYPE_PROVIDER_EARNINGS);
+        $parcelEarnings->load('ledgerTransactions');
+
         return response()->json([
             'wallet' => $wallet,
             'balance' => $wallet->balance,
             'recent_transactions' => $wallet->ledgerTransactions()->latest()->limit(50)->get(),
+            'parcel_wallet' => [
+                'balance' => (float) $parcelEarnings->balance,
+                'ledger' => $parcelEarnings->ledgerTransactions()->latest()->limit(50)->get(),
+            ],
         ]);
     }
 

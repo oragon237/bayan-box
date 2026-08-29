@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminAdController;
 use App\Http\Controllers\Api\AdminAffiliateController;
+use App\Http\Controllers\Api\AdminFinanceController;
 use App\Http\Controllers\Api\AdminMallController;
 use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminRiderController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Api\RiderDashboardController;
 use App\Http\Controllers\Api\RiderDeliveryController;
 use App\Http\Controllers\Api\StaffDeliveryController;
 use App\Http\Controllers\Api\StaffDashboardController;
+use App\Http\Controllers\Api\StaffFinanceController;
 use App\Http\Controllers\Api\StaffMallController;
 use App\Http\Controllers\Api\StaffOpsController;
 use App\Http\Controllers\Api\TrackingController;
@@ -61,6 +63,9 @@ Route::get('/products/categories', [MarketplaceController::class, 'categories'])
 Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
 Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
 Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+
+// QR referral redirect — /r/{code} → frontend /login?ref={code} (public, no auth)
+Route::get('/r/{code}', [AffiliateController::class, 'redirectReferral'])->where('code', '[A-Za-z0-9]+');
 
 // Public merchant storefront
 Route::get('/merchants/{id}/store', [MerchantStoreController::class, 'store'])->whereNumber('id');
@@ -224,6 +229,10 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::post('/ops/tickets/{id}/resolve', [StaffOpsController::class, 'resolveTicket'])->whereNumber('id');
     Route::get('/ops/hazards', [StaffOpsController::class, 'hazards']);
     Route::post('/ops/hazards', [StaffOpsController::class, 'setHazards']);
+
+    // Staff finance: rider COD remittance tracking
+    Route::get('/finance', [StaffFinanceController::class, 'summary']);
+    Route::post('/finance/remit', [StaffFinanceController::class, 'remit']);
 });
 
 // ---- Admin: banner management ----
@@ -339,4 +348,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/affiliates/cash-outs/{id}/approve', [AdminAffiliateController::class, 'approveCashOut'])->whereNumber('id');
     Route::post('/affiliates/cash-outs/{id}/decline', [AdminAffiliateController::class, 'declineCashOut'])->whereNumber('id');
     Route::post('/affiliates/{id}/activate', [AdminAffiliateController::class, 'activate'])->whereNumber('id');
+
+    // Financial settlement overview
+    Route::get('/finance', [AdminFinanceController::class, 'index']);
 });

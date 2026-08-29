@@ -30,6 +30,7 @@ class MarketplaceService
         protected WalletService $wallets,
         protected LoyaltyService $loyalty,
         protected DeliveryPricingService $pricing,
+        protected AffiliateService $affiliate,
     ) {}
 
     /**
@@ -107,6 +108,8 @@ class MarketplaceService
                 'total_amount' => round($productTotal, 2),
                 'shipping_amount' => round($shippingAmount, 2),
                 'fulfillment_type' => $fulfillment,
+                'fulfillment_status' => Order::FULFILL_PENDING,
+                'delivery_state' => Order::STATE_PENDING_MERCHANT,
                 'hub_id' => $fulfillment === Order::FULFILLMENT_PICKUP ? ($payload['hub_id'] ?? null) : null,
                 'delivery_address' => $fulfillment === Order::FULFILLMENT_DELIVERY ? ($payload['delivery_address'] ?? null) : null,
                 'latitude' => $fulfillment === Order::FULFILLMENT_DELIVERY ? ($payload['latitude'] ?? null) : null,
@@ -281,14 +284,14 @@ class MarketplaceService
                     'marketplace_commission', $order);
             }
 
-            // Affiliate commission
+            // Affiliate commission — held in escrow for the grace period
+            // (FR-AFF-004). The affiliate wallet is credited only after
+            // `affiliate:release-commissions` runs and the order was not
+            // cancelled within commission_hold_hours.
             if ($affiliatePayout > 0 && $order->referring_affiliate_id) {
                 $affiliate = User::find($order->referring_affiliate_id);
                 if ($affiliate) {
-                    $affiliateWallet = $this->wallets->ensureWallet($affiliate->id, Wallet::TYPE_AFFILIATE_PAYOUT);
-                    $this->wallets->transfer($escrow, $affiliateWallet, $affiliatePayout,
-                        "Affiliate reward Order #{$order->id} — {$product->name}",
-                        'affiliate_commission', $order);
+                    $this->affiliate->holdCommission($order, $affiliate, $affiliatePayout);
                 }
             }
         }

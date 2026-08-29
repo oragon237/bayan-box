@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Hub;
+use App\Models\Order;
 use App\Models\Parcel;
+use App\Models\PendingAffiliateCommission;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +13,10 @@ use RuntimeException;
 
 /**
  * Affiliate & micro-referral engine (FR-AFF-001..003).
+ *
+ * Marketplace commissions are held in escrow for a grace period
+ * (commission_hold_hours) so cancelled orders void the commission before
+ * it ever reaches the affiliate wallet.
  */
 class AffiliateService
 {
@@ -28,7 +34,7 @@ class AffiliateService
             ?? throw new RuntimeException('Hub has no referral code assigned.');
 
         return rtrim(config('bayanbox.affiliate.poster_base_url', url('/')), '/')
-            .'/r/'.$code;
+            .'/api/r/'.$code;
     }
 
     /**
@@ -139,5 +145,92 @@ class AffiliateService
             'discount_percent' => $discount,
             'expires_at' => $expiresAt,
         ];
+    }
+
+    /**
+     * FR-AFF-004: hold a marketplace commission in escrow for the grace
+     * period. The affiliate wallet is NOT credited yet — the amount stays in
+     * the sales escrow until held_until passes without cancellation.
+     */
+    public function holdCommission(Order $order, User $affiliate, float $amount): PendingAffiliateCommission
+    {
+        $hours = (int) config('bayanbox.affiliate.commission_hold_hours', 72);
+
+        return PendingAffiliateCommission::create([
+            'order_id' => $order->id,
+            'affiliate_id' => $affiliate->id,
+            'amount' => round($amount, 2),
+            'held_until' => now()->addHours($hours),
+            'status' => PendingAffiliateCommission::STATUS_PENDING,
+        ]);
+    }
+
+    /**
+     * Release all vested marketplace commissions (held_until passed and the
+     * order was not cancelled). Transfers escrow → affiliate wallet and marks
+     * the hold released. Called hourly by `affiliate:release-commissions`.
+     */
+    public function releaseVestedCommissions(): int
+    {
+        $escrow = $this->walletService->ensureWallet(
+            (int) config('bayanbox.ledger.platform_user_id', 1),
+            Wallet::TYPE_SALES_ESCROW,
+        );
+
+        $released = 0;
+
+        PendingAffiliateCommission::where('status', PendingAffiliateCommission::STATUS_PENDING)
+            ->where('held_until', '<=', now())
+            ->orderBy('id')
+            ->chunkById(200, function ($records) use ($escrow, &$released) {
+                foreach ($records as $record) {
+                    $order = $record->order;
+
+                    // Order was cancelled within the grace window → void, no payout
+                    if ($order && in_array($order->delivery_state, [Order::STATE_CANCELLED], true)) {
+                        $record->update([
+                            'status' => PendingAffiliateCommission::STATUS_CANCELLED,
+                            'cancelled_at' => now(),
+                        ]);
+                        continue;
+                    }
+
+                    $affiliateWallet = $this->walletService->ensureWallet(
+                        $record->affiliate_id,
+                        Wallet::TYPE_AFFILIATE_PAYOUT,
+                    );
+
+                    $this->walletService->transfer(
+                        $escrow,
+                        $affiliateWallet,
+                        (float) $record->amount,
+                        "Affiliate reward Order #{$record->order_id} (grace period released)",
+                        'affiliate_commission',
+                        $order ?? $record->order,
+                    );
+
+                    $record->update([
+                        'status' => PendingAffiliateCommission::STATUS_RELEASED,
+                        'released_at' => now(),
+                    ]);
+                    $released++;
+                }
+            });
+
+        return $released;
+    }
+
+    /**
+     * Void all still-pending commissions for an order (called on cancellation).
+     * The money was never credited to the affiliate — it simply stays in escrow.
+     */
+    public function voidPendingForOrder(Order $order): int
+    {
+        return PendingAffiliateCommission::where('order_id', $order->id)
+            ->where('status', PendingAffiliateCommission::STATUS_PENDING)
+            ->update([
+                'status' => PendingAffiliateCommission::STATUS_CANCELLED,
+                'cancelled_at' => now(),
+            ]);
     }
 }

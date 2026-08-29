@@ -77,7 +77,18 @@ const [uploading, setUploading] = useState(false);
           <div className="card p-5">
             <p className="text-xs text-ink-400 font-semibold uppercase">Available earnings</p>
             <p className="text-3xl font-black text-ink-900 mt-1">₱{Number(data.balance).toLocaleString()}</p>
-            <p className="text-xs text-ink-400 mt-1">
+
+            {Number(data.pending) > 0 && (
+              <div className="mt-2 rounded-xl bg-sky-50 border border-sky-100 px-3 py-2 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-sky-700">⏳ Pending (grace period)</p>
+                  <p className="text-[10px] text-sky-600">Releases to your wallet after 72h if the order is not cancelled.</p>
+                </div>
+                <span className="font-black text-sky-700">₱{Number(data.pending).toLocaleString()}</span>
+              </div>
+            )}
+
+            <p className="text-xs text-ink-400 mt-2">
               Your referral code: <span className="font-bold text-bayan-700">{data.referral_code}</span>
             </p>
             <p className="text-xs text-ink-400 mt-0.5">Min cash-out: ₱{Number(data.min_cashout).toLocaleString()}</p>
@@ -120,6 +131,26 @@ const [uploading, setUploading] = useState(false);
               </div>
             )}
           </div>
+
+          {/* Transaction history (ledger) — per-order/parcel breakdown */}
+          {data.ledger?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-extrabold text-ink-800 mb-2">Transaction history</h3>
+              <div className="divide-y divide-ink-100">
+                {data.ledger.map((tx) => (
+                  <div key={tx.id} className="py-2 flex items-center justify-between text-xs">
+                    <div className="flex-1 min-w-0 mr-2">
+                      <div className="font-semibold text-ink-800 truncate">{tx.description}</div>
+                      <div className="text-ink-400">{new Date(tx.created_at).toLocaleString()}</div>
+                    </div>
+                    <span className={`font-bold whitespace-nowrap ${tx.direction === 'credit' ? 'text-green-700' : 'text-red-600'}`}>
+                      {tx.direction === 'credit' ? '+' : '−'}₱{Math.abs(tx.amount).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Document upload */}
           <div className="card p-4 space-y-3">

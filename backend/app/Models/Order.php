@@ -21,6 +21,9 @@ class Order extends Model
     public const FULFILL_SENDING = 'sending_to_courier';
     public const FULFILL_COURIER_ACCEPTED = 'accepted_by_courier';
 
+    public const FULFILL_DELIVERED = 'delivered';
+    public const FULFILL_CANCELLED = 'cancelled';
+
     // State machine states (item 3)
     public const STATE_PENDING_MERCHANT = 'pending_merchant';
     public const STATE_PREPARING = 'preparing';

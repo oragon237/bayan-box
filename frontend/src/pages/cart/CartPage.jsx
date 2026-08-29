@@ -255,15 +255,25 @@ export default function CartPage({ user }) {
                   {geoError && <p className="text-[11px] text-red-600 font-semibold">{geoError}</p>}
                   <button onClick={useMyLocation} type="button" className="w-full py-2 bg-ink-100 hover:bg-ink-200 text-ink-700 text-xs font-bold rounded-xl">📍 Use my current location</button>
                   <div className="grid grid-cols-2 gap-2">
-                    <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" aria-label="Latitude" className="field" />
+                    <div className="relative">
+                      <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" aria-label="Latitude" className="field" />
+                      {coords.lat === DEFAULT_COORDS.lat && coords.lng === DEFAULT_COORDS.lng && deliveryAddress.trim() && !geocoding && (
+                        <span className="absolute -top-2 right-0 text-[9px] text-amber-600 font-bold">⚠️ Default</span>
+                      )}
+                    </div>
                     <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: Number(e.target.value) })} placeholder="Longitude" aria-label="Longitude" className="field" />
                   </div>
+                  {coords.lat === DEFAULT_COORDS.lat && coords.lng === DEFAULT_COORDS.lng && deliveryAddress.trim() && !geocoding && !geoError && (
+                    <p className="text-[11px] text-amber-600 font-semibold">Coordinates still show the default hub location. Type your address or click the map to correct them.</p>
+                  )}
                   <DeliveryMap
                     origin={[DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
                     destination={[coords.lng, coords.lat]}
                     routeGeometry={routeGeometry}
+                    onPick={(p) => { setCoords(p); setGeoError(''); }}
                     className="w-full h-48 rounded-xl"
                   />
+                  <p className="text-[10px] text-ink-400 text-center">Click the map to pick a precise location.</p>
                 </div>
               )}
             </div>

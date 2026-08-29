@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useNavigate, useParams } from 'react-router-dom';
 import client from './api/client.js';
 import { flushQueue, queueCount } from './services/offlineQueue.js';
 import { ToastProvider } from './components/ui.jsx';
@@ -42,7 +42,9 @@ import AdminAffiliates from './pages/admin/AdminAffiliates.jsx';
 import AdminBanners from './pages/admin/AdminBanners.jsx';
 import AdminAds from './pages/admin/AdminAds.jsx';
 import AdminSettings from './pages/admin/AdminSettings.jsx';
+import AdminFinance from './pages/admin/AdminFinance.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
+import StaffFinance from './pages/staff/StaffFinance.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import StaffDashboard from './pages/staff/StaffDashboard.jsx';
 import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
@@ -171,6 +173,8 @@ function MainRoutes({ user, onAuth }) {
 <Route path="/providers" element={<ProviderDirectory user={user} />} />
           <Route path="/hire/:id" element={<HireProvider user={user} />} />
       <Route path="/login" element={<Auth onAuth={onAuth} />} />
+      {/* QR referral short-link — /r/{code} → /login?ref={code} */}
+      <Route path="/r/:code" element={<ReferralRedirect />} />
 
       {user && (
         <>
@@ -205,6 +209,8 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/admin/banners" element={<AdminBanners user={user} />} />
           <Route path="/admin/ads" element={<AdminAds user={user} />} />
           <Route path="/admin/settings" element={<AdminSettings user={user} />} />
+          <Route path="/admin/finance" element={<AdminFinance user={user} />} />
+          <Route path="/staff/finance" element={<StaffFinance user={user} />} />
           <Route path="/orders" element={<MyOrders user={user} />} />
           <Route path="/points-shop" element={<PointsShop user={user} />} />
           <Route path="/cart" element={<CartPage user={user} />} />
@@ -214,4 +220,13 @@ function MainRoutes({ user, onAuth }) {
       <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
     </Routes>
   );
+}
+
+/**
+ * Referral short-link handler — /r/{code} → /login?ref={code}
+ * (the same payload encoded on hub poster QR codes).
+ */
+function ReferralRedirect() {
+  const { code } = useParams();
+  return <Navigate to={`/login?ref=${code}`} replace />;
 }

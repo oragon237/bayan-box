@@ -178,7 +178,11 @@ export function mockRequest(url, method, data, params = {}) {
   // Rider
   if (path === '/rider/batches' && lower === 'get') return Promise.resolve(mockResponse({ data: BATCHES }));
   if (path === '/rider/telemetry' && lower === 'post') return Promise.resolve(mockResponse({ message: 'Telemetry recorded.', count: data?.points?.length || 1 }));
-  if (path === '/rider/wallet' && lower === 'get') return Promise.resolve(mockResponse({ wallet: WALLET, balance: WALLET.balance, recent_transactions: WALLET.ledger_transactions }));
+  if (path === '/rider/wallet' && lower === 'get') return Promise.resolve(mockResponse({ wallet: WALLET, balance: WALLET.balance, recent_transactions: WALLET.ledger_transactions, parcel_wallet: { balance: 102.55, ledger: [
+    { id: 21, description: 'Delivery fee rider share — BB-2026-100004', amount: 42.5, direction: 'credit', type: 'delivery_split', created_at: new Date(Date.now() - 2 * 3600e3).toISOString() },
+    { id: 20, description: 'Delivery fee rider share — BB-2026-100003', amount: 34.85, direction: 'credit', type: 'delivery_split', created_at: new Date(Date.now() - 26 * 3600e3).toISOString() },
+    { id: 19, description: 'Delivery fee rider share — BB-2026-100001', amount: 25.2, direction: 'credit', type: 'delivery_split', created_at: new Date(Date.now() - 50 * 3600e3).toISOString() },
+  ] } }));
   if (/^\/rider\/batches\/[^/]+\/parcels\/\d+\/deliver$/.test(path) && lower === 'post') {
     return Promise.resolve(mockResponse({ message: 'Marked as delivered.' }));
   }
@@ -376,7 +380,7 @@ export function mockRequest(url, method, data, params = {}) {
 
   // Affiliate earnings + cash-out
   if (path === '/affiliate/earnings' && lower === 'get') {
-    return Promise.resolve(mockResponse({ balance: 500.0, referral_code: 'JUAN01', referral_url: 'http://localhost:3000/login?ref=JUAN01', min_cashout: 200, ledger: [{ id: 1, description: 'Commission from sale', amount: 500, direction: 'credit', created_at: new Date().toISOString() }] }));
+    return Promise.resolve(mockResponse({ balance: 500.0, pending: 72.5, referral_code: 'JUAN01', referral_url: 'http://localhost:3000/login?ref=JUAN01', min_cashout: 200, income_sources: { affiliate_commission: 572.5 }, ledger: [{ id: 1, description: 'Commission from sale', amount: 500, direction: 'credit', created_at: new Date().toISOString() }] }));
   }
   if (path === '/affiliate/qr' && lower === 'get') {
     return Promise.resolve(mockResponse({ referral_code: 'JUAN01', url: 'http://localhost:3000/login?ref=JUAN01', qr_data_url: '' }));
@@ -636,6 +640,40 @@ export function mockRequest(url, method, data, params = {}) {
   // Sync
   if (path === '/sync/offline-queue' && lower === 'post') {
     return Promise.resolve(mockResponse({ results: (data?.actions || []).map((a) => ({ action_id: a.action_id, status: 'replayed' })) }));
+  }
+
+  // Admin finance
+  if (path === '/admin/finance' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      collected: { total: 4850, today: 320, cod: 2100, cod_pending: 450, gcash_maya: 2750 },
+      wallets: { escrow: 0, platform: 385.5, admin: 1250, platform_commission_earned: 1024.5, mall_revenue: 1250, affiliate_paid: 480 },
+      riders: [
+        { id: 3, name: 'Rider Juan', phone: '09181234567', cod_collected: 1200, remitted: 800, outstanding: 400 },
+        { id: 8, name: 'Rider Maria', phone: '09185678901', cod_collected: 900, remitted: 900, outstanding: 0 },
+      ],
+      merchants: [
+        { id: 2, name: 'Mang Juan Store', earned: 3200, withdrawn: 1000, balance: 2200 },
+        { id: 4, name: 'Aling Maria Handicrafts', earned: 1800, withdrawn: 500, balance: 1300 },
+      ],
+      pending_cashouts: [
+        { id: 1, user_name: 'Mang Juan', wallet_type: 'merchant_earnings', amount: 500, requested_at: new Date().toISOString() },
+      ],
+    }));
+  }
+
+  // Staff finance
+  if (path === '/staff/finance' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      riders: [
+        { id: 3, name: 'Rider Juan', phone: '09181234567', cod_collected: 1200, remitted: 800, outstanding: 400 },
+        { id: 8, name: 'Rider Maria', phone: '09185678901', cod_collected: 900, remitted: 900, outstanding: 0 },
+      ],
+      recent: [
+        { id: 1, rider_name: 'Rider Juan', amount: 500, notes: 'Batch #12', recorded_by: 'Admin', created_at: new Date().toISOString() },
+        { id: 2, rider_name: 'Rider Maria', amount: 300, notes: null, recorded_by: 'Admin', created_at: new Date(Date.now() - 864e5).toISOString() },
+      ],
+      total_outstanding: 400,
+    }));
   }
 
   return null;

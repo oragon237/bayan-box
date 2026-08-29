@@ -174,6 +174,8 @@ class OrderStateMachine
             Order::STATE_PREPARING, Order::STATE_PENDING_MERCHANT => Order::FULFILL_ACCEPTED,
             Order::STATE_READY_FOR_PICKUP, Order::STATE_RAIDER_ASSIGNED, Order::STATE_RAIDER_EN_ROUTE => Order::FULFILL_SENDING,
             Order::STATE_AT_MERCHANT, Order::STATE_IN_TRANSIT, Order::STATE_ARRIVED => Order::FULFILL_COURIER_ACCEPTED,
+            Order::STATE_DELIVERED => Order::FULFILL_DELIVERED,
+            Order::STATE_CANCELLED => Order::FULFILL_CANCELLED,
             default => $order->fulfillment_status,
         };
 
@@ -193,6 +195,14 @@ class OrderStateMachine
         // Release COD payouts when delivered (collect cash at hand-off)
         if ($to === Order::STATE_DELIVERED && $order->payment_method === 'cod') {
             app(MarketplaceService::class)->releaseOrderPayouts($order);
+        }
+
+        // On cancellation: void any held affiliate commissions (the money was
+        // never credited — it stays in escrow) and reverse payouts that were
+        // already released (merchant / platform / rider) back into escrow.
+        if ($to === Order::STATE_CANCELLED) {
+            app(AffiliateService::class)->voidPendingForOrder($order);
+            app(WalletService::class)->refundOrder($order, $order->cancel_reason ?? 'Order cancelled');
         }
 
         // Notifications to all parties
@@ -221,6 +231,7 @@ class OrderStateMachine
 
         $order->update(['delivery_state' => Order::STATE_CANCELLED, 'status' => 'cancelled', 'cancel_reason' => $reason]);
 
+        app(AffiliateService::class)->voidPendingForOrder($order);
         app(WalletService::class)->refundOrder($order, $reason);
 
         return true;

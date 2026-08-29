@@ -183,6 +183,26 @@ export default function MerchantReports({ user }) {
                 ))}
               </div>
             )}
+
+            {/* Transaction history (ledger) */}
+            {data.wallet.history?.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-ink-500 uppercase mt-3">Transaction history</p>
+                <div className="divide-y divide-ink-100">
+                  {data.wallet.history.map((tx) => (
+                    <div key={tx.id} className="py-2 flex items-center justify-between text-xs">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <div className="font-semibold text-ink-800 truncate">{tx.description}</div>
+                        <div className="text-ink-400">{new Date(tx.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <span className={`font-bold whitespace-nowrap ${tx.direction === 'credit' ? 'text-green-700' : 'text-red-600'}`}>
+                        {tx.direction === 'credit' ? '+' : '−'}₱{Math.abs(tx.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : null}

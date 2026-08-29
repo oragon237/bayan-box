@@ -116,8 +116,15 @@ return [
         'b2b_referral_threshold_shipments' => 10,
         'b2b_return_shield_days' => 30,
         'b2b_return_shield_discount_percent' => 50.00,
+        // Marketplace commission grace/hold period: commission is held in escrow
+        // for this many hours after payment. If the order is cancelled within
+        // the window the commission is voided; otherwise it vests and is
+        // released to the affiliate wallet (scheduled release).
+        'commission_hold_hours' => env('AFFILIATE_COMMISSION_HOLD_HOURS', 72),
         // QR poster rendering
         'poster_base_url' => env('POSTER_BASE_URL', 'http://localhost:8000'),
+        // Frontend URL for the /r/{code} QR redirect → /login?ref={code}
+        'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
     ],
 
     /*

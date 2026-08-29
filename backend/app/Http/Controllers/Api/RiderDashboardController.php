@@ -130,6 +130,13 @@ class RiderDashboardController extends Controller
             ->whereBetween('created_at', [$from, $to])
             ->get();
 
+        // Per-order net earned from the ledger (85% rider share), so per-order
+        // breakdown reconciles with the summary total_base.
+        $earnedByOrder = $transactions
+            ->where('reference_type', Order::class)
+            ->groupBy('reference_id')
+            ->map(fn ($rows) => round($rows->sum(fn ($r) => (float) $r->amount), 2));
+
         // Trend data grouped by date
         $trend = $transactions->groupBy(fn ($t) => $t->created_at->toDateString())
             ->map(fn ($rows, $date) => ['date' => $date, 'earnings' => round($rows->sum('amount'), 2)])
@@ -155,7 +162,7 @@ class RiderDashboardController extends Controller
                 'id' => $o->id,
                 'customer_name' => $o->customer?->name,
                 'date' => $o->updated_at->toDateTimeString(),
-                'net_earned' => (float) $o->shipping_amount,
+                'net_earned' => (float) ($earnedByOrder[$o->id] ?? round((float) $o->shipping_amount * 0.85, 2)),
                 'status' => $o->status,
             ]);
 

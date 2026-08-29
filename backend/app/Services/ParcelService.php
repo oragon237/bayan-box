@@ -72,6 +72,17 @@ class ParcelService
             // FR-OFF-003: failover SMS OTP
             $this->sms->sendPickupOtp($parcel->recipient_phone, $parcel->otp_code, $parcel->tracking_number);
 
+            // FR-AFF-003: Return Shield credit for a referring merchant who
+            // crosses the shipment threshold (idempotent grant).
+            if (! empty($parcel->shipper_name)) {
+                $merchant = User::where('name', $parcel->shipper_name)
+                    ->where('role', 'merchant')
+                    ->first();
+                if ($merchant) {
+                    $this->affiliate->maybeGrantReturnShield($merchant);
+                }
+            }
+
             return $parcel->fresh();
         });
     }

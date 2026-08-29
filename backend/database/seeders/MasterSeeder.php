@@ -58,6 +58,9 @@ class MasterSeeder extends Seeder
             AffiliateCashOut::query()->delete();
             ProductReview::query()->delete();
             Product::query()->delete();
+            // Ledger + wallets are seeded too (affiliate income) — clear for idempotency
+            \App\Models\LedgerTransaction::query()->delete();
+            DB::table('wallets')->delete();
 
             $this->seedUsers();
             $this->seedCategories();
@@ -70,6 +73,7 @@ class MasterSeeder extends Seeder
             $this->seedAffiliates();
             $this->seedCashOuts();
             $this->seedWallets();
+            $this->seedAffiliateIncome();
             $this->seedLoyalty();
         } finally {
             DB::statement('SET session_replication_role = origin;');
@@ -273,12 +277,12 @@ class MasterSeeder extends Seeder
         $hubId = DB::table('hubs')->value('id') ?? 1;
 
         $orders = [
-            ['customer' => $c1, 'status' => 'paid', 'fulfillment_status' => 'pending', 'fulfillment_type' => 'pickup', 'payment_method' => 'gcash', 'rider' => null, 'shipping' => 10],
-            ['customer' => $c1, 'status' => 'assigned', 'fulfillment_status' => 'accepted', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => $r1, 'shipping' => 45],
-            ['customer' => $c2, 'status' => 'out_for_delivery', 'fulfillment_status' => 'sending_to_courier', 'fulfillment_type' => 'delivery', 'payment_method' => 'gcash', 'rider' => $r1, 'shipping' => 38],
-            ['customer' => $c1, 'status' => 'delivered', 'fulfillment_status' => 'accepted_by_courier', 'fulfillment_type' => 'delivery', 'payment_method' => 'maya', 'rider' => $r1, 'shipping' => 30],
-            ['customer' => $c2, 'status' => 'disputed', 'fulfillment_status' => 'pending', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => null, 'shipping' => 42],
-            ['customer' => $c1, 'status' => 'pending_payment', 'fulfillment_status' => 'pending', 'fulfillment_type' => 'pickup', 'payment_method' => 'cod', 'rider' => null, 'shipping' => 10],
+            ['customer' => $c1, 'status' => 'paid', 'fulfillment_status' => 'pending', 'delivery_state' => 'pending_merchant', 'fulfillment_type' => 'pickup', 'payment_method' => 'gcash', 'rider' => null, 'shipping' => 10],
+            ['customer' => $c1, 'status' => 'assigned', 'fulfillment_status' => 'accepted', 'delivery_state' => 'preparing', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => $r1, 'shipping' => 45],
+            ['customer' => $c2, 'status' => 'out_for_delivery', 'fulfillment_status' => 'sending_to_courier', 'delivery_state' => 'in_transit', 'fulfillment_type' => 'delivery', 'payment_method' => 'gcash', 'rider' => $r1, 'shipping' => 38],
+            ['customer' => $c1, 'status' => 'delivered', 'fulfillment_status' => 'accepted_by_courier', 'delivery_state' => 'delivered', 'fulfillment_type' => 'delivery', 'payment_method' => 'maya', 'rider' => $r1, 'shipping' => 30],
+            ['customer' => $c2, 'status' => 'disputed', 'fulfillment_status' => 'pending', 'delivery_state' => 'delivered', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => null, 'shipping' => 42],
+            ['customer' => $c1, 'status' => 'pending_payment', 'fulfillment_status' => 'pending', 'delivery_state' => 'pending_merchant', 'fulfillment_type' => 'pickup', 'payment_method' => 'cod', 'rider' => null, 'shipping' => 10],
         ];
 
         foreach ($orders as $i => $o) {
@@ -298,6 +302,7 @@ class MasterSeeder extends Seeder
                 'longitude' => $o['fulfillment_type'] === 'delivery' ? 123.1948 : null,
                 'status' => $o['status'],
                 'fulfillment_status' => $o['fulfillment_status'],
+                'delivery_state' => $o['delivery_state'],
                 'payment_method' => $o['payment_method'],
                 'created_at' => now()->subDays(count($orders) - $i),
                 'updated_at' => now()->subDays(count($orders) - $i),
@@ -316,9 +321,18 @@ class MasterSeeder extends Seeder
 
     protected function seedAffiliates(): void
     {
+        // Activate dedicated affiliate users
         foreach ($this->affiliates as $a) {
             $a->update(['affiliate_status' => 'active', 'affiliate_activated_at' => now()]);
             $a->update(['affiliate_documents' => [['document_type' => 'government_id', 'id_url' => 'https://placehold.co/400x300/673de6/ffffff?text=ID', 'submitted_at' => now()->toIso8601String()]]]);
+        }
+
+        // Also activate the main demo users so they can see affiliate income
+        foreach ([$this->customers['c1'], $this->riders['r1'], $this->merchants['m1']] as $u) {
+            if ($u && ! $u->affiliate_status) {
+                $u->update(['affiliate_status' => 'active', 'affiliate_activated_at' => now()]);
+                $u->update(['affiliate_documents' => [['document_type' => 'government_id', 'id_url' => 'https://placehold.co/400x300/673de6/ffffff?text=ID', 'submitted_at' => now()->toIso8601String()]]]);
+            }
         }
     }
 
@@ -346,6 +360,101 @@ class MasterSeeder extends Seeder
                 ['user_id' => $uid, 'wallet_type' => $type],
                 ['balance' => $bal, 'currency' => 'PHP', 'created_at' => now(), 'updated_at' => now()],
             );
+        }
+    }
+
+    /**
+     * Seed affiliate income for the main demo accounts (customer, rider,
+     * merchant) with a matching double-entry ledger trail so the affiliate
+     * dashboard shows income sources + per-transaction history.
+     */
+    protected function seedAffiliateIncome(): void
+    {
+        $orders = Order::orderBy('id')->get();
+
+        $plans = [
+            // [user, base descriptions], amounts are derived from real orders
+            [$this->customers['c1'], 'Affiliate reward Order #%d — %s', 'Affiliate micro-commission — parcel BB-2026-1000%d'],
+            [$this->riders['r1'], 'Affiliate reward Order #%d — %s', 'Affiliate micro-commission — parcel BB-2026-1000%d'],
+            [$this->merchants['m1'], 'Affiliate reward Order #%d — %s', 'Affiliate micro-commission — parcel BB-2026-1000%d'],
+        ];
+
+        foreach ($plans as $i => [$user, $orderFmt, $parcelFmt]) {
+            if (! $user) {
+                continue;
+            }
+
+            // Affiliate payout wallet
+            $wallet = DB::table('wallets')->where('user_id', $user->id)->where('wallet_type', 'affiliate_payout')->first();
+            $walletId = $wallet?->id;
+            $balance = 0.00;
+
+            if (! $walletId) {
+                $walletId = DB::table('wallets')->insertGetId([
+                    'user_id' => $user->id,
+                    'wallet_type' => 'affiliate_payout',
+                    'balance' => 0,
+                    'currency' => 'PHP',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // 2-3 marketplace commissions from real seeded orders
+            $commissions = [
+                ['order_index' => 0, 'amount' => 48.00, 'days_ago' => 9],
+                ['order_index' => 1, 'amount' => 22.50, 'days_ago' => 6],
+                ['order_index' => 2, 'amount' => 36.75, 'days_ago' => 2],
+            ];
+
+            foreach ($commissions as $k => $c) {
+                $order = $orders->get($c['order_index']);
+                $product = $order?->items()->first()?->product;
+                $description = sprintf($orderFmt, $order?->id ?? ($k + 1), $product?->name ?? 'Product');
+                $balance += $c['amount'];
+
+                DB::table('ledger_transactions')->insert([
+                    'wallet_id' => $walletId,
+                    'counterparty_wallet_id' => null,
+                    'amount' => $c['amount'],
+                    'balance_after' => round($balance, 2),
+                    'direction' => 'credit',
+                    'type' => 'affiliate_commission',
+                    'description' => $description,
+                    'transaction_hash' => hash('sha256', "affiliate_seed_{$user->id}_{$k}_order"),
+                    'reference_type' => $order ? \App\Models\Order::class : null,
+                    'reference_id' => $order?->id,
+                    'meta' => json_encode(['seeded' => true, 'source' => 'master_seed']),
+                    'created_at' => now()->subDays($c['days_ago']),
+                    'updated_at' => now()->subDays($c['days_ago']),
+                ]);
+            }
+
+            // 2 parcel micro-commissions (FR-AFF-002)
+            foreach ([14.00 => 5, 8.00 => 1] as $micro => $daysAgo) {
+                $balance += $micro;
+                DB::table('ledger_transactions')->insert([
+                    'wallet_id' => $walletId,
+                    'counterparty_wallet_id' => null,
+                    'amount' => $micro,
+                    'balance_after' => round($balance, 2),
+                    'direction' => 'credit',
+                    'type' => 'affiliate_commission',
+                    'description' => sprintf($parcelFmt, $daysAgo + 1),
+                    'transaction_hash' => hash('sha256', "affiliate_seed_{$user->id}_parcel_{$daysAgo}"),
+                    'reference_type' => null,
+                    'reference_id' => null,
+                    'meta' => json_encode(['seeded' => true, 'source' => 'master_seed']),
+                    'created_at' => now()->subDays($daysAgo),
+                    'updated_at' => now()->subDays($daysAgo),
+                ]);
+            }
+
+            // Wallet balance = sum of ledger credits
+            DB::table('wallets')->where('id', $walletId)->update([
+                'balance' => round($balance, 2),
+                'updated_at' => now(),
+            ]);
         }
     }
 

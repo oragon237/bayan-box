@@ -9,3 +9,7 @@ Artisan::command('bayanbox:demo', function () {
 
 // Order lifecycle exceptions: auto-cancel + raider reassignment
 Schedule::command('orders:process-lifecycle')->everyMinute();
+
+// Affiliate commission vesting: release commissions whose 72h grace period
+// has elapsed and whose order was not cancelled.
+Schedule::command('affiliate:release-commissions')->everyMinute();

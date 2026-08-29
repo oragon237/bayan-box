@@ -9,16 +9,16 @@ const directionBg = (d) => (d === 'credit' ? 'bg-green-50' : 'bg-red-50');
 
 export default function RiderWallet({ user }) {
   const notify = useToast();
-  const [wallet, setWallet] = useState(null);
+  const [data, setData] = useState(null);
   const [topup, setTopup] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchWallet = async () => {
     try {
       const { data } = await client.get('/rider/wallet');
-      setWallet(data.wallet);
+      setData(data);
     } catch {
-      setWallet(null);
+      setData(null);
     }
   };
 
@@ -43,7 +43,9 @@ export default function RiderWallet({ user }) {
     }
   };
 
+  const wallet = data?.wallet || null;
   const txs = wallet?.ledger_transactions || [];
+  const parcelTxs = data?.parcel_wallet?.ledger || [];
 
   return (
     <div className="space-y-4">
@@ -82,9 +84,9 @@ export default function RiderWallet({ user }) {
         </button>
       </form>
 
-      {/* Transactions */}
+      {/* Transactions — Prepaid (COD) */}
       <div className="card p-4">
-        <h3 className="font-bold text-ink-700 mb-3">Recent Transactions</h3>
+        <h3 className="font-bold text-ink-700 mb-3">Recent Transactions — Prepaid (COD)</h3>
         {txs.length === 0 ? (
           <div className="text-sm text-ink-400 text-center py-6">No transactions yet.</div>
         ) : (
@@ -106,6 +108,32 @@ export default function RiderWallet({ user }) {
           </div>
         )}
       </div>
+
+      {/* Parcel delivery earnings */}
+      {parcelTxs.length > 0 && (
+        <div className="card p-4">
+          <h3 className="font-bold text-ink-700 mb-3">
+            Parcel Delivery Earnings
+            <span className="ml-2 text-sm font-normal text-ink-400">₱{Number(data?.parcel_wallet?.balance ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+          </h3>
+          <div className="divide-y divide-ink-100">
+            {parcelTxs.slice(0, 30).map((tx) => (
+              <div key={tx.id} className="py-3 flex items-center gap-3">
+                <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold ${directionBg(tx.direction)} ${directionColor(tx.direction)}`}>
+                  {directionIcon(tx.direction)}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{tx.description}</div>
+                  <div className="text-[11px] text-ink-400">{new Date(tx.created_at).toLocaleString()}</div>
+                </div>
+                <span className={`font-black text-sm ${directionColor(tx.direction)}`}>
+                  {tx.direction === 'credit' ? '+' : '−'}₱{Math.abs(tx.amount).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
