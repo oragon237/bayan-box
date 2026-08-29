@@ -136,9 +136,12 @@ class MerchantDashboardController extends Controller
     {
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
+            'payout_account_id' => 'required|integer|exists:merchant_payout_accounts,id',
         ]);
 
         $user = $request->user();
+        $account = \App\Models\MerchantPayoutAccount::where('user_id', $user->id)->findOrFail($validated['payout_account_id']);
+
         $amount = round((float) $validated['amount'], 2);
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_MERCHANT_EARNINGS);
         $min = (float) config('bayanbox.affiliate.min_cashout', 200);
@@ -158,11 +161,12 @@ class MerchantDashboardController extends Controller
         $cashOut = AffiliateCashOut::create([
             'user_id' => $user->id,
             'wallet_type' => 'merchant_earnings',
+            'payout_account_id' => $account->id,
             'amount' => $amount,
             'status' => 'pending',
             'requested_at' => now(),
         ]);
 
-        return response()->json(['message' => 'Withdrawal requested. Admin will review.', 'cash_out' => $cashOut], 201);
+        return response()->json(['message' => 'Withdrawal requested. Admin will review.', 'cash_out' => $cashOut->load('payoutAccount')], 201);
     }
 }

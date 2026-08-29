@@ -56,6 +56,7 @@ export default function MerchantDashboard({ user }) {
         <div className="relative flex gap-2 mt-4">
           <button onClick={() => navigate('/merchant/products')} className="flex-1 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl">🛍️ My Products</button>
           <button onClick={() => navigate('/merchant/reports')} className="flex-1 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl">📊 Reports</button>
+          <button onClick={() => navigate('/merchant/settings/payouts')} className="flex-1 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl">💳 Payout Methods</button>
           <button onClick={() => navigate('/affiliate')} className="flex-1 py-2 bg-white/15 hover:bg-white/25 backdrop-blur text-white text-xs font-bold rounded-xl">🤝 Affiliate</button>
         </div>
       </div>

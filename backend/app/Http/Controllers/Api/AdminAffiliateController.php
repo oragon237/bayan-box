@@ -113,20 +113,46 @@ class AdminAffiliateController extends Controller
      */
     public function cashOuts(Request $request): JsonResponse
     {
-        $query = AffiliateCashOut::with('user:id,name,phone')
+        $query = AffiliateCashOut::with(['user:id,name,phone', 'payoutAccount'])
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->orderByDesc('created_at');
 
-        return response()->json($query->paginate($request->integer('per_page', 20)));
+        $cashOuts = $query->paginate($request->integer('per_page', 20));
+
+        $cashOuts->getCollection()->transform(fn ($c) => [
+            'id' => $c->id,
+            'user' => $c->user,
+            'wallet_type' => $c->wallet_type,
+            'amount' => $c->amount,
+            'status' => $c->status,
+            'requested_at' => $c->requested_at,
+            'approved_at' => $c->approved_at,
+            'decline_reason' => $c->decline_reason,
+            'payout_reference' => $c->payout_reference,
+            'payout' => $c->payoutAccount ? [
+                'account_type' => $c->payoutAccount->account_type,
+                'account_name' => $c->payoutAccount->account_name,
+                'mobile_number' => $c->payoutAccount->mobile_number,
+                'bank_name' => $c->payoutAccount->bank_name,
+                'account_number' => $c->payoutAccount->account_number,
+                'display_label' => $c->payoutAccount->displayLabel(),
+            ] : null,
+        ]);
+
+        return response()->json($cashOuts);
     }
 
     /**
      * POST /api/admin/affiliates/cash-outs/{id}/approve — approve a request.
      * Debits the affiliate wallet; funds released (simulated payout).
      */
-    public function approveCashOut(int $id): JsonResponse
+    public function approveCashOut(int $id, Request $request): JsonResponse
     {
         $cashOut = AffiliateCashOut::where('status', AffiliateCashOut::STATUS_PENDING)->findOrFail($id);
+
+        $validated = $request->validate([
+            'payout_reference' => 'nullable|string|max:60',
+        ]);
 
         $walletType = $cashOut->wallet_type ?? Wallet::TYPE_AFFILIATE_PAYOUT;
         $wallet = $this->wallets->ensureWallet($cashOut->user_id, $walletType);
@@ -148,6 +174,7 @@ class AdminAffiliateController extends Controller
             'status' => AffiliateCashOut::STATUS_PAID,
             'approved_at' => now(),
             'approved_by' => auth()->id(),
+            'payout_reference' => $validated['payout_reference'] ?? null,
         ]);
 
         return response()->json(['message' => 'Cash-out approved and paid.', 'cash_out' => $cashOut->fresh()]);

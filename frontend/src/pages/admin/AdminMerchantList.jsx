@@ -8,6 +8,7 @@ export default function AdminMerchantList({ user }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [viewing, setViewing] = useState(null); // merchant id being viewed
+  const [deleting, setDeleting] = useState(null); // merchant pending deletion
   const [detail, setDetail] = useState(null);
 
   const load = async () => {
@@ -69,6 +70,19 @@ export default function AdminMerchantList({ user }) {
       load();
     } catch {
       notify('Failed.', 'error');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    try {
+      await client.delete(`/admin/merchants/${deleting.id}`);
+      notify(`${deleting.name} deleted.`);
+      setDeleting(null);
+      setViewing(null);
+      load();
+    } catch (err) {
+      notify(err.response?.data?.message || 'Could not delete merchant.', 'error');
     }
   };
 
@@ -148,6 +162,9 @@ export default function AdminMerchantList({ user }) {
                     Deactivate
                   </button>
                 )}
+                <button onClick={() => setDeleting(m)} className="py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl">
+                  🗑
+                </button>
               </div>
             </div>
           ))}
@@ -240,9 +257,33 @@ export default function AdminMerchantList({ user }) {
                       </button>
                     )
                   )}
+                  <button onClick={() => setDeleting(viewing)} className="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl">
+                    🗑 Delete
+                  </button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deleting && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setDeleting(null)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="text-4xl">🗑️</div>
+            <h3 className="font-extrabold text-ink-800">Delete this merchant?</h3>
+            <p className="text-sm text-ink-500">
+              Are you sure you want to delete <b>{deleting.name}</b>? This will permanently remove the merchant account and their products.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={confirmDelete} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl">
+                Delete
+              </button>
+              <button onClick={() => setDeleting(null)} className="flex-1 py-2.5 bg-ink-100 text-ink-700 text-sm font-bold rounded-xl">
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

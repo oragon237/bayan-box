@@ -18,11 +18,39 @@ export default function MarketplaceHome({ user }) {
   const [bannerIdx, setBannerIdx] = useState(0);
   const [onSale, setOnSale] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const saleScroller = useRef(null);
+  const bannerTimer = useRef(null);
 
   const scrollBy = (dir) => {
     saleScroller.current?.scrollBy({ left: dir * 260, behavior: 'smooth' });
   };
+
+  const setBanner = (i) => {
+    setBannerIdx(i);
+    clearInterval(bannerTimer.current);
+    bannerTimer.current = setInterval(() => {
+      setBannerIdx((prev) => (prev + 1) % banners.length);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    Promise.all([
+      client.get('/banners').then((r) => setBanners(Array.isArray(r.data) ? r.data : [])).catch(() => {}),
+      client.get('/products', { params: { per_page: 8, on_sale: 1, sort: 'reviews' } }).then((r) => setOnSale(Array.isArray(r.data.data) ? r.data.data : [])).catch(() => {}),
+    ]).finally(() => setLoading(false));
+
+    return () => clearInterval(bannerTimer.current);
+  }, []);
+
+  // Start auto-advance when banners load
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    bannerTimer.current = setInterval(() => {
+      setBannerIdx((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(bannerTimer.current);
+  }, [banners.length]);
 
   useEffect(() => {
     Promise.all([
@@ -44,7 +72,7 @@ export default function MarketplaceHome({ user }) {
           {banners.length > 1 && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
               {banners.map((_, i) => (
-                <button key={i} onClick={() => setBannerIdx(i)} className={`w-2.5 h-2.5 rounded-full ${i === bannerIdx ? 'bg-white' : 'bg-white/50'}`} />
+                <button key={i} onClick={() => setBanner(i)} className={`w-2.5 h-2.5 rounded-full ${i === bannerIdx ? 'bg-white' : 'bg-white/50'}`} />
               ))}
             </div>
           )}
@@ -52,9 +80,24 @@ export default function MarketplaceHome({ user }) {
       )}
 
       {/* Search bar */}
-      <button onClick={() => navigate('/search')} className="w-full p-3.5 bg-ink-50 border border-ink-200 rounded-2xl text-left text-sm text-ink-400 transition hover:bg-ink-100">
-        🔍 Search products, stores, or descriptions…
-      </button>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        }}
+        className="flex items-center gap-2 w-full p-2.5 bg-ink-50 border border-ink-200 rounded-2xl transition focus-within:ring-2 focus-within:ring-bayan-500 focus-within:border-bayan-500"
+      >
+        <span className="text-ink-400 pl-1">🔍</span>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search products, stores, or descriptions…"
+          className="flex-1 bg-transparent outline-none text-sm text-ink-800 placeholder:text-ink-400"
+        />
+        <button type="submit" className="px-4 py-1.5 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl transition">
+          Search
+        </button>
+      </form>
 
       {/* Category grid */}
       <div>

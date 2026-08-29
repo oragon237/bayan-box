@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import { Spinner, useToast } from '../../components/ui.jsx';
 
@@ -8,6 +9,7 @@ const RANGES = [
 
 export default function MerchantReports({ user }) {
   const notify = useToast();
+  const navigate = useNavigate();
   const [range, setRange] = useState('This Month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -16,6 +18,8 @@ export default function MerchantReports({ user }) {
   const [loading, setLoading] = useState(true);
   const [cashOutAmt, setCashOutAmt] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [payoutAccounts, setPayoutAccounts] = useState([]);
+  const [selectedPayoutId, setSelectedPayoutId] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -40,11 +44,22 @@ export default function MerchantReports({ user }) {
     if (range === 'Custom' && customFrom && customTo) load();
   }, [customFrom, customTo]);
 
+  // Load payout accounts for the cash-out flow
+  useEffect(() => {
+    client.get('/merchant/payouts').then((res) => {
+      const list = res.data.accounts || [];
+      setPayoutAccounts(list);
+      const def = list.find((a) => a.is_default);
+      setSelectedPayoutId(def?.id ? String(def.id) : (list[0]?.id ? String(list[0].id) : ''));
+    }).catch(() => {});
+  }, []);
+
   const requestCashOut = async () => {
     if (!cashOutAmt || Number(cashOutAmt) < 1) { notify('Enter an amount.', 'error'); return; }
+    if (!selectedPayoutId) { notify('Add a payout account first.', 'error'); return; }
     setSubmitting(true);
     try {
-      const res = await client.post('/merchant/cash-out', { amount: Number(cashOutAmt) });
+      const res = await client.post('/merchant/cash-out', { amount: Number(cashOutAmt), payout_account_id: Number(selectedPayoutId) });
       notify(res.data.message);
       setCashOutAmt('');
       load();
@@ -135,9 +150,25 @@ export default function MerchantReports({ user }) {
           <div className="card p-4 space-y-3">
             <h3 className="font-extrabold text-ink-800">Payout & Wallet</h3>
             <p className="text-sm">Balance: <span className="font-black text-lg">₱{Number(data.wallet.balance).toLocaleString()}</span></p>
+
+            {/* Payout account selector */}
+            {payoutAccounts.length === 0 ? (
+              <div className="bg-amber-50 rounded-xl p-3 space-y-2">
+                <p className="text-xs text-amber-800 font-bold">No payout account yet.</p>
+                <button onClick={() => navigate('/merchant/settings/payouts')} className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl">+ Add payout method</button>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-ink-500 mb-1">Withdraw to</label>
+                <select value={selectedPayoutId} onChange={(e) => setSelectedPayoutId(e.target.value)} className="field bg-white">
+                  {payoutAccounts.map((a) => <option key={a.id} value={a.id}>{a.display_label}{a.is_default ? ' (Primary)' : ''}</option>)}
+                </select>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <input type="number" min="1" value={cashOutAmt} onChange={(e) => setCashOutAmt(e.target.value)} placeholder="Amount to withdraw" className="field flex-1" />
-              <button onClick={requestCashOut} disabled={submitting} className="px-5 py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl">{submitting ? '…' : 'Request cash-out'}</button>
+              <button onClick={requestCashOut} disabled={submitting || !selectedPayoutId} className="px-5 py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl">{submitting ? '…' : 'Request cash-out'}</button>
             </div>
 
             {data.wallet.withdrawals?.length > 0 && (

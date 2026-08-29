@@ -28,6 +28,7 @@ import HireProvider from './pages/marketplace/HireProvider.jsx';
 import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
 import MerchantDashboard from './pages/merchant/MerchantDashboard.jsx';
 import MerchantReports from './pages/merchant/MerchantReports.jsx';
+import MerchantPayouts from './pages/merchant/MerchantPayouts.jsx';
 import MerchantAds from './pages/merchant/MerchantAds.jsx';
 import MerchantOrders from './pages/merchant/MerchantOrders.jsx';
 import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
@@ -39,6 +40,7 @@ import AdminRiders from './pages/admin/AdminRiders.jsx';
 import AdminAffiliates from './pages/admin/AdminAffiliates.jsx';
 import AdminBanners from './pages/admin/AdminBanners.jsx';
 import AdminAds from './pages/admin/AdminAds.jsx';
+import AdminSettings from './pages/admin/AdminSettings.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import StaffDashboard from './pages/staff/StaffDashboard.jsx';
@@ -184,6 +186,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/merchant/ads" element={<MerchantAds user={user} />} />
           <Route path="/merchant/dashboard" element={<MerchantDashboard user={user} />} />
           <Route path="/merchant/reports" element={<MerchantReports user={user} />} />
+          <Route path="/merchant/settings/payouts" element={<MerchantPayouts user={user} />} />
           <Route path="/merchant/profile" element={<MerchantProfile user={user} />} />
           <Route path="/admin/merchants" element={<AdminMerchants user={user} />} />
           <Route path="/admin/merchant-list" element={<AdminMerchantList user={user} />} />
@@ -197,6 +200,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/admin/affiliates" element={<AdminAffiliates user={user} />} />
           <Route path="/admin/banners" element={<AdminBanners user={user} />} />
           <Route path="/admin/ads" element={<AdminAds user={user} />} />
+          <Route path="/admin/settings" element={<AdminSettings user={user} />} />
           <Route path="/orders" element={<MyOrders user={user} />} />
           <Route path="/points-shop" element={<PointsShop user={user} />} />
           <Route path="/cart" element={<CartPage user={user} />} />

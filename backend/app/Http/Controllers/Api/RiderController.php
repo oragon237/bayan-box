@@ -135,17 +135,30 @@ class RiderController extends Controller
     {
         $validated = $request->validate([
             'message' => 'nullable|string|max:500',
+            'type' => 'nullable|in:accident,breakdown,weather,customer_unreachable,other',
+            'order_id' => 'nullable|integer|exists:orders,id',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
         $rider = $request->user();
 
+        // Persist as an incident report for the staff dashboard
+        $incident = \App\Models\IncidentReport::create([
+            'rider_id' => $rider->id,
+            'order_id' => $validated['order_id'] ?? null,
+            'type' => $validated['type'] ?? 'other',
+            'description' => $validated['message'] ?? "Rider {$rider->name} reported an emergency.",
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'status' => 'open',
+        ]);
+
         app(\App\Services\NotificationService::class)->riderEmergency(
             $rider->id,
             $validated['message'] ?? "Rider {$rider->name} reported an emergency.",
         );
 
-        return response()->json(['message' => 'Emergency reported to admins.']);
+        return response()->json(['message' => 'Emergency reported to staff.', 'incident_id' => $incident->id], 201);
     }
 }

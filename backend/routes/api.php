@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AdminAffiliateController;
 use App\Http\Controllers\Api\AdminMallController;
 use App\Http\Controllers\Api\AdminMerchantController;
 use App\Http\Controllers\Api\AdminRiderController;
+use App\Http\Controllers\Api\AdminSettingsController;
 use App\Http\Controllers\Api\AdTrackingController;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AuthController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\LoyaltyController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MerchantProductController;
 use App\Http\Controllers\Api\MerchantOrderController;
+use App\Http\Controllers\Api\MerchantPayoutController;
 use App\Http\Controllers\Api\MerchantDashboardController;
 use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
@@ -32,6 +34,7 @@ use App\Http\Controllers\Api\RiderDeliveryController;
 use App\Http\Controllers\Api\StaffDeliveryController;
 use App\Http\Controllers\Api\StaffDashboardController;
 use App\Http\Controllers\Api\StaffMallController;
+use App\Http\Controllers\Api\StaffOpsController;
 use App\Http\Controllers\Api\TrackingController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\WalletController;
@@ -45,8 +48,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 // ---- Public ----
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:3,60');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::get('/track/{tracking}', [TrackingController::class, 'show']);
 
 // Public storefront — browse products without login (item 1, homepage)
@@ -161,6 +164,13 @@ Route::middleware(['auth:sanctum', 'role:merchant,admin'])->prefix('merchant')->
     Route::get('/dashboard', [MerchantDashboardController::class, 'dashboard']);
     Route::get('/reports', [MerchantDashboardController::class, 'reports']);
     Route::post('/cash-out', [MerchantDashboardController::class, 'requestCashOut']);
+
+    // Merchant payout accounts
+    Route::get('/payouts', [MerchantPayoutController::class, 'index']);
+    Route::post('/payouts', [MerchantPayoutController::class, 'store']);
+    Route::put('/payouts/{id}', [MerchantPayoutController::class, 'update'])->whereNumber('id');
+    Route::post('/payouts/{id}/default', [MerchantPayoutController::class, 'setDefault'])->whereNumber('id');
+    Route::delete('/payouts/{id}', [MerchantPayoutController::class, 'destroy'])->whereNumber('id');
 });
 
 // ---- Staff (Hub PWA) ----
@@ -187,6 +197,19 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::post('/deliveries/{id}/assign', [StaffDeliveryController::class, 'assign']);
     Route::get('/sales/today', [StaffDeliveryController::class, 'todaySales']);
     Route::get('/dashboard', [StaffDashboardController::class, 'index']);
+
+    // Staff operations: dispatch, incidents, status board, tickets
+    Route::get('/ops/overview', [StaffOpsController::class, 'overview']);
+    Route::get('/ops/incidents', [StaffOpsController::class, 'incidents']);
+    Route::post('/ops/incidents/{id}/resolve', [StaffOpsController::class, 'resolveIncident'])->whereNumber('id');
+    Route::get('/ops/dispatch', [StaffOpsController::class, 'dispatch']);
+    Route::post('/ops/dispatch/{orderId}/assign', [StaffOpsController::class, 'assign'])->whereNumber('orderId');
+    Route::get('/ops/status-board', [StaffOpsController::class, 'statusBoard']);
+    Route::put('/ops/orders/{id}/status', [StaffOpsController::class, 'forceStatus'])->whereNumber('id');
+    Route::get('/ops/tickets', [StaffOpsController::class, 'tickets']);
+    Route::post('/ops/tickets/{id}/resolve', [StaffOpsController::class, 'resolveTicket'])->whereNumber('id');
+    Route::get('/ops/hazards', [StaffOpsController::class, 'hazards']);
+    Route::post('/ops/hazards', [StaffOpsController::class, 'setHazards']);
 });
 
 // ---- Admin: banner management ----
@@ -195,6 +218,15 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/banners', [BannerController::class, 'store']);
     Route::put('/banners/{id}', [BannerController::class, 'update'])->whereNumber('id');
     Route::delete('/banners/{id}', [BannerController::class, 'destroy'])->whereNumber('id');
+
+    // Admin settings
+    Route::get('/settings', [AdminSettingsController::class, 'index']);
+    Route::put('/settings', [AdminSettingsController::class, 'update']);
+
+    // Admin categories
+    Route::post('/categories', [AdminSettingsController::class, 'storeCategory']);
+    Route::put('/categories/{id}', [AdminSettingsController::class, 'updateCategory'])->whereNumber('id');
+    Route::delete('/categories/{id}', [AdminSettingsController::class, 'destroyCategory'])->whereNumber('id');
 
     // Admin ad oversight
     Route::get('/ads', [AdminAdController::class, 'index']);
@@ -213,6 +245,7 @@ Route::middleware(['auth:sanctum', 'role:rider,admin'])->prefix('rider')->group(
     Route::get('/wallet', [RiderController::class, 'wallet']);
 
     // Doorstep delivery assignments (item 3)
+    Route::get('/deliveries/history', [RiderDeliveryController::class, 'history']);
     Route::get('/deliveries', [RiderDeliveryController::class, 'index']);
     Route::post('/deliveries/{id}/refuse', [RiderDeliveryController::class, 'refuse']);
     Route::post('/deliveries/{id}/out-for-delivery', [RiderDeliveryController::class, 'outForDelivery']);

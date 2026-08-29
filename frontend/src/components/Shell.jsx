@@ -22,7 +22,7 @@ function tabsFor(role) {
       dash,
       { to: '/admin/merchant-list', label: 'Merchants', icon: PackageIcon },
       { to: '/admin/riders', label: 'Riders', icon: RouteIcon },
-      { to: '/admin/affiliates', label: 'Affiliates', icon: ShareIcon },
+      { to: '/admin/settings', label: 'Settings', icon: StarIcon },
       { to: '/admin/ads', label: 'Ads', icon: TagIcon },
     ],
     staff: [

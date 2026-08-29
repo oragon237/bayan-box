@@ -37,6 +37,21 @@ class RiderDeliveryController extends Controller
     }
 
     /**
+     * GET /api/rider/deliveries/history — completed/refused/cancelled deliveries.
+     */
+    public function history(Request $request): JsonResponse
+    {
+        $history = Order::with(['customer:id,name,phone', 'items.product:id,name'])
+            ->where('rider_id', $request->user()->id)
+            ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
+            ->whereIn('status', [DeliveryAssignmentService::STATUS_DELIVERED, 'cancelled', 'disputed'])
+            ->orderByDesc('updated_at')
+            ->paginate($request->integer('per_page', 20));
+
+        return response()->json($history);
+    }
+
+    /**
      * POST /api/rider/deliveries/{id}/refuse — refuse, reassign round-robin.
      */
     public function refuse(int $id, Request $request): JsonResponse

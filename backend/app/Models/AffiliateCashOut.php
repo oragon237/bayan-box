@@ -15,6 +15,7 @@ class AffiliateCashOut extends Model
     protected $fillable = [
         'user_id', 'wallet_type', 'amount', 'status', 'requested_at',
         'approved_at', 'approved_by', 'decline_reason',
+        'payout_account_id', 'payout_reference',
     ];
 
     protected function casts(): array
@@ -29,5 +30,10 @@ class AffiliateCashOut extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function payoutAccount(): BelongsTo
+    {
+        return $this->belongsTo(MerchantPayoutAccount::class, 'payout_account_id');
     }
 }

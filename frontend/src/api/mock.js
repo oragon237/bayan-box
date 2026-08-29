@@ -490,6 +490,48 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse({ message: 'Withdrawal requested.', cash_out: { id: 5, amount: data?.amount, status: 'pending' } }, 201));
   }
 
+    // Admin settings
+  if (path === '/admin/settings' && lower === 'get') {
+    return Promise.resolve(mockResponse({
+      settings: {
+        fees: { base_fee: 40, base_distance_km: 2, per_km_rate: 10, merchant_commission_percent: 5, min_cashout: 500 },
+        ads: { homepage_featured_rate: 100, sponsored_rate: 50, max_featured_slots: 5 },
+        toggles: { maintenance_mode: false, allow_merchant_registration: true },
+        locations: { default_lat: 13.6218, default_lng: 123.1948, service_zones: [{ name: 'Naga City', barangays: ['San Jose', 'Poblacion'], active: true }] },
+      },
+      categories: [
+        { id: 1, name: 'Fresh Produce', slug: 'fresh-produce', icon: '🥬', sort_order: 0, is_active: true, product_count: 6 },
+        { id: 2, name: 'Local Crafts', slug: 'local-crafts', icon: '🧶', sort_order: 1, is_active: true, product_count: 6 },
+        { id: 3, name: 'Packaging', slug: 'packaging', icon: '📦', sort_order: 2, is_active: true, product_count: 5 },
+      ],
+    }));
+  }
+  if (path === '/admin/settings' && lower === 'put') return Promise.resolve(mockResponse({ message: 'Settings saved.', settings: {} }));
+  if (path === '/admin/categories' && lower === 'post') return Promise.resolve(mockResponse({ id: 99, ...data }, 201));
+  if (/^\/admin\/categories\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) return Promise.resolve(mockResponse({ message: 'Category ' + (lower === 'put' ? 'updated.' : 'deleted.') }));
+
+    // Merchant payout accounts
+  if (path === '/merchant/payouts' && lower === 'get') {
+    return Promise.resolve(mockResponse({ accounts: [{ id: 1, account_type: 'gcash', account_name: 'Mang Juan Store', mobile_number: '09171234567', bank_name: null, account_number: null, branch: null, is_default: true, masked_account: '0917••••••67', display_label: '💙 GCash — Mang Juan Store (0917••••••67)' }] }));
+  }
+  if (path === '/merchant/payouts' && lower === 'post') return Promise.resolve(mockResponse({ id: 1, ...data }, 201));
+  if (/^\/merchant\/payouts\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) return Promise.resolve(mockResponse({ message: 'Payout account ' + (lower === 'put' ? 'updated.' : 'deleted.') }));
+  if (/^\/merchant\/payouts\/\d+\/default$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Default payout account set.' }));
+  if (path === '/merchant/cash-out' && lower === 'post') return Promise.resolve(mockResponse({ message: 'Withdrawal requested.', cash_out: {} }, 201));
+
+    // Staff ops
+  if (path === '/staff/ops/overview' && lower === 'get') return Promise.resolve(mockResponse({ active_riders: 2, deliveries_in_transit: 1, emergency_alerts: 1, unassigned_orders: 2 }));
+  if (path === '/staff/ops/incidents' && lower === 'get') return Promise.resolve(mockResponse([{ id: 1, rider: { id: 3, name: 'Rico the Rider', phone: '09170000003' }, order_id: 8, type: 'accident', description: 'Minor accident near San Jose', created_at: new Date().toISOString(), status: 'open' }]));
+  if (/^\/staff\/ops\/incidents\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Incident resolved.', incident: {} }));
+  if (path === '/staff/ops/dispatch' && lower === 'get') return Promise.resolve(mockResponse({ ready_orders: [{ id: 15, total_amount: '150.00', customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, items: [{ product: { name: 'Fresh Sili' } }], delivery_address: 'San Jose, Naga', latitude: 13.62, longitude: 123.18 }], riders: [{ id: 3, name: 'Rico the Rider', active_orders: 1 }, { id: 18, name: 'Berto', active_orders: 0 }] }));
+  if (/^\/staff\/ops\/dispatch\/\d+\/assign$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Assigned to Rico the Rider.' }));
+  if (path === '/staff/ops/status-board' && lower === 'get') return Promise.resolve(mockResponse({ ready_for_pickup: [], in_transit: [{ id: 8, total_amount: '80.00', customer: { name: 'Juan' }, items: [], status: 'out_for_delivery', elapsed_minutes: 60, estimated_delivery_minutes: 45 }], delivered: [{ id: 4, total_amount: '160.00', customer: { name: 'Maria' }, items: [], status: 'delivered' }], failed_returned: [] }));
+  if (/^\/staff\/ops\/orders\/\d+\/status$/.test(path) && lower === 'put') return Promise.resolve(mockResponse({ message: 'Order status updated.' }));
+  if (path === '/staff/ops/tickets' && lower === 'get') return Promise.resolve(mockResponse([{ id: 1, subject: 'Damaged item', reporter_role: 'customer', user: { name: 'Juan' }, order_id: 4, description: 'Received dented can', proof_url: null, status: 'open' }]));
+  if (/^\/staff\/ops\/tickets\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Ticket resolved.' }));
+  if (path === '/staff/ops/hazards' && lower === 'get') return Promise.resolve(mockResponse({ zones: [{ name: 'San Jose', impassable: false }, { name: 'Sta. Cruz', impassable: false }] }));
+  if (path === '/staff/ops/hazards' && lower === 'post') return Promise.resolve(mockResponse({ message: 'Hazard zones updated.' }));
+
   // Merchant product management (FR-MKT-001)
   if (path === '/merchant/products' && lower === 'get') {
     return Promise.resolve(mockResponse({ data: PRODUCTS, total: PRODUCTS.length }));

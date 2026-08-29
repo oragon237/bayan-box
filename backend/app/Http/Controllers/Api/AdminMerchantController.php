@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\SmsService;
@@ -91,9 +92,12 @@ class AdminMerchantController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $merchant = User::where('role', 'merchant')->findOrFail($id);
-        $merchant->update(['status' => 'deactivated']);
 
-        return response()->json(['message' => 'Merchant deactivated.']);
+        // Archive all products to preserve order history, then delete the user
+        Product::where('merchant_id', $merchant->id)->update(['status' => 'archived', 'availability' => 'unavailable']);
+        $merchant->delete();
+
+        return response()->json(['message' => 'Merchant deleted permanently.']);
     }
 
     /**

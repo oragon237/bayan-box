@@ -22,6 +22,7 @@ export default function AdminAffiliates({ user }) {
   // Detail modal
   const [detail, setDetail] = useState(null);
   const [lightbox, setLightbox] = useState(null);
+  const [refInputs, setRefInputs] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -58,12 +59,19 @@ export default function AdminAffiliates({ user }) {
 
   const approve = async (id) => {
     try {
-      const res = await client.post(`/admin/affiliates/cash-outs/${id}/approve`);
+      const res = await client.post(`/admin/affiliates/cash-outs/${id}/approve`, { payout_reference: refInputs[id] || null });
       notify(res.data.message);
       load();
     } catch (err) {
       notify(err.response?.data?.message || 'Could not approve.', 'error');
     }
+  };
+
+  const copyPayout = (payout) => {
+    const text = payout.account_type === 'bank'
+      ? `${payout.bank_name} ${payout.account_name} ${payout.account_number}`
+      : `${payout.account_type.toUpperCase()} ${payout.account_name} ${payout.mobile_number}`;
+    navigator.clipboard?.writeText(text).then(() => notify('Payout info copied.')).catch(() => notify('Could not copy.', 'error'));
   };
 
   const decline = async (id) => {
@@ -163,14 +171,36 @@ const statusColor = (s) =>
                   </div>
                   <span className={`chip border ${statusColor(co.status)}`}>{co.status}</span>
                 </div>
+
+                {/* Payout account details */}
+                {co.payout && (
+                  <div className="mt-3 bg-ink-50 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-ink-500 uppercase">{co.wallet_type === 'merchant_earnings' ? 'Merchant payout to' : 'Affiliate payout to'}</p>
+                      <p className="text-sm font-bold text-ink-800">{co.payout.display_label}</p>
+                      {co.payout.account_type === 'bank' && <p className="text-xs text-ink-400">{co.payout.bank_name} · {co.payout.account_number}</p>}
+                      {co.payout.account_type !== 'bank' && <p className="text-xs text-ink-400">{co.payout.mobile_number}</p>}
+                    </div>
+                    <button onClick={() => copyPayout(co.payout)} className="px-3 py-1.5 bg-white border border-ink-200 hover:bg-ink-100 text-ink-700 text-xs font-bold rounded-lg shrink-0">📋 Copy</button>
+                  </div>
+                )}
+
                 {co.status === 'pending' && (
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => approve(co.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition">
-                      ✅ Approve & pay
-                    </button>
-                    <button onClick={() => decline(co.id)} className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition">
-                      ✕ Decline
-                    </button>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      value={refInputs[co.id] || ''}
+                      onChange={(e) => setRefInputs((p) => ({ ...p, [co.id]: e.target.value }))}
+                      placeholder="Transfer reference (optional)"
+                      className="field"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => approve(co.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition">
+                        ✅ Approve & pay
+                      </button>
+                      <button onClick={() => decline(co.id)} className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition">
+                        ✕ Decline
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
