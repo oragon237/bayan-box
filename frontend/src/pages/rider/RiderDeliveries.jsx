@@ -59,6 +59,10 @@ export default function RiderDeliveries({ user }) {
   const renderDetail = (d) => {
     const isActive = d.status === 'assigned' || d.status === 'out_for_delivery';
     const dest = d.latitude && d.longitude ? [d.longitude, d.latitude] : null;
+    // Origin = merchant store location (fallback: Naga hub)
+    const origin = d.merchant?.latitude && d.merchant?.longitude
+      ? [d.merchant.longitude, d.merchant.latitude]
+      : [123.1948, 13.6218];
     return (
       <div className="card overflow-hidden">
         <div className="px-4 py-2 bg-ink-50 flex items-center justify-between">
@@ -66,10 +70,15 @@ export default function RiderDeliveries({ user }) {
           <span className={`chip border ${STATUS_STYLE[d.status] || 'bg-ink-100 text-ink-500'}`}>{STATUS_LABEL[d.status] || d.status}</span>
         </div>
 
-        {dest && <DeliveryMap origin={[123.1948, 13.6218]} destination={dest} className="w-full h-40" />}
+        {dest && <DeliveryMap origin={origin} destination={dest} className="w-full h-40" />}
 
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="bg-ink-50 rounded-xl p-3">
+              <p className="text-[10px] text-ink-400 uppercase font-bold">🏪 Merchant</p>
+              <p className="font-bold text-ink-800 mt-0.5">{d.merchant?.name || '—'}</p>
+              <p className="text-xs text-ink-500">{d.merchant?.barangay}{d.merchant?.barangay && d.merchant?.municipality ? ', ' : ''}{d.merchant?.municipality || ''}</p>
+            </div>
             <div className="bg-ink-50 rounded-xl p-3">
               <p className="text-[10px] text-ink-400 uppercase font-bold">📦 Customer</p>
               <p className="font-bold text-ink-800 mt-0.5">{d.customer?.name}</p>
@@ -99,7 +108,7 @@ export default function RiderDeliveries({ user }) {
           {isActive && (
             <div className="flex flex-wrap gap-2">
               <a href={`tel:${d.customer?.phone}`} className="flex-1 min-w-24 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl text-center">📞 Call</a>
-              <a href={`https://maps.google.com/?q=${d.latitude},${d.longitude}`} target="_blank" rel="noreferrer" className="flex-1 min-w-24 py-2.5 bg-ink-100 hover:bg-ink-200 text-ink-700 text-sm font-bold rounded-xl text-center">🧭 Navigate</a>
+              <a href={`https://www.google.com/maps/dir/${d.merchant?.latitude ? `${d.merchant.latitude},${d.merchant.longitude}/` : ''}${d.latitude},${d.longitude}`} target="_blank" rel="noreferrer" className="flex-1 min-w-24 py-2.5 bg-ink-100 hover:bg-ink-200 text-ink-700 text-sm font-bold rounded-xl text-center">🧭 Navigate</a>
               <button onClick={() => action(d.id, 'out-for-delivery', 'Marked out for delivery.')} className="flex-1 min-w-24 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl">🚚 Start</button>
               <button onClick={() => action(d.id, 'deliver', 'Delivery completed.')} className="flex-1 min-w-24 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl">✅ Delivered</button>
               <button onClick={() => action(d.id, 'refuse', 'Refused.')} className="flex-1 min-w-24 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold rounded-xl">✕ Refuse</button>

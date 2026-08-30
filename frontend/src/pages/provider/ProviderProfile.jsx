@@ -18,14 +18,36 @@ export default function ProviderProfile({ user }) {
   const [skills, setSkills] = useState([]);
   const [pictureUrl, setPictureUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [info, setInfo] = useState({
+    name: '',
+    email: '',
+    barangay: '',
+    municipality: '',
+    latitude: '',
+    longitude: '',
+  });
+  const [savingInfo, setSavingInfo] = useState(false);
 
   const load = async () => {
     try {
-      const res = await client.get('/provider/profile');
+      const [res, infoRes] = await Promise.all([
+        client.get('/provider/profile'),
+        client.get('/profile'),
+      ]);
       setProvider(res.data.provider);
       setProfile(res.data.profile);
       setSkills(res.data.profile?.skills || []);
       setPictureUrl(res.data.profile?.picture_url || '');
+      const p = infoRes.data.user;
+      setInfo({
+        name: p.name || '',
+        email: p.email || '',
+        barangay: p.barangay || '',
+        municipality: p.municipality || '',
+        latitude: p.latitude ?? '',
+        longitude: p.longitude ?? '',
+      });
     } catch {
       notify('Could not load profile.', 'error');
     }
@@ -51,6 +73,48 @@ export default function ProviderProfile({ user }) {
       notify(err.response?.data?.message || 'Could not save.', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const setInfoField = (field) => (e) => setInfo({ ...info, [field]: e.target.value });
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { notify('Geolocation not supported.', 'error'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setInfo({
+          ...info,
+          latitude: Number(pos.coords.latitude.toFixed(7)),
+          longitude: Number(pos.coords.longitude.toFixed(7)),
+        });
+        notify('Location detected.');
+        setLocating(false);
+      },
+      () => { notify('Location access denied. Enter coordinates manually.', 'error'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  };
+
+  const saveInfo = async () => {
+    const lat = info.latitude === '' ? null : Number(info.latitude);
+    const lng = info.longitude === '' ? null : Number(info.longitude);
+    setSavingInfo(true);
+    try {
+      await client.put('/profile', {
+        name: info.name,
+        email: info.email,
+        barangay: info.barangay,
+        municipality: info.municipality,
+        latitude: lat,
+        longitude: lng,
+      });
+      notify('Info updated.');
+      load();
+    } catch (err) {
+      notify(err.response?.data?.message || 'Could not save.', 'error');
+    } finally {
+      setSavingInfo(false);
     }
   };
 
@@ -99,6 +163,62 @@ export default function ProviderProfile({ user }) {
       <div className="card p-4 space-y-2">
         <h3 className="font-extrabold text-ink-800">Profile picture</h3>
         <ImageUploader value={pictureUrl} onChange={setPictureUrl} folder="providers" label="Upload picture" />
+      </div>
+
+      {/* Personal info + fixed location */}
+      <div className="card p-4 space-y-4">
+        <h3 className="font-extrabold text-ink-800">Personal information</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Full name</label>
+            <input value={info.name} onChange={setInfoField('name')} placeholder="Your full name" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Email address</label>
+            <input value={info.email} onChange={setInfoField('email')} type="email" placeholder="your@email.com" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Barangay</label>
+            <input value={info.barangay} onChange={setInfoField('barangay')} placeholder="e.g., San Jose" className="field" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ink-500 mb-1">Municipality</label>
+            <input value={info.municipality} onChange={setInfoField('municipality')} placeholder="e.g., Naga City" className="field" />
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-ink-50 border border-ink-100 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-ink-700">📍 Base location</p>
+              <p className="text-[11px] text-ink-400">Used for job routing. Auto-set with GPS or enter coordinates.</p>
+            </div>
+            <button onClick={useMyLocation} disabled={locating} type="button" className="px-3 py-1.5 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-[11px] font-bold rounded-lg">
+              {locating ? 'Locating…' : 'Use my location'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-ink-500 mb-1">Latitude</label>
+              <input value={info.latitude} onChange={setInfoField('latitude')} placeholder="e.g., 13.6218" className="field" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-ink-500 mb-1">Longitude</label>
+              <input value={info.longitude} onChange={setInfoField('longitude')} placeholder="e.g., 123.1948" className="field" />
+            </div>
+          </div>
+          {(info.latitude === '' ) !== (info.longitude === '') && (
+            <p className="text-[11px] text-amber-600 font-semibold">Latitude and longitude must be entered together.</p>
+          )}
+        </div>
+
+        <button
+          onClick={saveInfo}
+          disabled={savingInfo}
+          className="w-full py-3 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white font-bold rounded-xl"
+        >
+          {savingInfo ? 'Saving…' : 'Save information'}
+        </button>
       </div>
 
       {/* Skills */}

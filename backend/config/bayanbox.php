@@ -170,6 +170,7 @@ return [
         'merchant_share_percent' => 90.00,        // 90% merchant payout
         'pickup_handling_fee' => env('MARKETPLACE_PICKUP_HANDLING_FEE', 10.00), // ₱10 split ₱5 hub / ₱5 platform
         'max_affiliate_percentage' => 50.00,      // FR-MKT-003 cap
+        'max_delivery_km' => env('MAX_DELIVERY_KM', 100), // service-area radius cap
     ],
 
     /*

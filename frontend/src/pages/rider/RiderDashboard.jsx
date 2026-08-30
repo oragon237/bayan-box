@@ -120,7 +120,7 @@ export default function RiderDashboard({ user }) {
                   {/* Route map */}
                   {o.latitude && o.longitude && (
                     <DeliveryMap
-                      origin={[123.1948, 13.6218]}
+                      origin={o.merchant?.latitude ? [o.merchant.longitude, o.merchant.latitude] : [123.1948, 13.6218]}
                       destination={[o.longitude, o.latitude]}
                       className="w-full h-36 rounded-xl mb-3"
                     />

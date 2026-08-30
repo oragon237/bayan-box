@@ -34,6 +34,16 @@ export default defineConfig({
       },
     }),
   ],
+  // maplibre-gl is ESM-only and resolves its own web worker via
+  // `new URL('maplibre-gl-worker.mjs', import.meta.url)`. Pre-bundling it into
+  // .vite/deps breaks that worker URL ("file does not exist ... optimize deps
+  // directory"), so exclude it from the dep optimizer and load it directly.
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
+  worker: {
+    format: 'es',
+  },
   server: {
     port: 3000,
     proxy: {

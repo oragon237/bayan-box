@@ -20,7 +20,16 @@ class CartController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $items = CartItem::with('product')->where('customer_id', $request->user()->id)->get();
+        $items = CartItem::with('product.merchant:id,name,latitude,longitude')
+            ->where('customer_id', $request->user()->id)
+            ->get()->map(function ($item) {
+                $data = $item->toArray();
+                // Attach merchant coordinates for the delivery-distance origin
+                $data['merchant'] = $item->product?->merchant
+                    ? ['id' => $item->product->merchant->id, 'name' => $item->product->merchant->name, 'latitude' => $item->product->merchant->latitude, 'longitude' => $item->product->merchant->longitude]
+                    : null;
+                return $data;
+            });
 
         return response()->json([
             'items' => $items,

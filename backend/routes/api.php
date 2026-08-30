@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderStateController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\ProductReviewController;
@@ -120,6 +121,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->whereNumber('id');
+
+    // Shared profile (customer / rider / provider) — edit info + fixed lat/lng
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
 
     // Offline sync queue (FR-OFF-001/002)
     Route::post('/sync/offline-queue', [OfflineSyncController::class, 'sync']);

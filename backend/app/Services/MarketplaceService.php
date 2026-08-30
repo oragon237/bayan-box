@@ -45,7 +45,7 @@ class MarketplaceService
         $shippingDetail = null;
 
         if ($fulfillment === Order::FULFILLMENT_DELIVERY) {
-            $shippingDetail = $this->resolveDoorstepShipping($payload);
+            $shippingDetail = $this->resolveDoorstepShipping($payload, $customer);
             $shippingAmount = $shippingDetail['total_delivery_fee'];
         } elseif ($fulfillment === Order::FULFILLMENT_PICKUP) {
             // FR-MKT-007: click-and-collect handling fee (halved hub / platform)
@@ -337,20 +337,58 @@ class MarketplaceService
     }
 
     /**
-     * Calculate the doorstep shipping fee from the nearest hub to the
-     * customer's coordinate using the dynamic per-km calculator (FR-MKT-006).
+     * Calculate the doorstep shipping fee from the merchant's store location
+     * to the customer's delivery coordinate (FR-MKT-006).
+     *
+     * Origin = the merchant selling the cart items (their profile lat/lng).
+     * Falls back to the nearest hub when the merchant has no coordinates set.
      */
-    protected function resolveDoorstepShipping(array $payload): array
+    protected function resolveDoorstepShipping(array $payload, User $customer): array
     {
-        $hub = Hub::orderBy('id')->first();
+        // Origin: merchant store location (first cart item's product owner)
+        $origin = $this->merchantOriginFor($customer);
+        $originLat = $origin['latitude'];
+        $originLng = $origin['longitude'];
+
+        // Fallback: nearest hub when the merchant has no coordinates
+        if ($originLat === null || $originLng === null) {
+            $hub = Hub::orderBy('id')->first();
+            $originLat = (float) $hub?->latitude;
+            $originLng = (float) $hub?->longitude;
+        }
 
         return $this->pricing->calculateFee(
-            (float) $hub?->latitude,
-            (float) $hub?->longitude,
+            (float) $originLat,
+            (float) $originLng,
             (float) $payload['latitude'],
             (float) $payload['longitude'],
             $payload['municipality'] ?? null,
         );
+    }
+
+    /**
+     * Resolve the selling merchant's store coordinates from the customer's
+     * cart. Uses the merchant of the first cart item with coordinates set.
+     */
+    protected function merchantOriginFor(User $customer): array
+    {
+        $items = CartItem::with('product.merchant:id,name,latitude,longitude')
+            ->where('customer_id', $customer->id)
+            ->get();
+
+        foreach ($items as $item) {
+            $merchant = $item->product?->merchant;
+            if ($merchant && $merchant->latitude !== null && $merchant->longitude !== null) {
+                return [
+                    'latitude' => (float) $merchant->latitude,
+                    'longitude' => (float) $merchant->longitude,
+                    'merchant_id' => $merchant->id,
+                    'name' => $merchant->name,
+                ];
+            }
+        }
+
+        return ['latitude' => null, 'longitude' => null, 'merchant_id' => null, 'name' => null];
     }
 
     /**

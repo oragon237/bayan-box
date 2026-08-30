@@ -35,7 +35,7 @@ class RiderDashboardController extends Controller
         $activeOrders = Order::with([
             'customer:id,name,phone',
             'items.product:id,name,merchant_id',
-            'items.product.merchant:id,name,barangay,municipality',
+            'items.product.merchant:id,name,latitude,longitude,barangay,municipality',
         ])
             ->where('rider_id', $riderId)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)

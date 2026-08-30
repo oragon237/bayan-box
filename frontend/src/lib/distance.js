@@ -4,6 +4,10 @@ import { distance, point } from '@turf/turf';
  * Delivery distance & fee utilities.
  */
 
+// Maximum delivery radius from the hub. Beyond this we treat the destination
+// as outside the service area instead of quoting an absurd linear fee.
+export const MAX_DELIVERY_KM = 100;
+
 /**
  * Straight-line (Haversine) distance in kilometers via Turf.js.
  * @param {[number, number]} coords1 [lng, lat]

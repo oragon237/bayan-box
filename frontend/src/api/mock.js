@@ -250,7 +250,10 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse([...new Set(PRODUCTS.filter((p) => p.status === 'active').map((p) => p.category))]));
   }
   if (path === '/cart' && lower === 'get') {
-    const items = MOCK_CART.map((i) => ({ ...i, product: PRODUCTS.find((p) => p.id === i.product_id) }));
+    const items = MOCK_CART.map((i) => {
+      const product = PRODUCTS.find((p) => p.id === i.product_id);
+      return { ...i, product, merchant: { id: 4, name: 'Aling Maria Merch', latitude: 13.6218, longitude: 123.1948 } };
+    });
     return Promise.resolve(mockResponse({ items, count: items.length }));
   }
   if (path === '/cart/sync' && lower === 'post') {
@@ -284,8 +287,8 @@ export function mockRequest(url, method, data, params = {}) {
   if (path === '/rider/deliveries' && lower === 'get') {
     return Promise.resolve(mockResponse({
       deliveries: [
-        { id: 201, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, total_amount: '160.00', shipping_amount: '10.00', delivery_address: 'San Jose, Naga City', payment_method: 'cod', status: 'assigned', items: [{ id: 1, product: { id: 10, name: 'Bulk Thermal Paper' }, quantity: 1 }] },
-        { id: 202, customer: { id: 8, name: 'Maria Santos', phone: '09173334444' }, total_amount: '95.00', shipping_amount: '12.00', delivery_address: 'Sta. Cruz, Naga City', payment_method: 'gcash', status: 'assigned', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 1 }] },
+        { id: 201, customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, total_amount: '160.00', shipping_amount: '10.00', delivery_address: 'San Jose, Naga City', payment_method: 'cod', status: 'assigned', latitude: 13.6218, longitude: 123.1948, merchant: { id: 4, name: 'Mang Juan Store', latitude: 13.7689, longitude: 122.9764, barangay: 'Tara', municipality: 'Sipocot' }, items: [{ id: 1, product: { id: 10, name: 'Bulk Thermal Paper' }, quantity: 1 }] },
+        { id: 202, customer: { id: 8, name: 'Maria Santos', phone: '09173334444' }, total_amount: '95.00', shipping_amount: '12.00', delivery_address: 'Sta. Cruz, Naga City', payment_method: 'gcash', status: 'assigned', latitude: 13.6100, longitude: 123.1800, merchant: { id: 4, name: 'Mang Juan Store', latitude: 13.7689, longitude: 122.9764, barangay: 'Tara', municipality: 'Sipocot' }, items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 1 }] },
       ],
     }));
   }
@@ -359,6 +362,14 @@ export function mockRequest(url, method, data, params = {}) {
     }));
   }
   if (path === '/provider/profile' && lower === 'put') return Promise.resolve(mockResponse({ profile: { ...data, id: 1, user_id: 6 } }));
+
+  // Shared profile (customer / rider / provider) — info + fixed lat/lng
+  if (path === '/profile' && lower === 'get') {
+    return Promise.resolve(mockResponse({ user: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005', email: 'customer1@bayanbox.ph', role: 'customer', barangay: 'San Jose', municipality: 'Naga City', latitude: 13.6218, longitude: 123.1948, status: 'active' } }));
+  }
+  if (path === '/profile' && lower === 'put') {
+    return Promise.resolve(mockResponse({ message: 'Profile updated.', user: { ...data, id: 5, role: 'customer', phone: '09170000005' } }));
+  }
   if (/^\/providers\/\d+\/reviews$/.test(path) && lower === 'get') {
     return Promise.resolve(mockResponse({ data: [{ id: 1, customer: { id: 5, name: 'Juan Dela Cruz' }, rating: 5, review: 'Excellent work!', created_at: new Date().toISOString() }], total: 1 }));
   }
@@ -372,7 +383,7 @@ export function mockRequest(url, method, data, params = {}) {
   // Merchant profile (item 8)
   if (path === '/merchant/profile' && lower === 'get') {
     return Promise.resolve(mockResponse({
-      merchant: { id: 4, name: 'Aling Maria Merch', phone: '09170000004', email: 'merchant@bayanbox.ph', barangay: 'San Jose', municipality: 'Naga City', status: 'active' },
+      merchant: { id: 4, name: 'Aling Maria Merch', phone: '09170000004', email: 'merchant@bayanbox.ph', barangay: 'San Jose', municipality: 'Naga City', latitude: 13.6218, longitude: 123.1948, status: 'active' },
       documents: { dti_sec_number: 'DTI-2026-12345', government_id_url: null, business_permit_url: null, picture_url: null, verification_message: 'I am a registered local seller.', submitted_at: new Date().toISOString() },
     }));
   }

@@ -25,6 +25,8 @@ class User extends Authenticatable
         'referred_by_id',
         'barangay',
         'municipality',
+        'latitude',
+        'longitude',
         'status',
         'is_official_mall',
         'verification_notes',
@@ -39,6 +41,8 @@ class User extends Authenticatable
         'verified_at' => 'datetime',
         'affiliate_documents' => 'array',
         'affiliate_activated_at' => 'datetime',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
     ];
 
     public const STATUS_PENDING = 'pending_verification';

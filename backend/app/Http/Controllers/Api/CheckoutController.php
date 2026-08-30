@@ -35,7 +35,13 @@ class CheckoutController extends Controller
 
         $validated['payment_method'] = $validated['payment_method'] ?? 'gcash';
 
-        $order = $this->marketplace->processCheckout($request->user(), $validated);
+        try {
+            $order = $this->marketplace->processCheckout($request->user(), $validated);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'status' => 'purchase_completed',

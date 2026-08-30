@@ -26,12 +26,18 @@ class RiderDeliveryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $deliveries = Order::with(['customer:id,name,phone', 'hub:id,name', 'items.product:id,name'])
+        $deliveries = Order::with([
+                'customer:id,name,phone',
+                'hub:id,name',
+                'items.product:id,name,merchant_id',
+                'items.product.merchant:id,name,latitude,longitude,barangay,municipality',
+            ])
             ->where('rider_id', $request->user()->id)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [DeliveryAssignmentService::STATUS_ASSIGNED, DeliveryAssignmentService::STATUS_OUT_FOR_DELIVERY])
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->map(fn (Order $o) => $this->withMerchant($o));
 
         return response()->json(['deliveries' => $deliveries]);
     }
@@ -41,14 +47,47 @@ class RiderDeliveryController extends Controller
      */
     public function history(Request $request): JsonResponse
     {
-        $history = Order::with(['customer:id,name,phone', 'items.product:id,name'])
+        $history = Order::with([
+                'customer:id,name,phone',
+                'items.product:id,name,merchant_id',
+                'items.product.merchant:id,name,latitude,longitude,barangay,municipality',
+            ])
             ->where('rider_id', $request->user()->id)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [DeliveryAssignmentService::STATUS_DELIVERED, 'cancelled', 'disputed'])
             ->orderByDesc('updated_at')
             ->paginate($request->integer('per_page', 20));
 
+        // Attach merchant location to each item of the paginated result
+        $history->getCollection()->transform(fn (Order $o) => $this->withMerchant($o));
+
         return response()->json($history);
+    }
+
+    /**
+     * Attach the selling merchant's store location (origin for the map).
+     * Uses the first order item whose product has a merchant with coordinates.
+     */
+    protected function withMerchant(Order $order): Order
+    {
+        $merchant = null;
+        foreach ($order->items as $item) {
+            $m = $item->product?->merchant;
+            if ($m && $m->latitude !== null && $m->longitude !== null) {
+                $merchant = [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'latitude' => (float) $m->latitude,
+                    'longitude' => (float) $m->longitude,
+                    'barangay' => $m->barangay,
+                    'municipality' => $m->municipality,
+                ];
+                break;
+            }
+        }
+        $order->setAttribute('merchant', $merchant);
+
+        return $order;
     }
 
     /**

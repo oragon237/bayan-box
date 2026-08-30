@@ -48,6 +48,8 @@ import StaffFinance from './pages/staff/StaffFinance.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import StaffDashboard from './pages/staff/StaffDashboard.jsx';
 import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
+import RiderProfile from './pages/rider/RiderProfile.jsx';
+import CustomerProfile from './pages/customer/CustomerProfile.jsx';
 import RiderDashboard from './pages/rider/RiderDashboard.jsx';
 import ProviderProfile from './pages/provider/ProviderProfile.jsx';
 import ProviderJobs from './pages/provider/ProviderJobs.jsx';
@@ -183,6 +185,8 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/rider" element={<RiderBatches user={user} />} />
           <Route path="/rider/wallet" element={<RiderWallet user={user} />} />
           <Route path="/rider/deliveries" element={<RiderDeliveries user={user} />} />
+          <Route path="/rider/profile" element={<RiderProfile user={user} />} />
+          <Route path="/customer/profile" element={<CustomerProfile user={user} />} />
           <Route path="/track" element={<CustomerTracking />} />
           <Route path="/track/:tracking" element={<CustomerTracking />} />
           <Route path="/bookings" element={<CustomerBookings user={user} />} />

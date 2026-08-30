@@ -76,6 +76,17 @@ class DeliveryPricingService
         $route = $this->distanceMatrix->distance($originLat, $originLng, $destLat, $destLng);
         $distanceKm = round($route['distance_meters'] / 1000.0, 2);
 
+        // 2b. Service-area guard: refuse deliveries beyond the configured max
+        // radius instead of quoting a runaway linear fee (Fix — out-of-range).
+        $maxKm = (float) config('bayanbox.marketplace.max_delivery_km', 50);
+        if ($distanceKm > $maxKm) {
+            throw new \RuntimeException(sprintf(
+                'This location is %.1f km away — outside our %.0f km delivery area. Please choose a nearer address or Click & Collect.',
+                $distanceKm,
+                $maxKm,
+            ));
+        }
+
         // 3. Fee algorithm
         $baseFare = (float) $settings['base_fare'];
         $baseDistanceKm = (float) $settings['base_distance_km'];

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
-import { calculateDeliveryFee, fetchDrivingDistance, formatFeeSummary } from '../../lib/distance.js';
+import { calculateDeliveryFee, fetchDrivingDistance, formatFeeSummary, MAX_DELIVERY_KM } from '../../lib/distance.js';
 import { geocodeAddress } from '../../lib/geocode.js';
 import { EmptyState, Spinner, useToast } from '../../components/ui.jsx';
 
@@ -29,6 +29,9 @@ export default function CartPage({ user }) {
   const [routeGeometry, setRouteGeometry] = useState(null);
   const [geocoding, setGeocoding] = useState(false);
   const [geoError, setGeoError] = useState('');
+  const [rangeError, setRangeError] = useState('');
+  // Delivery origin = merchant store location (from cart items)
+  const [merchantOrigin, setMerchantOrigin] = useState(null);
 
   // Auto-detect location from the typed delivery address (debounced)
   const geoTimer = useRef(null);
@@ -73,7 +76,17 @@ export default function CartPage({ user }) {
       return;
     }
     client.get('/cart')
-      .then((res) => setCart(res.data.items.map((i) => ({ ...i.product, quantity: i.quantity }))))
+      .then((res) => {
+        const items = res.data.items || [];
+        setCart(items.map((i) => ({ ...i.product, quantity: i.quantity })));
+        // Derive merchant origin from the first cart item with coordinates
+        for (const i of items) {
+          if (i.merchant?.latitude && i.merchant?.longitude) {
+            setMerchantOrigin({ lat: Number(i.merchant.latitude), lng: Number(i.merchant.longitude) });
+            break;
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setCartLoaded(true));
   }, [user]);
@@ -94,26 +107,35 @@ export default function CartPage({ user }) {
     client.get('/affiliate/earnings').then((res) => setAffiliateBalance(Number(res.data.balance || 0))).catch(() => {});
   }, [user]);
 
-  // Fetch driving distance + fee when delivery coords are set (hub origin → customer)
+  // Fetch driving distance + fee when delivery coords are set (merchant → customer)
   useEffect(() => {
     if (fulfillment !== 'delivery' || !coords.lat || !coords.lng) {
       setDeliveryEstimate(null);
+      setRangeError('');
       return;
     }
+    const originLng = merchantOrigin?.lng ?? DEFAULT_COORDS.lng; // merchant store (fallback: hub)
+    const originLat = merchantOrigin?.lat ?? DEFAULT_COORDS.lat;
     let cancelled = false;
-    const origin = [DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]; // hub
+    const origin = [originLng, originLat];
     const destination = [coords.lng, coords.lat];
     fetchDrivingDistance(origin, destination).then((route) => {
       if (cancelled) return;
       setRouteGeometry(route.geometry);
-      setDeliveryEstimate({
-        distanceKm: route.distanceKm,
-        durationMins: route.durationMins,
-        fee: calculateDeliveryFee(route.distanceKm),
-      });
+      if (route.distanceKm > MAX_DELIVERY_KM) {
+        setDeliveryEstimate(null);
+        setRangeError(`This location is about ${Number(route.distanceKm).toFixed(1)} km away — outside our ${MAX_DELIVERY_KM} km delivery area. Pick a nearer address or choose Click & Collect.`);
+      } else {
+        setRangeError('');
+        setDeliveryEstimate({
+          distanceKm: route.distanceKm,
+          durationMins: route.durationMins,
+          fee: calculateDeliveryFee(route.distanceKm),
+        });
+      }
     });
     return () => { cancelled = true; };
-  }, [fulfillment, coords.lat, coords.lng]);
+  }, [fulfillment, coords.lat, coords.lng, merchantOrigin?.lat, merchantOrigin?.lng]);
 
   const addToCart = (product) => {
     setCart((prev) => {
@@ -149,6 +171,10 @@ export default function CartPage({ user }) {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    if (rangeError) {
+      notify('Delivery is not available to this location.', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
       await client.post('/cart/sync', { cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })) });
@@ -228,6 +254,9 @@ export default function CartPage({ user }) {
                 {formatFeeSummary(deliveryEstimate.distanceKm, deliveryEstimate.fee)} · ~{deliveryEstimate.durationMins} min
               </p>
             )}
+            {fulfillment === 'delivery' && rangeError && (
+              <p className="text-[11px] text-red-600 font-semibold">{rangeError}</p>
+            )}
             <div className="flex justify-between font-black text-lg border-t pt-2">
               <span>Total</span>
               <span>₱{(cartTotal + (fulfillment === 'delivery' ? deliveryEstimate?.fee || 0 : 10)).toLocaleString()}</span>
@@ -267,7 +296,7 @@ export default function CartPage({ user }) {
                     <p className="text-[11px] text-amber-600 font-semibold">Coordinates still show the default hub location. Type your address or click the map to correct them.</p>
                   )}
                   <DeliveryMap
-                    origin={[DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
+                    origin={merchantOrigin ? [merchantOrigin.lng, merchantOrigin.lat] : [DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
                     destination={[coords.lng, coords.lat]}
                     routeGeometry={routeGeometry}
                     onPick={(p) => { setCoords(p); setGeoError(''); }}

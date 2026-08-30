@@ -31,6 +31,8 @@ class MerchantProfileController extends Controller
                 'email' => $merchant->email,
                 'barangay' => $merchant->barangay,
                 'municipality' => $merchant->municipality,
+                'latitude' => $merchant->latitude !== null ? (float) $merchant->latitude : null,
+                'longitude' => $merchant->longitude !== null ? (float) $merchant->longitude : null,
                 'status' => $merchant->status,
             ],
             'documents' => $docs,
@@ -38,22 +40,35 @@ class MerchantProfileController extends Controller
     }
 
     /**
-     * PUT /api/merchant/profile — update address + verification documents.
+     * PUT /api/merchant/profile — update store info, address + verification docs.
      */
     public function update(Request $request): JsonResponse
     {
         $merchant = $request->user();
 
         $validated = $request->validate([
+            'name' => 'nullable|string|max:100',
+            'email' => ['nullable', 'string', 'email', 'max:100', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($merchant->id)],
             'barangay' => 'nullable|string|max:100',
             'municipality' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
+            'latitude' => 'nullable|numeric|between:-14,21',
+            'longitude' => 'nullable|numeric|between:116,127',
             'dti_sec_number' => 'nullable|string|max:50',
             'government_id_url' => 'nullable|string|max:255',
             'business_permit_url' => 'nullable|string|max:255',
             'picture_url' => 'nullable|string|max:255',
             'verification_message' => 'nullable|string|max:500',
         ]);
+
+        // Coordinates must come as a pair — reject a lone latitude/longitude.
+        $latGiven = array_key_exists('latitude', $validated);
+        $lngGiven = array_key_exists('longitude', $validated);
+        if ($latGiven !== $lngGiven) {
+            return response()->json([
+                'message' => 'Latitude and longitude must be provided together.',
+            ], 422);
+        }
 
         // Persist docs into verification_notes JSON (merge with existing)
         $existing = $this->parseDocs($merchant);
@@ -66,8 +81,12 @@ class MerchantProfileController extends Controller
         ]);
 
         $merchant->update([
+            'name' => $validated['name'] ?? $merchant->name,
+            'email' => $validated['email'] ?? $merchant->email,
             'barangay' => $validated['barangay'] ?? $merchant->barangay,
             'municipality' => $validated['municipality'] ?? $merchant->municipality,
+            'latitude' => $latGiven ? $validated['latitude'] : $merchant->latitude,
+            'longitude' => $lngGiven ? $validated['longitude'] : $merchant->longitude,
             'verification_notes' => json_encode($docs),
         ]);
 
@@ -76,8 +95,12 @@ class MerchantProfileController extends Controller
             'merchant' => [
                 'id' => $merchant->id,
                 'name' => $merchant->name,
+                'phone' => $merchant->phone,
+                'email' => $merchant->email,
                 'barangay' => $merchant->barangay,
                 'municipality' => $merchant->municipality,
+                'latitude' => $merchant->latitude !== null ? (float) $merchant->latitude : null,
+                'longitude' => $merchant->longitude !== null ? (float) $merchant->longitude : null,
                 'status' => $merchant->status,
             ],
             'documents' => $docs,

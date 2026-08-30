@@ -96,8 +96,15 @@ class MasterSeeder extends Seeder
             ], $attrs),
         );
 
-        if (! empty($attrs['email'])) {
-            $u->update(['email' => $attrs['email']]);
+        // Keep identity/contact/location fields in sync so re-seeding an
+        // existing DB still applies profile changes (email, address, coords).
+        $sync = array_intersect_key($attrs, array_flip([
+            'email', 'name', 'role', 'status', 'barangay', 'municipality',
+            'latitude', 'longitude', 'verified_at', 'affiliate_code',
+            'is_official_mall', 'verification_notes',
+        ]));
+        if ($sync) {
+            $u->update($sync);
         }
 
         return $u;
@@ -113,6 +120,8 @@ class MasterSeeder extends Seeder
         $this->merchants['m1'] = $this->makeUser([
             'name' => 'Mang Juan Store', 'phone' => '09170000004', 'email' => 'merchant1@becoolbox.com',
             'role' => 'merchant', 'status' => 'active', 'verified_at' => now(),
+            'barangay' => 'Tara', 'municipality' => 'Sipocot, Camarines Sur',
+            'latitude' => 13.7689, 'longitude' => 122.9764,
             'verification_notes' => json_encode(['dti_sec_number' => 'DTI-2026-0001', 'government_id_url' => null, 'business_permit_url' => null, 'submitted_at' => now()->toIso8601String()]),
         ]);
         $this->merchants['m2'] = $this->makeUser([
@@ -126,7 +135,7 @@ class MasterSeeder extends Seeder
         $this->riders['r2'] = $this->makeUser(['name' => 'Berto Rider', 'phone' => '09175550000', 'email' => 'rider2@becoolbox.com', 'role' => 'rider']);
 
         // Customers
-        $this->customers['c1'] = $this->makeUser(['name' => 'Juan Dela Cruz', 'phone' => '09170000005', 'email' => 'customer1@becoolbox.com', 'role' => 'customer']);
+        $this->customers['c1'] = $this->makeUser(['name' => 'Juan Dela Cruz', 'phone' => '09170000005', 'email' => 'customer1@becoolbox.com', 'role' => 'customer', 'barangay' => 'Tara', 'municipality' => 'Sipocot, Camarines Sur', 'latitude' => 13.7695, 'longitude' => 122.9771]);
         $this->customers['c2'] = $this->makeUser(['name' => 'Maria Clara', 'phone' => '09170000006', 'email' => 'customer2@becoolbox.com', 'role' => 'customer']);
 
         // Extra reviewers so products can have up to 5 unique reviews
@@ -290,6 +299,13 @@ class MasterSeeder extends Seeder
             $qty = ($i % 3) + 1;
             $total = $product->price * $qty;
 
+            // Delivery origin (merchant) & destination (customer) coords so the
+            // rider map shows the real store→home route per customer.
+            $customer = $o['customer'] === $c1 ? $this->customers['c1'] : $this->customers['c2'];
+            $destLat = $customer->latitude ?? 13.6218;
+            $destLng = $customer->longitude ?? 123.1948;
+            $merchant = $this->merchants['m1'];
+
             $order = Order::create([
                 'customer_id' => $o['customer'],
                 'total_amount' => round($total, 2),
@@ -297,9 +313,9 @@ class MasterSeeder extends Seeder
                 'fulfillment_type' => $o['fulfillment_type'],
                 'hub_id' => $o['fulfillment_type'] === 'pickup' ? $hubId : null,
                 'rider_id' => $o['rider'],
-                'delivery_address' => $o['fulfillment_type'] === 'delivery' ? 'Block 12, San Jose, Santa Cruz' : null,
-                'latitude' => $o['fulfillment_type'] === 'delivery' ? 13.6218 : null,
-                'longitude' => $o['fulfillment_type'] === 'delivery' ? 123.1948 : null,
+                'delivery_address' => $o['fulfillment_type'] === 'delivery' ? "{$customer->barangay}, {$customer->municipality}" : null,
+                'latitude' => $o['fulfillment_type'] === 'delivery' ? $destLat : null,
+                'longitude' => $o['fulfillment_type'] === 'delivery' ? $destLng : null,
                 'status' => $o['status'],
                 'fulfillment_status' => $o['fulfillment_status'],
                 'delivery_state' => $o['delivery_state'],

@@ -36,7 +36,8 @@ bayan-box/
 │   │   │   └── affiliate/       # Referral QR poster
 │   │   └── services/            # offlineQueue, telemetry, eta
 │   └── public/sw.js             # Service worker background sync
-├── bayanbox-prd-v3.md           # Product Requirements Document
+├── bayanbox-prd-v3.md           # Product Requirements Document (v3 as-built)
+├── RULES-PER-ACCOUNT.md         # Role-based rules & access matrix per account
 └── README.md
 ```
 

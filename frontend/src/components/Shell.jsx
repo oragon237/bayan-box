@@ -40,6 +40,7 @@ function tabsFor(role) {
       { to: '/rider/deliveries', label: 'Deliveries', icon: PackageIcon },
       { to: '/rider/wallet', label: 'Wallet', icon: WalletIcon },
       affiliate,
+      { to: '/rider/profile', label: 'Profile', icon: StarIcon },
     ],
     merchant: [
       dash,
@@ -47,6 +48,7 @@ function tabsFor(role) {
       cart,
       { to: '/merchant/ads', label: 'Ads', icon: ShareIcon },
       { to: '/merchant/orders', label: 'Orders', icon: PackageIcon },
+      { to: '/merchant/profile', label: 'Profile', icon: StarIcon },
     ],
     customer: [
       ...base,
@@ -55,6 +57,7 @@ function tabsFor(role) {
       { to: '/orders', label: 'Orders', icon: PackageIcon },
       { to: '/points-shop', label: 'Points', icon: StarIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },
+      { to: '/customer/profile', label: 'Profile', icon: StarIcon },
     ],
     provider: [
       ...base,
@@ -64,7 +67,7 @@ function tabsFor(role) {
       { to: '/delivery-cost', label: 'Delivery', icon: TagIcon },
     ],
   };
-  return (map[role] || base).slice(0, 6);
+  return (map[role] || base).slice(0, 7);
 }
 
 export default function Shell({ user, online, queueCount, demo, onRoleChange, children, onLogout }) {
@@ -173,7 +176,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
 
       {/* ── Bottom Tab Bar ── */}
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-ink-100 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
-        <div className="max-w-5xl mx-auto grid grid-cols-6">
+        <div className={`max-w-5xl mx-auto grid ${tabs.length > 6 ? 'grid-cols-7' : 'grid-cols-6'}`}>
           {tabs.map(({ to, label, icon: Icon, cart }) => (
             <NavLink
               key={to}
