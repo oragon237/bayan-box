@@ -9,3 +9,16 @@
 /backend/.env
 /frontend/dist
 /.dsh
+
+# dsh-web harness checkout (gitlink with no .gitmodules — broken submodule)
+/dsh-web
+
+# Stray base64 whale-art artifacts (build leftovers, not part of BayanBox)
+dsh-web-whale-art-b64.txt
+dsh-web-whale-icon-b64.txt
+
+# Runtime user uploads (ad/merchant/product images) — never version these
+/backend/public/storage
+
+# Unused asset (1.9MB, not referenced in code)
+/frontend/public/images
