@@ -182,14 +182,14 @@ class MasterSeeder extends Seeder
             ['Bulk Bubble Wrap (50m)', $m1, 'Packaging', 350, null, 40, false, null, 8],
             ['Thermal Label Rolls', $m1, 'Packaging', 220, 180, 80, false, null, 5],
             ['Cardboard Mailers (x50)', $m1, 'Packaging', 480, null, 25, false, null, 10],
-            ['BayanBox Sticker Pack', $m1, 'Packaging', 90, null, 5, false, null, 1],
+            ['Bayan Sticker Pack', $m1, 'Packaging', 90, null, 5, false, null, 1],
             ['Pili Nuts (Official)', $admin, 'Provincial Goods', 145, 120, 60, false, null, 4],
             ['Bicol Chili Oil', $admin, 'Provincial Goods', 160, null, 35, false, null, 3],
             ['Provincial Honey (250g)', $admin, 'Provincial Goods', 280, 230, 20, false, null, 5],
             ['Coconut Vinegar (Sukang Sasa)', $admin, 'Provincial Goods', 75, null, 90, false, null, 2],
-            ['Official BayanBox Tumbler', $admin, 'Points Shop', 0, null, 25, true, 300, 0],
+            ['Official Bayan Tumbler', $admin, 'Points Shop', 0, null, 25, true, 300, 0],
             ['Suki Rewards Notebook', $admin, 'Points Shop', 0, null, 50, true, 120, 0],
-            ['BeCoolBox Eco Tote (Points)', $admin, 'Points Shop', 0, null, 40, true, 200, 0],
+            ['Bayan Eco Tote (Points)', $admin, 'Points Shop', 0, null, 40, true, 200, 0],
             ['Fresh Mangoes (1kg)', $m2, 'Fresh Produce', 150, 130, 30, false, null, 4],
             ['Homemade Longganisa', $m2, 'Home Cooks', 180, null, 15, false, null, 3],
             ['Souvenir Keychains', $m2, 'Local Crafts', 50, null, 200, false, null, 1],
@@ -287,7 +287,7 @@ class MasterSeeder extends Seeder
 
         $orders = [
             ['customer' => $c1, 'status' => 'paid', 'fulfillment_status' => 'pending', 'delivery_state' => 'pending_merchant', 'fulfillment_type' => 'pickup', 'payment_method' => 'gcash', 'rider' => null, 'shipping' => 10],
-            ['customer' => $c1, 'status' => 'assigned', 'fulfillment_status' => 'accepted', 'delivery_state' => 'preparing', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => $r1, 'shipping' => 45],
+            ['customer' => $c1, 'status' => 'assigned', 'fulfillment_status' => 'sending_to_courier', 'delivery_state' => 'raider_assigned', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => $r1, 'shipping' => 45],
             ['customer' => $c2, 'status' => 'out_for_delivery', 'fulfillment_status' => 'sending_to_courier', 'delivery_state' => 'in_transit', 'fulfillment_type' => 'delivery', 'payment_method' => 'gcash', 'rider' => $r1, 'shipping' => 38],
             ['customer' => $c1, 'status' => 'delivered', 'fulfillment_status' => 'accepted_by_courier', 'delivery_state' => 'delivered', 'fulfillment_type' => 'delivery', 'payment_method' => 'maya', 'rider' => $r1, 'shipping' => 30],
             ['customer' => $c2, 'status' => 'disputed', 'fulfillment_status' => 'pending', 'delivery_state' => 'delivered', 'fulfillment_type' => 'delivery', 'payment_method' => 'cod', 'rider' => null, 'shipping' => 42],
@@ -492,7 +492,7 @@ class MasterSeeder extends Seeder
     {
         $this->command->newLine();
         $this->command->info('╔════════════════════════════════════════════════════════════╗');
-        $this->command->info('║            BeCoolBox Master Seed Complete                  ║');
+        $this->command->info('║            Bayan Master Seed Complete                    ║');
         $this->command->info('╚════════════════════════════════════════════════════════════╝');
         $this->command->newLine();
 

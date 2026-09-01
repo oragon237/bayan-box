@@ -27,6 +27,7 @@ class OrderStateMachine
         ],
         Order::STATE_READY_FOR_PICKUP => [
             Order::STATE_RAIDER_ASSIGNED, // staff assigns / raider accepts
+            Order::STATE_DELIVERED, // staff confirms click-and-collect handoff
             Order::STATE_CANCELLED,
         ],
         Order::STATE_RAIDER_ASSIGNED => [
@@ -51,9 +52,13 @@ class OrderStateMachine
 
     // Who can perform each action
     protected const ACTIONS = [
-        'accept' => ['merchant', 'admin'],
-        'reject' => ['merchant', 'admin'],
-        'mark_ready' => ['merchant', 'admin'],
+        // Staff fulfill orders owned entirely by the official Mall.  The
+        // ownership check below keeps these actions unavailable for merchant
+        // orders even though staff use the same lifecycle controls.
+        'accept' => ['merchant', 'staff', 'admin'],
+        'reject' => ['merchant', 'staff', 'admin'],
+        'mark_ready' => ['merchant', 'staff', 'admin'],
+        'confirm_collection' => ['staff', 'admin'],
         'assign_raider' => ['staff', 'admin'],
         'accept_job' => ['rider'],
         'depart_to_merchant' => ['rider'],
@@ -84,8 +89,16 @@ class OrderStateMachine
      */
     protected function assertOwnership(Order $order, string $action, User $actor): void
     {
-        if (in_array($actor->role, ['staff', 'admin'], true)) {
-            return; // staff/admin override everything
+        if ($actor->role === 'admin') {
+            return; // administrators may operate every order
+        }
+
+        if ($actor->role === 'staff') {
+            if (in_array($action, ['accept', 'reject', 'mark_ready', 'confirm_collection'], true) && ! $this->isOfficialMallOrder($order)) {
+                abort(403, 'Staff can only fulfill orders containing official Mall products.');
+            }
+
+            return; // delivery operations are staff-managed for every order
         }
 
         if ($actor->role === 'merchant') {
@@ -110,6 +123,19 @@ class OrderStateMachine
         }
     }
 
+    /**
+     * A staff-managed fulfillment order must contain only official Mall
+     * products. This prevents one staff action from advancing a mixed or
+     * merchant-owned basket.
+     */
+    protected function isOfficialMallOrder(Order $order): bool
+    {
+        $items = $order->items()->with('product:id,is_official_mall')->get();
+
+        return $items->isNotEmpty()
+            && $items->every(fn ($item) => (bool) $item->product?->is_official_mall);
+    }
+
     protected function assertAllowedAction(string $action, string $role): void
     {
         $allowed = self::ACTIONS[$action] ?? [];
@@ -129,6 +155,7 @@ class OrderStateMachine
             'accept' => Order::STATE_PREPARING,
             'reject' => Order::STATE_CANCELLED,
             'mark_ready' => Order::STATE_READY_FOR_PICKUP,
+            'confirm_collection' => Order::STATE_DELIVERED,
             'assign_raider' => Order::STATE_RAIDER_ASSIGNED,
             'accept_job' => Order::STATE_RAIDER_ASSIGNED,
             'depart_to_merchant' => Order::STATE_RAIDER_EN_ROUTE,
@@ -156,6 +183,10 @@ class OrderStateMachine
 
     protected function apply(Order $order, string $to, string $action, User $actor, array $meta): Order
     {
+        if ($action === 'complete_delivery' && empty($meta['photo_url'])) {
+            abort(422, 'Upload a proof-of-delivery photo before completing this delivery.');
+        }
+
         $order->delivery_state = $to;
 
         // Mirror the legacy fields so existing UIs stay consistent

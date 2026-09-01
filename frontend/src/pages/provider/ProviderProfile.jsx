@@ -143,7 +143,7 @@ export default function ProviderProfile({ user }) {
               {provider.name}
               {provider.is_official && (
                 <span className="text-[10px] font-black bg-bayan-600 text-white px-2 py-0.5 rounded-full">
-                  ✓ Official BeCoolBox Worker
+                  ✓ Official HABI Worker
                 </span>
               )}
             </h2>

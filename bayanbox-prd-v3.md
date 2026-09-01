@@ -1,21 +1,22 @@
-# BeCoolBox (BayanBox) — PRD v3 (As-Built)
+# Bayan — PRD v3 (As-Built)
 
-> **Product**: BeCoolBox (formerly BayanBox) — Provincial Last-Mile Logistics & Local E-Commerce Platform  
+> **Product**: Bayan — Provincial Last-Mile Logistics & Local E-Commerce Platform  
 > **Status**: Implemented and reconciled against source as of 2026-08-30  
 > **Stack**: Laravel 11 (PHP 8.2) + React 18 (Vite + PWA + MapLibre/Leaflet) + PostgreSQL 16  
-> **Docs note**: PRD v3 supersedes `becoolbox-prd-v1.md` (v2 as-built) and records the features added since v2: per-role earnings traceability, admin/staff financial settlement, affiliate commission hold (72h vesting), merchant/customer/rider/provider profiles with fixed coordinates, merchant-origin delivery distance calculation, a 100 km service-area cap, and the rider merchant→customer delivery map.
+> **Docs note**: PRD v3 supersedes `becoolbox-prd-v1.md` (v2 as-built) and records the features added since v2: per-role earnings traceability, admin/staff financial settlement, affiliate commission hold (72h vesting), merchant/customer/rider/provider profiles with fixed coordinates, merchant-origin delivery distance calculation, a 100 km service-area cap, and the rider merchant→customer delivery map.  
+> **Docs note (v3.1)**: this revision reconciles the doc with the working system after the brand rename and homepage redesign — new dense deal-driven homepage (`HomepageV2`), the **Habi Knot** logo/brand system, the `/api/products/category-images` endpoint, and the AI agent tooling + design deliverables in `marketing/`, `sales/`, `uiux/`, `logo/` (see §11).
 
 ---
 
 ## 1. Product Overview
 
-BeCoolBox is a **"phygital" (physical + digital) provincial logistics orchestration platform** connecting local micro-merchants (MSMEs), community hubs (sari-sari stores), riders, customers, affiliates, and skilled workers in Philippine provinces.
+Bayan is a **"phygital" (physical + digital) provincial logistics orchestration platform** connecting local micro-merchants (MSMEs), community hubs (sari-sari stores), riders, customers, affiliates, and skilled workers in Philippine provinces.
 
 ### Core Value Propositions (all implemented)
 
 1. **B2C Local E-Commerce Marketplace** — Merchants list products; customers browse, search, add to cart, and checkout with GCash/Maya/COD or affiliate earnings.
 2. **B2B Packaging Marketplace** — Merchants buy packing supplies using Suki Points or cash.
-3. **BeCoolBox Mall** — Admin-owned flagship store (official provincial goods, packaging); 100% of sales route to `admin_earnings` (0% platform rake).
+3. **Bayan Mall** — Admin-owned flagship store (official provincial goods, packaging); 100% of sales route to `admin_earnings` (0% platform rake).
 4. **Product Advertising** — Merchants run Sponsored / Homepage Featured / Flash Deal campaigns with impressions, clicks, and conversion tracking; admin oversight with credit grants and rate control.
 5. **Last-Mile Delivery** — Dynamic per-km fee calculator (Mapbox/ORS failover), surge pricing, round-robin rider assignment, manual/auto dispatch, rider refuse/reassign, delivery PIN + photo proof-of-delivery. **Distance is now calculated from the merchant's store location to the customer's delivery address** (not the hub), with a 100 km service-area cap.
 6. **Suki Points Loyalty** — Points earned on purchases and reviews; a dedicated **Points Shop** of points-only products.
@@ -51,8 +52,8 @@ BeCoolBox is a **"phygital" (physical + digital) provincial logistics orchestrat
 
 ### 2.2 PWA Features
 
-- Fullscreen display (`display: fullscreen` + `display_override`)
-- Service worker via `vite-plugin-pwa` (precaching)
+- Fullscreen display (`display: fullscreen` + `display_override`); `theme_color #673de6`, `background_color #12111d` (dark ink splash).
+- Service worker via `vite-plugin-pwa` (precaching); install icons are real PNGs: `bayan-tile-192.png` (192×192), `bayan-tile-512.png` (512×512, also used as `maskable`), plus `favicon.svg`; all Habi Knot brand assets are precached (`includeAssets`).
 - Offline queue: `frontend/src/services/offlineQueue.js` (IndexedDB, 1,000-entry cap) flushed to `POST /api/sync/offline-queue` on reconnect
 - 50m GPS telemetry service (`services/telemetry.js`); 1.3× ETA buffer (`services/eta.js`)
 - Public marketplace homepage (no login required); login/signup via header button; add-to-cart triggers login
@@ -117,19 +118,32 @@ Six RBAC roles (`App\Enums\Role` + `EnsureRole` middleware, enforced per route g
 - Admin can later activate/deactivate merchants (`POST /merchants/{id}/activate|deactivate`).
 - Verified timestamp and notes stored on the user (`verified_at`, `verification_notes`).
 
-### 4.3 Marketplace Home (`/`)
-- Category icon grid → `/search?category=...`; admin banner carousel; "🔥 On Sale Deals" carousel; Points Shop + Skilled Workers quick links; tappable search bar; public without login.
+### 4.3 Marketplace Home (`/`) — HomepageV2 (v3.1)
+
+The customer landing at `/` is **`HomepageV2`** (`frontend/src/pages/marketplace/HomepageV2.jsx`) — a dense, deal-driven storefront inspired by the *mechanic* of modern deal storefronts (density, urgency, price anchoring) but with Bayan's own purple/charcoal/amber identity and local Filipino content (not a copy of any existing brand). Public without login. Sections, top to bottom (the Shell sticky header + bottom nav are shared components):
+
+1. **Search bar + location pill** — navigates to `/search?q=...`; shows the user's barangay/municipality when logged in.
+2. **Hero carousel** — admin banners (`GET /api/banners`), auto-advance, 44px prev/next + dot controls.
+3. **Flash Deals bar** — amber urgency strip with a live **countdown to midnight** (`useCountdown` hook); "See all" → `/search?on_sale=1`.
+4. **Category rail** — 6 static category tiles (Fresh Produce, Home Cooks, Local Crafts, Packaging, Provincial Goods, Points Shop) + More. Tiles render a **real product photo per category** (from `GET /api/products/category-images`, fallback: first product image via `/api/products?per_page=100`, then the emoji icon; a broken URL drops to the emoji tile, never a blank box).
+5. **Flash Sale grid** (2-col) — `GET /api/products?per_page=6&on_sale=1&sort=reviews` with `-X%` badges, star rating, **price anchoring** (strikethrough original + sale price), and "🪙 Earn +N Suki" chips.
+6. **Promo banners** — stacked cross-sell cards (Points Shop → `/points-shop`, Skilled Workers → `/providers`, free-delivery promo → `/search`).
+7. **"Shop local barangays" grid** (3-col mobile, up to 6-col desktop) — `GET /api/products?per_page=12` with the same price-anchored `ProductCard` (strikethrough + "from ₱X" when a `unit` exists); "Load more" → `/search`.
+8. **Trust strip** — GCash · Maya · COD, PIN + photo proof, up to 100 km, works offline.
+9. **Footer** — Bayan wordmark + Habi Knot icon (`bayan-icon.svg`), tagline, © line.
+
+Data endpoints: `GET /api/banners`, `GET /api/products` (filters), `GET /api/products/category-images` (v3.1), `GET /api/products/categories`.
 
 ### 4.4 Search Page (`/search`)
-- Faceted filters (category, city, price range, on-sale-only, in-stock), sorting (relevance, reviews, sales, price), infinite scroll / Load More, top "Sponsored Items" carousel. `GET /api/products`, `/products/categories`, `/products/{id}`, `/products/{id}/related`, `/products/{id}/reviews`.
+- Faceted filters (category, city, price range, on-sale-only, in-stock), sorting (relevance, reviews, sales, price), infinite scroll / Load More, top "Sponsored Items" carousel. `GET /api/products`, `/products/categories`, `/products/category-images` (v3.1 — one hero image per category for the homepage rail), `/products/{id}`, `/products/{id}/related`, `/products/{id}/reviews`.
 
 ### 4.5 Products (Merchant CRUD)
 - Fields (per `products` table + `Product` model): name, **unit**, description, **category** (string, admin-managed catalog), price, **sale_price + On Sale**, stock, **low_stock_threshold**, suki award, affiliate %, availability, status (active/draft/archived), images (upload + `product_images` gallery), **points_price / points_only**, **is_official_mall** (admin only).
 - Storefront visibility scope `active`: `status=active AND stock>0 AND availability=available`; `effectivePrice()` returns `sale_price` when set.
 - Endpoints: `/api/merchant/products` GET/POST/PUT/DELETE (role merchant, admin).
 
-### 4.6 BeCoolBox Mall (Admin-owned, Module 2)
-- `is_official_mall` products (AdminMallController CRUD `/api/admin/mall/products`); 100% minus affiliate → `admin_earnings`, **0% commission**; "BeCoolBox Official" badge; pinned to top of storefront; staff inventory view (`/api/staff/mall/inventory`).
+### 4.6 Bayan Mall (Admin-owned, Module 2)
+- `is_official_mall` products (AdminMallController CRUD `/api/admin/mall/products`); 100% minus affiliate → `admin_earnings`, **0% commission**; "Bayan Official" badge; pinned to top of storefront; staff inventory view (`/api/staff/mall/inventory`).
 
 ### 4.7 Cart & Checkout
 - `/api/cart` GET (includes `merchant` with lat/lng per item for delivery-origin), `/api/cart/sync` POST, `/api/cart/items/{productId}` DELETE.
@@ -259,7 +273,7 @@ Delivery features: 4-digit one-time **delivery PIN** (`generatePin`), **proof-of
 | Scenario | Party | Share |
 |---|---|---|
 | Regular sale | Merchant / Platform / Affiliate / Customer | 90% / 10% / product affiliate % / Suki points |
-| BeCoolBox Mall sale | Admin / Affiliate / Customer | 100% minus affiliate / affiliate % / Suki points (0% rake) |
+| Bayan Mall sale | Admin / Affiliate / Customer | 100% minus affiliate / affiliate % / Suki points (0% rake) |
 | Delivery fee | Rider / Platform | 85% / 15% |
 | Pickup fee (₱10) | Hub staff / Platform | ₱5 / ₱5 (hub staff wallet = `merchant_earnings`) |
 | Points-only item | Customer pays points; no cash split | — |
@@ -329,7 +343,7 @@ Default password for all MasterSeeder users: **`Password123!`**
 | Affiliate (extra) | Karding | 09170000009 | — |
 
 Seed inventory (MasterSeeder):
-- **28 products**: 17 merchant-owned (Mang Juan), 7 **admin-owned BeCoolBox Mall** (`is_official_mall=true`, incl. 3 points-only Points Shop items), 4 merchant2 (pending) — across categories Fresh Produce, Home Cooks, Local Crafts, Packaging, Provincial Goods, Points Shop.
+- **28 products**: 17 merchant-owned (Mang Juan), 7 **admin-owned Bayan Mall** (`is_official_mall=true`, incl. 3 points-only Points Shop items), 4 merchant2 (pending) — across categories Fresh Produce, Home Cooks, Local Crafts, Packaging, Provincial Goods, Points Shop.
 - **6 orders** across all statuses (paid, assigned, out_for_delivery, delivered, disputed, pending_payment), payment methods gcash/maya/cod, fulfillment pickup/delivery. **Delivery orders carry the customer's coordinates** so the rider map shows the real store→home route.
 - **Affiliate income seeded** (`seedAffiliateIncome()`) for c1, r1, m1 — 5 ledger transactions each (3 marketplace order commissions + 2 parcel micro-commissions, total ₱129.25 each) so the affiliate dashboard shows income sources + transaction history.
 - **4 ad campaigns** (2 sponsored, 1 homepage_featured, 1 flash_deal; 3 active + 1 completed), **3 banners** (2 active), **3 cash-outs** (pending/paid/declined).
@@ -367,7 +381,24 @@ npm run dev   # http://localhost:3000
 
 ## 9. Design System
 
-Colors: Purple brand (`bayan-*`, core `#673de6`) + deep charcoal (`ink-*`) + amber accent. Typography: DM Sans. Patterns: dark sticky nav with user profile + bell, gradient text, dark sections with glow orbs, rounded-2xl cards, chip badges, purple "Sponsored" ad badges, discount `-X% OFF` badges, "BeCoolBox Official" badge.
+Colors: Purple brand (`bayan-*`, core `#673de6`) + deep charcoal (`ink-*`) + amber accent. Typography: DM Sans. Patterns: dark sticky nav with user profile + bell, gradient text, dark sections with glow orbs, rounded-2xl cards, chip badges, purple "Sponsored" ad badges, discount `-X% OFF` badges, "Bayan Official" badge. Full token/component spec: `uiux/design-system.md`.
+
+### 9.1 Brand Logo — "Habi Knot" (v3.1)
+
+The official mark is the **Habi Knot** (*Habing Bayan* — the weave of the town): three interwoven community strands (merchant → rider → customer) forming a hexagonal town node with an amber **suki eye** at the center — deliberately **not a box** (no packaging connotation). Assets in `logo/`:
+
+| Asset | Purpose |
+|---|---|
+| `logo/bayan-icon.svg` | Mark only, full-color (purple `#673de6` diagonals, ink `#12111d` vertical, amber eye `#f59e0b`) — favicon/app-icon core |
+| `logo/bayan-icon-white.svg` | White mark (dark surfaces) |
+| `logo/bayan-logo.svg` / `bayan-logo-white.svg` | Full-color / white marks (replace legacy `beboolbox-logo.png`) |
+| `logo/bayan-lockup.svg` | Horizontal icon + wordmark |
+| `logo/bayan-tile.svg` (+ `bayan-tile-512.png`/`192.png`) | App-icon tile (purple gradient squircle + white mark), PWA install icons |
+| `logo/bayan-mark-64x64.png` | dompdf-safe PNG used in the referral poster |
+| `logo/logo-concept.md`, `brand-guidelines.md`, `logo-integration.md`, `conversion-guide.md` | Concept, usage rules, integration checklist, SVG→PNG conversion guide |
+| `frontend/scripts/render_logo_png.py` | Supersampled Pillow renderer used to generate the PNGs (no native cairo needed) |
+
+**Placement**: Shell header = `bayan-icon-white.svg` at `h-8` on the dark `ink-900` bar; Auth login = `bayan-logo-white.svg` at `h-14` on the purple gradient; HomepageV2 footer = `bayan-icon.svg`; `favicon.svg` = Habi Knot primary mark; PWA manifest icons = `bayan-tile-192/512.png` (purple tile, `background_color #12111d` splash); referral poster PDF = `bayan-mark-64x64.png` base64 (dompdf-safe). Legacy `beboolbox-logo.png` / `beboolbox-logo-1.png` are **deleted** from `frontend/public/`.
 
 ---
 
@@ -377,11 +408,64 @@ Colors: Purple brand (`bayan-*`, core `#673de6`) + deep charcoal (`ink-*`) + amb
 
 **Auth** (any logged-in user): `/cart`, `/orders`, `/bookings`, `/affiliate`, `/referral`, `/track/:tracking`, `/delivery-cost`, `/suki`, `/points-shop`, `/hub`, `/hub/inventory`, `/rider`, `/rider/wallet`, `/rider/deliveries`, `/rider/dashboard`, `/customer/profile`, `/rider/profile`, `/staff/mall`, `/staff/dispatch`, `/staff/dashboard`, `/merchant/*` (products, orders, ads, dashboard, reports, settings/payouts, **profile**), `/provider/*` (profile, jobs), `/admin/*` (dashboard, merchants, merchant-list, mall, riders, affiliates, banners, ads, settings).
 
-**Backend** (new in v3): `GET /api/profile` + `PUT /api/profile` (customer/rider/provider), `GET|PUT /api/merchant/profile` (with lat/lng), `GET /api/affiliate/earnings` (adds `pending`), `GET /api/admin/finance`, `GET /api/staff/finance`, `POST /api/staff/finance/remit`.
+**Backend** (new in v3): `GET /api/profile` + `PUT /api/profile` (customer/rider/provider), `GET|PUT /api/merchant/profile` (with lat/lng), `GET /api/affiliate/earnings` (adds `pending`), `GET /api/admin/finance`, `GET /api/staff/finance`, `POST /api/staff/finance/remit`.  
+**Backend** (new in v3.1): `GET /api/products/category-images` (one hero image per category for the homepage rail).
 
 ---
 
-## 11. Change Log (v2 → v3)
+## 11. AI Agent Tooling & Design Deliverables (v3.1)
+
+The repo ships a lightweight **agent tooling** layer — declarative role prompts in `frontend/agent.yaml` that drive AI sub-agents (deepseek-chat) for content/design. Each agent reads the PRD + `RULES-PER-ACCOUNT.md` and writes its deliverables to a dedicated folder. **This is documentation/tooling only — no runtime impact on the app.**
+
+### 11.1 Agents (`frontend/agent.yaml`)
+
+| Agent | Role | Reads | Writes to |
+|---|---|---|---|
+| `marketing_agent` | Marketing Lead | PRD, rules | `marketing/` |
+| `sales_agent` | Sales Executive | PRD, rules, marketing | `sales/` |
+| `uiux_agent` | UI/UX Designer | PRD, rules, Shell.jsx, Marketplace.jsx | `uiux/` |
+| `logo_agent` | Logo & Graphic Designer | PRD §9, design-system, ui-audit | `logo/` |
+
+### 11.2 Deliverables (living docs — latest state)
+
+**`marketing/`**
+- `homepage-content-strategy.md` — the 12-block homepage copy/offer strategy that drove `HomepageV2` (Barangay Flash Sale, Fiesta Countdown, Suki Surprise, Kapit-Bahay Rewards, price-anchoring in real pesos, "Sariwa, hindi naka-box" line, copyright-distinctness guardrails).
+- `branding-positioning-ideas.md` — rename rationale (drop "Box"), positioning reframe, pillars. Status: ✅ adopted.
+- `blog-announcement.md`, `LandingPage.jsx` (standalone concept page).
+
+**`sales/`**
+- `pitch-deck-outline.md`, `cold-email-sequence.md`.
+
+**`uiux/`**
+- `design-system.md` — full tokens + component inventory + a11y/PWA rules.
+- `wireframes.md` — 5 labeled ASCII wireframes (storefront, checkout, merchant dashboard, rider map, admin finance).
+- `ui-audit.md` — 15 prioritized issues (8 P0/P1) with file-level fixes.
+- `homepage-layout-wireframe.md`, `homepage-layout-jsx.md` — the HomepageV2 layout spec + React skeleton (integrated).
+- `category-images-recommendation.md` — the 3-phase plan that guided the `/products/category-images` backend endpoint + frontend resolver.
+- `logo-review-brief.md` — UI/UX acceptance criteria + placement specs for the Habi Knot logo.
+
+**`logo/`**
+- `logo-concept.md` — Habi Knot concept (weave/knot, palette, 4 inline SVGs).
+- `brand-guidelines.md`, `logo-integration.md` (swap checklist), `conversion-guide.md` (SVG→PNG).
+- SVG/PNG assets: `bayan-icon.svg`, `bayan-icon-white.svg`, `bayan-logo*.svg`, `bayan-lockup.svg`, `bayan-tile.svg`, `bayan-tile-512.png`, `bayan-tile-192.png`, `bayan-mark-64x64.png`, `bayan-icon-32.png`.
+
+**Root**
+- `DEMO-ACCOUNTS.txt` — quick reference for all 22 seeded demo accounts (password `Password123!`).
+- `frontend/scripts/render_logo_png.py` — supersampled Pillow renderer for the Habi Knot PNGs.
+
+---
+
+## 12. Change Log (v2 → v3 → v3.1)
+
+### v3.1 (this revision — reconciled with working system)
+
+- **Homepage redesign**: `/` now serves `HomepageV2` (dense deal-driven storefront — hero carousel, midnight flash-deal countdown, category rail with real product photos, flash-sale grid, price-anchored product grid, trust strip). `MarketplaceHome.jsx` retained but no longer the `/` route for customers.
+- **Category images**: new `GET /api/products/category-images` endpoint (one hero image per category, official-mall first → newest) + `HomepageV2` resolver (endpoint → client scan fallback → curated/emoji), broken-URL images fall back to emoji, `loading="lazy"` below the fold.
+- **Habi Knot brand system**: new logo + full asset set in `logo/`; applied to `favicon.svg`, Shell header (white mark), Auth login (white lockup + new tagline), HomepageV2 footer, PWA manifest icons/tiles (`bayan-tile-192/512.png`, `#673de6` theme, `#12111d` background), referral poster PDF (purple brand, PNG logo, no "Box"), and Open Graph tags in `index.html`. Legacy `beboolbox-logo*.png` deleted.
+- **AI agent tooling + deliverables**: `frontend/agent.yaml` now defines 4 agents; `marketing/`, `sales/`, `uiux/`, `logo/` hold the generated deliverables (see §11).
+- **Docs**: `RULES-PER-ACCOUNT.md` and README updated for the Bayan rename.
+
+### v2 → v3
 
 - **Earnings traceability**: affiliate earnings endpoint now returns income sources + ledger + pending; seeded ledger income for demo customer/rider/merchant.
 - **Commission hold/vesting**: `pending_affiliate_commissions` + `affiliate:release-commissions` scheduled command (default 72h); cancellations void pending holds.

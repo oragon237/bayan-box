@@ -8,6 +8,10 @@
   }
   body {
     @apply bg-ink-100 text-ink-900 font-sans;
+    background-image:
+      radial-gradient(circle at 88% -8%, rgb(45 212 191 / 0.14), transparent 31rem),
+      radial-gradient(circle at -6% 26%, rgb(37 99 235 / 0.09), transparent 25rem);
+    background-attachment: fixed;
   }
   ::selection {
     @apply bg-bayan-500/20;
@@ -16,16 +20,16 @@
 
 @layer components {
   .btn-primary {
-    @apply w-full py-3 bg-bayan-600 hover:bg-bayan-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lift transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply w-full py-3 bg-bayan-600 hover:bg-bayan-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lift transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-4 focus-visible:ring-bayan-200;
   }
   .btn-secondary {
-    @apply w-full py-3 bg-white hover:bg-ink-50 active:scale-[0.99] text-ink-800 font-bold rounded-2xl border border-ink-200 transition duration-150 disabled:opacity-50;
+    @apply w-full py-3 bg-white/90 hover:bg-white active:scale-[0.99] text-ink-800 font-bold rounded-2xl border border-ink-200 shadow-card transition duration-150 disabled:opacity-50;
   }
   .btn-ghost {
     @apply px-3 py-1.5 rounded-xl font-semibold text-sm bg-ink-100 hover:bg-ink-200 text-ink-700 transition;
   }
   .card {
-    @apply bg-white rounded-2xl shadow-card border border-ink-100;
+    @apply bg-white/95 rounded-2xl shadow-card border border-white;
   }
   .input {
     @apply w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-2xl text-sm focus:ring-2 focus:ring-bayan-500 focus:border-bayan-500 outline-none transition placeholder:text-ink-400;
@@ -39,10 +43,17 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .gradient-text {
-    @apply bg-gradient-to-r from-bayan-400 via-bayan-600 to-bayan-500 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-bayan-400 via-bayan-600 to-blue-600 bg-clip-text text-transparent;
   }
   .dark-section {
     @apply bg-ink-900 text-white;
+    background-image: linear-gradient(135deg, #172554 0%, #0f172a 54%, #0f766e 150%);
+  }
+}
+
+@layer utilities {
+  .habi-wordmark {
+    filter: drop-shadow(0 3px 8px rgb(15 23 42 / 0.10));
   }
 }
 

@@ -89,16 +89,24 @@ class AffiliateController extends Controller
 
         $payload = $this->affiliate->referralQrPayload($hub);
 
+        // Habi Knot mark as base64 PNG — dompdf renders PNG reliably (not SVG)
+        $logoPath = public_path('storage/bayan-mark-64x64.png');
+        $logoDataUrl = null;
+        if (is_file($logoPath)) {
+            $logoDataUrl = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
         $html = View::make('pdf.referral-poster', [
             'hub' => $hub,
             'qrPayload' => $payload,
             'qrDataUrl' => $this->qrDataUrl($payload),
+            'logoDataUrl' => $logoDataUrl,
         ])->render();
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
             ->setPaper('a4', 'portrait');
 
-        return $pdf->download("bayanbox-referral-{$hub->referral_code}.pdf");
+        return $pdf->download("bayan-referral-{$hub->referral_code}.pdf");
     }
 
     /**

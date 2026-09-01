@@ -43,12 +43,14 @@ export default function Auth({ onAuth }) {
       <div className="flex flex-col items-center justify-center px-5 py-10">
         {/* Brand */}
         <div className="text-center mb-8">
-          <img
-            src="/beboolbox-logo.png"
-            alt="BayanBox"
-            className="h-14 w-auto mx-auto object-contain"
+          <div className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-4 py-2.5 shadow-lift">
+            <img
+            src="/habi-logo-concept.png"
+            alt="HABI"
+            className="h-11 w-[150px] object-contain"
           />
-          <p className={`text-white/70 text-sm mt-3 ${mode === 'register' ? 'hidden' : ''}`}>BodegaBarangay · Provincial Last-Mile OS</p>
+          </div>
+          <p className={`text-white/75 text-sm mt-3 ${mode === 'register' ? 'hidden' : ''}`}>HABI · Local commerce, delivery &amp; services</p>
         </div>
 
         {/* Card */}

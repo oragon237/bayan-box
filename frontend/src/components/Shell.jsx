@@ -32,6 +32,7 @@ function tabsFor(role) {
       { to: '/hub/inventory', label: 'Inventory', icon: PackageIcon },
       { to: '/staff/dispatch', label: 'Dispatch', icon: RouteIcon },
       { to: '/staff/mall', label: 'Mall', icon: TagIcon },
+      { to: '/staff/mall/orders', label: 'Mall Orders', icon: PackageIcon },
       { to: '/staff/finance', label: 'Finance', icon: WalletIcon },
     ],
     rider: [
@@ -98,23 +99,23 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
   };
 
   return (
-    <div className="min-h-screen bg-ink-100">
+    <div className="min-h-screen bg-transparent">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-ink-900 text-white shadow-lift-dark">
-        <div className="px-4 pt-4 pb-3">
+      <header className="sticky top-0 z-40 bg-white/95 text-ink-900 backdrop-blur-xl border-b border-ink-200 shadow-[0_1px_0_rgba(15,23,42,0.03),0_8px_22px_-18px_rgba(15,23,42,0.34)]">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img
-                src="/beboolbox-logo.png"
-                alt="BayanBox"
-                className="h-8 w-auto object-contain"
+                src="/habi-logo-concept.png"
+                alt="HABI"
+                className="h-9 w-[112px] sm:w-[128px] object-contain object-left habi-wordmark"
               />
             </div>
 
             <div className="flex items-center gap-2">
               {user ? (
                 <>
-                  <span className="hidden sm:block text-white/80 font-semibold text-sm">{user.name}</span>
+                  <span className="hidden sm:block text-ink-600 font-semibold text-sm">{user.name}</span>
                   <span className="px-2 py-0.5 rounded-full bg-bayan-600 text-white text-[10px] font-bold uppercase tracking-wide">
                     {user.role}
                   </span>
@@ -126,7 +127,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                         localStorage.setItem('bayanbox_user', JSON.stringify(updated));
                         onRoleChange?.(updated);
                       }}
-                      className="bg-white/20 text-white text-[10px] font-bold rounded-lg px-2 py-1 border border-white/20 outline-none cursor-pointer"
+                      className="bg-ink-100 text-ink-700 text-[10px] font-bold rounded-lg px-2 py-1 border border-ink-200 outline-none cursor-pointer"
                     >
                       <option value="staff" className="text-ink-800">staff</option>
                       <option value="rider" className="text-ink-800">rider</option>
@@ -143,7 +144,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                   <NotificationsBell user={user} />
                   <span
                     className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${
-                      online ? 'bg-white/15' : 'bg-amber-500/90 text-amber-950'
+                      online ? 'bg-bayan-50 text-bayan-800 border border-bayan-100' : 'bg-amber-500/90 text-amber-950'
                     }`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400 animate-pulse-soft' : 'bg-amber-900'}`} />
@@ -153,7 +154,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                   <button
                     onClick={logout}
                     title="Sign out"
-                    className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+                    className="w-9 h-9 rounded-2xl bg-ink-100 hover:bg-bayan-50 text-ink-600 hover:text-bayan-700 flex items-center justify-center transition"
                   >
                     <LogoutIcon className="w-4 h-4" />
                   </button>
@@ -161,7 +162,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
               ) : (
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-4 py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-2xl transition"
+                  className="px-4 py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-2xl shadow-lift transition"
                 >
                   Login / Signup
                 </button>

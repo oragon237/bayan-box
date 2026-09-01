@@ -4,13 +4,21 @@ import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
 import { useToast } from '../../components/ui.jsx';
 
-const STATUS_STYLE = {
-  assigned: 'bg-bayan-600 text-white',
-  out_for_delivery: 'bg-orange-500 text-white',
-  delivered: 'bg-green-600 text-white',
+const STATE_STYLE = {
+  raider_assigned: 'bg-bayan-600 text-white',
+  raider_en_route_to_merchant: 'bg-blue-600 text-white',
+  at_merchant: 'bg-purple-600 text-white',
+  in_transit: 'bg-orange-500 text-white',
+  arrived: 'bg-orange-500 text-white',
 };
 
-const STATUS_LABEL = { assigned: 'New Assignment', out_for_delivery: 'On the Way', delivered: 'Delivered' };
+const STATE_LABEL = {
+  raider_assigned: 'Assigned to you',
+  raider_en_route_to_merchant: 'Heading to merchant',
+  at_merchant: 'At merchant',
+  in_transit: 'Heading to customer',
+  arrived: 'At customer',
+};
 
 function SkeletonCard() {
   return <div className="card p-4 space-y-3"><div className="h-3 bg-ink-200 rounded animate-pulse-soft w-1/2" /><div className="h-3 bg-ink-200 rounded animate-pulse-soft w-3/4" /><div className="h-3 bg-ink-200 rounded animate-pulse-soft w-2/3" /></div>;
@@ -57,28 +65,6 @@ export default function RiderDashboard({ user }) {
 
   useEffect(() => { loadEarnings(); }, [period]);
 
-  const advanceStatus = async (orderId) => {
-    const order = data.active_orders.find((o) => o.id === orderId);
-    const next = order.status === 'assigned' ? 'out-for-delivery' : 'deliver';
-    try {
-      await client.post(`/rider/deliveries/${orderId}/${next}`);
-      notify(next === 'deliver' ? 'Delivery completed!' : 'On the way.');
-      load();
-    } catch (err) {
-      notify(err.response?.data?.message || 'Action failed.', 'error');
-    }
-  };
-
-  const refuse = async (orderId) => {
-    try {
-      const res = await client.post(`/rider/deliveries/${orderId}/refuse`);
-      notify(res.data.message);
-      load();
-    } catch (err) {
-      notify(err.response?.data?.message || 'Could not refuse.', 'error');
-    }
-  };
-
   if (loading) {
     return <div className="space-y-4">{['a', 'b', 'c'].map((i) => <SkeletonCard key={i} />)}</div>;
   }
@@ -112,7 +98,7 @@ export default function RiderDashboard({ user }) {
               <div key={o.id} className="card overflow-hidden border-l-4 border-l-bayan-600">
                 {/* Status bar */}
                 <div className="flex items-center justify-between px-4 py-2 bg-ink-50">
-                  <span className={`chip border ${STATUS_STYLE[o.status] || 'bg-ink-100 text-ink-600'}`}>{STATUS_LABEL[o.status] || o.status}</span>
+                  <span className={`chip border ${STATE_STYLE[o.delivery_state] || 'bg-ink-100 text-ink-600'}`}>{STATE_LABEL[o.delivery_state] || o.delivery_state}</span>
                   <span className="text-xs font-bold text-ink-600">Order #{o.id} · 💳 {String(o.payment_method || 'gcash').toUpperCase()}</span>
                 </div>
 
@@ -157,10 +143,9 @@ export default function RiderDashboard({ user }) {
                   <div className="flex flex-wrap gap-2 mt-3">
                     <a href={`tel:${o.customer?.phone}`} className="flex-1 min-w-28 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl text-center">📞 Call</a>
                     <a href={`https://maps.google.com/?q=${o.latitude},${o.longitude}`} target="_blank" rel="noreferrer" className="flex-1 min-w-28 py-2.5 bg-ink-100 hover:bg-ink-200 text-ink-700 text-sm font-bold rounded-xl text-center">🧭 Navigate</a>
-                    <button onClick={() => advanceStatus(o.id)} className="flex-1 min-w-28 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl">
-                      {o.status === 'assigned' ? '🚚 Accept & Go' : '✅ Delivered'}
+                    <button onClick={() => navigate('/rider/deliveries')} className="flex-1 min-w-36 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl">
+                      Open delivery controls →
                     </button>
-                    <button onClick={() => refuse(o.id)} className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold rounded-xl">✕ Reject</button>
                   </div>
                 </div>
               </div>

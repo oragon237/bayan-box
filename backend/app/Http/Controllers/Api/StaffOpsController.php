@@ -29,18 +29,46 @@ class StaffOpsController extends Controller
     public function overview(): JsonResponse
     {
         $onlineRiders = User::where('role', 'rider')->where('status', 'active')->count();
-        $inTransit = Order::whereIn('status', ['assigned', 'out_for_delivery'])->count();
+        $inTransit = Order::whereIn('delivery_state', [Order::STATE_IN_TRANSIT, Order::STATE_ARRIVED])->count();
         $emergencyAlerts = IncidentReport::where('status', 'open')->count();
         $unassigned = Order::where('fulfillment_type', 'delivery')
-            ->whereIn('status', ['paid', 'pending_payment'])
+            ->where('delivery_state', Order::STATE_READY_FOR_PICKUP)
             ->whereNull('rider_id')->count();
+        $mallOrdersWaiting = $this->officialMallOrders()
+            ->where(function ($query) {
+                $query->whereIn('delivery_state', [Order::STATE_PENDING_MERCHANT, Order::STATE_PREPARING])
+                    ->orWhere(function ($pickupOrders) {
+                        $pickupOrders->where('delivery_state', Order::STATE_READY_FOR_PICKUP)
+                            ->where('fulfillment_type', Order::FULFILLMENT_PICKUP);
+                    });
+            })
+            ->count();
 
         return response()->json([
             'active_riders' => $onlineRiders,
             'deliveries_in_transit' => $inTransit,
             'emergency_alerts' => $emergencyAlerts,
             'unassigned_orders' => $unassigned,
+            'mall_orders_waiting' => $mallOrdersWaiting,
         ]);
+    }
+
+    /**
+     * GET /api/staff/ops/mall-orders — all official Mall orders. Merchant and
+     * mixed-store orders are excluded so staff see the same lifecycle scope
+     * as a merchant sees for their own products.
+     */
+    public function mallOrders(): JsonResponse
+    {
+        $orders = $this->officialMallOrders()
+            ->with([
+                'customer:id,name,phone',
+                'items.product:id,name,merchant_id,is_official_mall',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['orders' => $orders]);
     }
 
     /**
@@ -76,12 +104,27 @@ class StaffOpsController extends Controller
      */
     public function dispatch(): JsonResponse
     {
-        $readyOrders = Order::with(['customer:id,name,phone', 'items.product:id,name'])
+        $readyOrders = Order::with([
+            'customer:id,name,phone,barangay,municipality',
+            'items.product:id,name,merchant_id',
+            'items.product.merchant:id,name,barangay,municipality,latitude,longitude',
+        ])
             ->where('fulfillment_type', 'delivery')
-            ->whereIn('status', ['paid', 'pending_payment'])
+            ->where('delivery_state', Order::STATE_READY_FOR_PICKUP)
             ->whereNull('rider_id')
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->each(function (Order $order) {
+                $merchant = $order->items->first()?->product?->merchant;
+                $order->setAttribute('merchant', $merchant ? [
+                    'id' => $merchant->id,
+                    'name' => $merchant->name,
+                    'barangay' => $merchant->barangay,
+                    'municipality' => $merchant->municipality,
+                    'latitude' => $merchant->latitude,
+                    'longitude' => $merchant->longitude,
+                ] : null);
+            });
 
         $riders = User::where('role', 'rider')->where('status', 'active')
             ->withCount(['deliveries as active_orders' => fn ($q) => $q->whereIn('status', ['assigned', 'out_for_delivery'])])
@@ -108,28 +151,17 @@ class StaffOpsController extends Controller
         // Manual: specific rider
         if ($request->input('rider_id')) {
             $rider = User::where('role', 'rider')->where('status', 'active')->findOrFail($request->input('rider_id'));
-            $order->update([
-                'rider_id' => $rider->id,
-                'status' => 'assigned',
-                'delivery_state' => \App\Models\Order::STATE_READY_FOR_PICKUP,
-                'dispatch_method' => 'manual',
-                'assigned_by_id' => $request->user()->id,
-            ]);
+            $order = $this->assignments->assignTo($order, $rider, 'manual', $request->user()->id);
 
-            return response()->json(['message' => "Assigned to {$rider->name}.", 'order' => $order->fresh()]);
+            return response()->json(['message' => "Assigned to {$rider->name}.", 'order' => $order]);
         }
 
         // Auto: round-robin (nearest = fewest active orders)
-        $rider = $this->assignments->assign($order);
+        $rider = $this->assignments->assign($order, $request->user()->id);
 
         if (! $rider) {
             return response()->json(['message' => 'No active riders available.'], 202);
         }
-
-        $order->update([
-            'dispatch_method' => 'auto',
-            'assigned_by_id' => $request->user()->id,
-        ]);
 
         return response()->json(['message' => "Auto-assigned to {$rider->name}.", 'order' => $order->fresh()]);
     }
@@ -140,17 +172,18 @@ class StaffOpsController extends Controller
     public function statusBoard(): JsonResponse
     {
         $states = [
-            'ready_for_pickup' => ['paid', 'pending_payment'],
-            'in_transit' => ['assigned', 'out_for_delivery'],
-            'delivered' => ['delivered', 'completed'],
-            'failed_returned' => ['disputed', 'cancelled'],
+            'ready_for_pickup' => [Order::STATE_READY_FOR_PICKUP],
+            'rider_collecting' => [Order::STATE_RAIDER_ASSIGNED, Order::STATE_RAIDER_EN_ROUTE, Order::STATE_AT_MERCHANT],
+            'in_transit' => [Order::STATE_IN_TRANSIT, Order::STATE_ARRIVED],
+            'delivered' => [Order::STATE_DELIVERED],
+            'failed_returned' => [Order::STATE_CANCELLED],
         ];
 
         $result = [];
         foreach ($states as $label => $statuses) {
             $result[$label] = Order::with(['customer:id,name', 'items.product:id,name'])
                 ->where('fulfillment_type', 'delivery')
-                ->whereIn('status', $statuses)
+                ->whereIn('delivery_state', $statuses)
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(fn ($o) => [
@@ -158,10 +191,13 @@ class StaffOpsController extends Controller
                     'customer' => $o->customer,
                     'items' => $o->items,
                     'status' => $o->status,
+                    'delivery_state' => $o->delivery_state,
                     'rider_id' => $o->rider_id,
                     'created_at' => $o->created_at,
                     'estimated_delivery_minutes' => 45,
-                    'elapsed_minutes' => $o->status === 'out_for_delivery' ? max(0, now()->diffInMinutes($o->updated_at)) : 0,
+                    'elapsed_minutes' => in_array($o->delivery_state, [Order::STATE_IN_TRANSIT, Order::STATE_ARRIVED], true)
+                        ? max(0, now()->diffInMinutes($o->updated_at))
+                        : 0,
                 ]);
         }
 
@@ -174,16 +210,15 @@ class StaffOpsController extends Controller
     public function forceStatus(int $id, Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'status' => 'required|in:assigned,out_for_delivery,delivered,disputed,cancelled',
+            'status' => 'required|in:disputed,cancelled',
         ]);
 
         $order = Order::findOrFail($id);
-        $order->update(['status' => $validated['status']]);
-
-        // Fix #1: releasing COD cash at delivery triggers the deferred payout
-        if ($validated['status'] === 'delivered' && $order->payment_method === 'cod') {
-            app(\App\Services\MarketplaceService::class)->releaseOrderPayouts($order->fresh());
-        }
+        $order->update([
+            'status' => $validated['status'],
+            'delivery_state' => Order::STATE_CANCELLED,
+            'fulfillment_status' => Order::FULFILL_CANCELLED,
+        ]);
 
         return response()->json(['message' => 'Order status updated.', 'order' => $order->fresh()]);
     }
@@ -226,7 +261,7 @@ class StaffOpsController extends Controller
     }
 
     /**
-     * GET /api/staff/ops/history — filterable delivery history.
+     * GET /api/staff/ops/history — all rider-assigned delivery transactions.
      */
     public function history(Request $request): JsonResponse
     {
@@ -236,13 +271,13 @@ class StaffOpsController extends Controller
             'items.product.merchant:id,name,barangay,municipality',
             'rider:id,name',
             'assignedBy:id,name',
-        ])->where('fulfillment_type', Order::FULFILLMENT_DELIVERY);
+        ])
+            ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
+            ->whereNotNull('rider_id');
 
         // Status filter
         if ($request->input('status') && $request->input('status') !== 'all') {
             $query->where('status', $request->input('status'));
-        } else {
-            $query->whereIn('status', ['delivered', 'cancelled', 'disputed']);
         }
 
         // Date range
@@ -312,7 +347,7 @@ class StaffOpsController extends Controller
             'lifecycle' => [
                 'order_placed' => $order->created_at?->toDateTimeString(),
                 'merchant_ready' => $order->ready_at?->toDateTimeString(),
-                'raider_accepted' => $order->accepted_at?->toDateTimeString(),
+                'merchant_accepted' => $order->accepted_at?->toDateTimeString(),
                 'picked_up' => $order->rider_pickup_at?->toDateTimeString(),
                 'completed' => $order->updated_at?->toDateTimeString(),
                 'cancelled_reason' => $order->cancel_reason,
@@ -338,6 +373,17 @@ class StaffOpsController extends Controller
         $end = $o->status === 'delivered' ? $o->updated_at : null;
 
         return $start && $end ? max(0, $start->diffInMinutes($end)) : null;
+    }
+
+    /**
+     * Restrict staff fulfillment to baskets made up exclusively of official
+     * Mall stock. This mirrors the state-machine authorization rule.
+     */
+    protected function officialMallOrders()
+    {
+        return Order::query()
+            ->whereHas('items.product', fn ($product) => $product->where('is_official_mall', true))
+            ->whereDoesntHave('items.product', fn ($product) => $product->where('is_official_mall', false));
     }
 
     /**

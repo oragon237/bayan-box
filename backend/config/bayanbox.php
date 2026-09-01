@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| BayanBox Domain Configuration
+| Bayan Domain Configuration
 |--------------------------------------------------------------------------
 | Central tunable knobs for the logistics OS. Values here can be overridden
 | per-environment via the matching .env variables.
@@ -136,7 +136,7 @@ return [
         'length' => 6,
         'digits_only' => true,
         'ttl_minutes' => 48,          // 2 days before expiry
-        'sms_template' => 'BayanBox pickup OTP: {otp}. Valid {ttl_minutes}h. Show this PIN to hub staff to claim parcel {tracking}.',
+        'sms_template' => 'Bayan pickup OTP: {otp}. Valid {ttl_minutes}h. Show this PIN to hub staff to claim parcel {tracking}.',
     ],
 
     /*

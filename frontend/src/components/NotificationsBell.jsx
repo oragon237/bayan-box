@@ -45,7 +45,7 @@ export default function NotificationsBell({ user }) {
     <div className="relative" ref={ref}>
       <button
         onClick={toggle}
-        className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition relative"
+        className="w-9 h-9 rounded-2xl bg-ink-100 hover:bg-bayan-50 text-ink-600 hover:text-bayan-700 flex items-center justify-center transition relative"
         title="Notifications"
       >
         <BellIcon className="w-4 h-4" />

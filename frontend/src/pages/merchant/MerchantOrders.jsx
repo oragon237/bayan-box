@@ -6,7 +6,7 @@ const STATE_STEPS = [
   { key: 'pending_merchant', label: 'New order' },
   { key: 'preparing', label: 'Preparing' },
   { key: 'ready_for_pickup', label: 'Ready for pickup' },
-  { key: 'raider_assigned', label: 'Raider assigned' },
+  { key: 'raider_assigned', label: 'Rider assigned' },
   { key: 'in_transit', label: 'In transit' },
   { key: 'delivered', label: 'Delivered' },
 ];
@@ -65,7 +65,7 @@ export default function MerchantOrders({ user }) {
     <div className="space-y-5">
       <div className="rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift">
         <h2 className="text-2xl font-black tracking-tight">My Orders</h2>
-        <p className="text-white/75 text-sm mt-1">Accept orders, prepare, and mark ready for raider pickup.</p>
+        <p className="text-white/75 text-sm mt-1">Accept orders, prepare, and mark ready for rider pickup.</p>
       </div>
 
       {loading ? (
@@ -102,7 +102,7 @@ export default function MerchantOrders({ user }) {
 
                 {/* Status badge */}
                 <span className={`chip border mt-2 ${STATE_STYLES[state] || 'bg-ink-100 text-ink-500 border-ink-200'}`}>
-                  {(state || 'pending_merchant').replace(/_/g, ' ')}
+                  {(state || 'pending_merchant').replace('raider', 'rider').replace(/_/g, ' ')}
                 </span>
 
                 {/* State machine timeline */}
@@ -143,7 +143,7 @@ export default function MerchantOrders({ user }) {
                   )}
                   {['ready_for_pickup', 'raider_assigned', 'raider_en_route_to_merchant', 'at_merchant', 'in_transit', 'arrived'].includes(state) && (
                     <span className="flex-1 py-2.5 bg-ink-50 text-ink-500 text-sm font-bold rounded-xl text-center">
-                      {state === 'ready_for_pickup' ? 'Waiting for raider assignment' : 'In fulfillment — customer notified'}
+                      {state === 'ready_for_pickup' ? 'Waiting for rider assignment' : 'In fulfillment — customer notified'}
                     </span>
                   )}
                   {state === 'delivered' && (

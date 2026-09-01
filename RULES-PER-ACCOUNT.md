@@ -1,4 +1,4 @@
-# RULES-PER-ACCOUNT.md — Role-Based Rules & Access Matrix (BeCoolBox/BayanBox)
+# RULES-PER-ACCOUNT.md — Role-Based Rules & Access Matrix (Bayan)
 
 > Applies to: **Admin, Staff, Rider, Merchant, Customer, Provider** — enforced by `App\Enums\Role` + `EnsureRole` middleware (`backend/routes/api.php`) and by the frontend navigation (`frontend/src/components/Shell.jsx`, `frontend/src/App.jsx`).
 > Reference: `bayanbox-prd-v3.md` §3. Default demo password: **`Password123!`**.

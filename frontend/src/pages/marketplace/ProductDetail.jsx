@@ -56,6 +56,7 @@ export default function ProductDetail({ user }) {
   };
 
   useEffect(() => {
+    setSelectedImage(0);
     load();
   }, [id]);
 
@@ -122,11 +123,12 @@ export default function ProductDetail({ user }) {
   }
 
   const reviews = product.reviews || [];
-  const gallery = product.images?.length
-    ? product.images.map((i) => i.image_url)
-    : product.image_url
-    ? [product.image_url]
-    : [];
+  // The primary image and uploaded gallery are complementary. Keep both so
+  // a merchant's main cover is not hidden when gallery photos are present.
+  const gallery = [...new Set([
+    product.image_url,
+    ...(product.images || []).map((image) => image.image_url),
+  ].filter(Boolean))];
   const salePct = product.sale_price ? Math.round((1 - Number(product.sale_price) / Number(product.price)) * 100) : 0;
 
   return (
@@ -174,7 +176,7 @@ export default function ProductDetail({ user }) {
               <h1 className="text-2xl font-black text-ink-900">{product.name}</h1>
               {product.is_official_mall && (
                 <span className="inline-block mt-1 bg-bayan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  BeCoolBox Official
+                  HABI Official
                 </span>
               )}
             </div>
@@ -223,7 +225,7 @@ export default function ProductDetail({ user }) {
                     🏪 {product.merchant.name}
                   </button>
                 ) : (
-                  <p className="font-bold text-ink-700 truncate">BayanBox</p>
+                  <p className="font-bold text-ink-700 truncate">HABI</p>
                 )}
             </div>
           </div>

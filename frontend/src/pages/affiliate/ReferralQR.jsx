@@ -38,7 +38,7 @@ export default function ReferralQR({ user }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `bayanbox-referral-${referral?.hub?.referral_code || 'poster'}.pdf`;
+      a.download = `bayan-referral-${referral?.hub?.referral_code || 'poster'}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       notify('Poster downloaded — print & display it!');

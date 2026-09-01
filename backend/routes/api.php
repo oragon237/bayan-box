@@ -48,7 +48,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| BayanBox API Routes
+| Bayan API Routes
 |--------------------------------------------------------------------------
 | Multi-role RBAC enforced per route group (PRD section 2).
 */
@@ -61,6 +61,7 @@ Route::get('/track/{tracking}', [TrackingController::class, 'show']);
 // Public storefront — browse products without login (item 1, homepage)
 Route::get('/products', [MarketplaceController::class, 'index']);
 Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+Route::get('/products/category-images', [MarketplaceController::class, 'categoryImages']);
 Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
 Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
 Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
@@ -208,9 +209,10 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('hub')->group(fu
     Route::get('/affiliate/referral-qr/poster', [AffiliateController::class, 'poster']);
 });
 
-// ---- Staff: BeCoolBox Mall inventory (Module 2) ----
+// ---- Staff: Bayan Mall inventory (Module 2) ----
 Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff/mall')->group(function () {
     Route::get('/inventory', [StaffMallController::class, 'inventory']);
+    Route::post('/products', [StaffMallController::class, 'store']);
 });
 
 // ---- Staff: delivery dispatch + today's sales (item 4) ----
@@ -222,6 +224,7 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
 
     // Staff operations: dispatch, incidents, status board, tickets
     Route::get('/ops/overview', [StaffOpsController::class, 'overview']);
+    Route::get('/ops/mall-orders', [StaffOpsController::class, 'mallOrders']);
     Route::get('/ops/incidents', [StaffOpsController::class, 'incidents']);
     Route::post('/ops/incidents/{id}/resolve', [StaffOpsController::class, 'resolveIncident'])->whereNumber('id');
     Route::get('/ops/dispatch', [StaffOpsController::class, 'dispatch']);
@@ -324,7 +327,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/merchants/{id}/approve', [AdminMerchantController::class, 'approve']);
     Route::post('/merchants/{id}/reject', [AdminMerchantController::class, 'reject']);
 
-    // Module 2: BeCoolBox Mall product CRUD
+    // Module 2: Bayan Mall product CRUD
     Route::get('/mall/products', [AdminMallController::class, 'index']);
     Route::post('/mall/products', [AdminMallController::class, 'store']);
     Route::put('/mall/products/{id}', [AdminMallController::class, 'update']);

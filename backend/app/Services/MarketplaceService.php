@@ -258,12 +258,12 @@ class MarketplaceService
             $affiliatePayout = (float) $item->affiliate_payout_amount;
 
             if ($product->is_official_mall) {
-                // BeCoolBox Mall: 100% to admin_earnings, 0% rake
+                // Bayan Mall: 100% to admin_earnings, 0% rake
                 $adminPayout = round($itemTotal, 2) - $affiliatePayout;
                 $adminWallet = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_ADMIN_EARNINGS);
                 if ($adminPayout > 0) {
                     $this->wallets->transfer($escrow, $adminWallet, $adminPayout,
-                        "BeCoolBox Mall sale Order #{$order->id} — {$product->name}",
+                        "Bayan Mall sale Order #{$order->id} — {$product->name}",
                         'mall_sale', $order);
                 }
             } else {

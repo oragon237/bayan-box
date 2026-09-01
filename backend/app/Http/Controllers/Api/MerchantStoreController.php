@@ -22,7 +22,10 @@ class MerchantStoreController extends Controller
     {
         $merchant = User::withCount('products')
             ->with(['providerProfile'])
-            ->where('role', 'merchant')
+            ->where(function ($query) {
+                $query->whereIn('role', ['merchant', 'provider'])
+                    ->orWhere('is_official_mall', true);
+            })
             ->findOrFail($id);
 
         // Overall rating from product reviews across the merchant's catalog
@@ -94,7 +97,7 @@ class MerchantStoreController extends Controller
         return response()->json([
             'merchant' => [
                 'id' => $merchant->id,
-                'name' => $merchant->name,
+                'name' => $merchant->is_official_mall ? 'HABI Mall' : $merchant->name,
                 'verified' => $merchant->status === 'active',
                 'barangay' => $merchant->barangay,
                 'municipality' => $merchant->municipality,
@@ -121,7 +124,10 @@ class MerchantStoreController extends Controller
      */
     public function reviews(int $id): JsonResponse
     {
-        User::where('role', 'merchant')->findOrFail($id);
+        User::where(function ($query) {
+            $query->whereIn('role', ['merchant', 'provider'])
+                ->orWhere('is_official_mall', true);
+        })->findOrFail($id);
 
         $reviews = ProductReview::with(['user:id,name', 'product:id,name'])
             ->whereHas('product', fn ($q) => $q->where('merchant_id', $id))

@@ -86,6 +86,43 @@ class AdminFinanceController extends Controller
                 'requested_at' => $c->requested_at,
             ]);
 
+        // Immutable financial register. Transfers intentionally retain both
+        // debit and credit legs so administrators can audit every movement.
+        $transactionRegister = LedgerTransaction::with([
+            'wallet.user:id,name',
+            'counterpartyWallet.user:id,name',
+        ])
+            ->latest()
+            ->get()
+            ->map(fn ($transaction) => [
+                'id' => 'ledger-'.$transaction->id,
+                'recorded_at' => $transaction->created_at,
+                'source' => 'ledger',
+                'type' => $transaction->type,
+                'description' => $transaction->description,
+                'amount' => abs((float) $transaction->amount),
+                'direction' => $transaction->direction,
+                'account' => $this->walletLabel($transaction->wallet),
+                'counterparty' => $this->walletLabel($transaction->counterpartyWallet),
+                'order_id' => $transaction->reference_type === Order::class ? (int) $transaction->reference_id : null,
+            ]);
+
+        $remittanceTransactions = RiderCodRemittance::with(['rider:id,name', 'recorder:id,name'])
+            ->latest()
+            ->get()
+            ->map(fn ($remittance) => [
+                'id' => 'remittance-'.$remittance->id,
+                'recorded_at' => $remittance->created_at,
+                'source' => 'remittance',
+                'type' => 'rider_cod_remittance',
+                'description' => 'Rider COD remittance'.($remittance->notes ? " — {$remittance->notes}" : ''),
+                'amount' => (float) $remittance->amount,
+                'direction' => 'credit',
+                'account' => $remittance->rider?->name ?? 'Rider',
+                'counterparty' => $remittance->recorder?->name ?? 'Staff',
+                'order_id' => null,
+            ]);
+
         return response()->json([
             'collected' => [
                 'total' => round($totalCollected, 2),
@@ -105,7 +142,19 @@ class AdminFinanceController extends Controller
             'riders' => $riders,
             'merchants' => $merchants,
             'pending_cashouts' => $pendingCashOuts,
+            'transaction_register' => $transactionRegister->concat($remittanceTransactions)
+                ->sortByDesc('recorded_at')
+                ->values(),
         ]);
+    }
+
+    protected function walletLabel(?Wallet $wallet): string
+    {
+        if (! $wallet) {
+            return '—';
+        }
+
+        return trim(($wallet->user?->name ?? 'System').' · '.str_replace('_', ' ', $wallet->wallet_type));
     }
 
     /**

@@ -31,7 +31,7 @@ class RiderDashboardController extends Controller
     {
         $riderId = $request->user()->id;
 
-        // Active orders (assigned, out_for_delivery)
+        // Active orders follow the authoritative rider route states.
         $activeOrders = Order::with([
             'customer:id,name,phone',
             'items.product:id,name,merchant_id',
@@ -39,13 +39,20 @@ class RiderDashboardController extends Controller
         ])
             ->where('rider_id', $riderId)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
-            ->whereIn('status', [DeliveryAssignmentService::STATUS_ASSIGNED, DeliveryAssignmentService::STATUS_OUT_FOR_DELIVERY])
+            ->whereIn('delivery_state', [
+                Order::STATE_RAIDER_ASSIGNED,
+                Order::STATE_RAIDER_EN_ROUTE,
+                Order::STATE_AT_MERCHANT,
+                Order::STATE_IN_TRANSIT,
+                Order::STATE_ARRIVED,
+            ])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn ($o) => [
                 'id' => $o->id,
                 'status' => $o->status,
-                'status_label' => $o->status === 'assigned' ? 'New Assignment' : 'On the Way',
+                'delivery_state' => $o->delivery_state,
+                'status_label' => str_replace('_', ' ', $o->delivery_state),
                 'customer' => $o->customer,
                 'delivery_address' => $o->delivery_address,
                 'latitude' => $o->latitude,
@@ -62,19 +69,9 @@ class RiderDashboardController extends Controller
                 'surge' => 0.00,
             ]);
 
-        // Queue: next orders assigned but not yet active
-        $queue = Order::with(['customer:id,name,phone', 'items.product:id,name'])
-            ->where('rider_id', $riderId)
-            ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
-            ->where('status', DeliveryAssignmentService::STATUS_ASSIGNED)
-            ->orderBy('created_at')
-            ->get()
-            ->map(fn ($o) => [
-                'id' => $o->id,
-                'customer' => $o->customer,
-                'items' => $o->items->map(fn ($i) => ['name' => $i->product?->name, 'quantity' => $i->quantity]),
-                'shipping_amount' => $o->shipping_amount,
-            ]);
+        // Assigned orders are already part of active_orders; avoid duplicating
+        // them in a second queue with a conflicting status.
+        $queue = collect();
 
         // Earnings cards
         $wallet = $this->wallets->ensureWallet($riderId, Wallet::TYPE_RIDER_PREPAID);

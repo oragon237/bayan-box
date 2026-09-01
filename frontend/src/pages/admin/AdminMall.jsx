@@ -103,7 +103,7 @@ export default function AdminMall({ user }) {
       <div className="dark-section rounded-3xl p-5 shadow-lift-dark relative overflow-hidden">
         <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-bayan-600/30 blur-3xl" />
         <div className="relative">
-          <h2 className="text-2xl font-black tracking-tight">BeCoolBox Mall</h2>
+          <h2 className="text-2xl font-black tracking-tight">HABI Mall</h2>
           <p className="text-white/75 text-sm mt-1">
             Admin-owned flagship store. 100% of sales route to <b>admin_earnings</b> — 0% commission.
           </p>

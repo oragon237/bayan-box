@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Provider profile pictures, official BeCoolBox Worker badge, and
+     * Provider profile pictures, official Bayan Worker badge, and
      * provider reviews/ratings (item 7).
      */
     public function up(): void

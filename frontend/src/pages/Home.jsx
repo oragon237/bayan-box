@@ -50,7 +50,7 @@ export default function Home({ user }) {
       { to: '/hub', label: 'Scan Parcels', desc: 'Inbound intake with camera', icon: ScanIcon },
       { to: '/hub/inventory', label: 'Inventory', desc: 'Reconcile & OTP release', icon: PackageIcon },
       { to: '/staff/dispatch', label: 'Dispatch', desc: 'Assign deliveries + sales', icon: RouteIcon },
-      { to: '/staff/mall', label: 'BeCoolBox Mall', desc: 'View official stock', icon: TagIcon },
+      { to: '/staff/mall', label: 'HABI Mall', desc: 'View official stock', icon: TagIcon },
       { to: '/referral', label: 'Referral Poster', desc: 'Print your QR poster', icon: ShareIcon },
     ],
     rider: [
@@ -78,7 +78,7 @@ export default function Home({ user }) {
       { to: '/admin/merchants', label: 'Verify Merchants', desc: 'Approve & reject queue', icon: ScanIcon },
       { to: '/admin/merchant-list', label: 'All Merchants', desc: 'Manage & activate', icon: PackageIcon },
       { to: '/admin/riders', label: 'Riders', desc: 'Manage delivery riders', icon: RouteIcon },
-      { to: '/admin/mall', label: 'BeCoolBox Mall', desc: 'Manage flagship store', icon: TagIcon },
+      { to: '/admin/mall', label: 'HABI Mall', desc: 'Manage flagship store', icon: TagIcon },
       { to: '/staff/dispatch', label: 'Dispatch', desc: 'Assign deliveries + sales', icon: MapPinIcon },
     ],
   }[user?.role] || [];

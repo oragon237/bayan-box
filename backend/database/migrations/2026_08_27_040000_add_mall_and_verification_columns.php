@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Module 3: Admin merchant verification + BeCoolBox Mall flags.
+     * Module 3: Admin merchant verification + Bayan Mall flags.
      *
      * users:     is_official_mall (system flagship store), verification_notes,
      *            verified_at.

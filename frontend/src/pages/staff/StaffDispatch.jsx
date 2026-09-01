@@ -4,12 +4,24 @@ import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
 import { EmptyState, useToast, Spinner } from '../../components/ui.jsx';
 
-const STATUS_STYLE = { delivered: 'bg-green-50 text-green-700 border-green-200', cancelled: 'bg-red-50 text-red-600 border-red-200', disputed: 'bg-amber-50 text-amber-700 border-amber-200' };
+const STATUS_STYLE = {
+  raider_assigned: 'bg-purple-50 text-purple-700 border-purple-200',
+  raider_en_route_to_merchant: 'bg-purple-50 text-purple-700 border-purple-200',
+  at_merchant: 'bg-purple-50 text-purple-700 border-purple-200',
+  in_transit: 'bg-orange-50 text-orange-700 border-orange-200',
+  arrived: 'bg-orange-50 text-orange-700 border-orange-200',
+  delivered: 'bg-green-50 text-green-700 border-green-200',
+  cancelled: 'bg-red-50 text-red-600 border-red-200',
+};
+
+function locationLabel(place, fallback = 'Address on record') {
+  return [place?.barangay, place?.municipality].filter(Boolean).join(', ') || fallback;
+}
 
 export default function StaffDispatch({ user }) {
   const notify = useToast();
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get('tab') || 'dispatch');
+  const [tab, setTab] = useState(searchParams.get('tab') || 'history');
   const [ready, setReady] = useState([]);
   const [riders, setRiders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +98,7 @@ export default function StaffDispatch({ user }) {
     const csv = rows.map((r) => r.map((v) => `"${v || ''}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'dispatch_history.csv'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'rider_transactions.csv'; a.click();
     URL.revokeObjectURL(url);
     notify('CSV exported.');
   };
@@ -95,13 +107,13 @@ export default function StaffDispatch({ user }) {
     <div className="space-y-5 max-w-7xl mx-auto">
       <div className="rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift">
         <h2 className="text-2xl font-black tracking-tight">Dispatch Center</h2>
-        <p className="text-white/75 text-sm mt-1">Live dispatch and delivery history.</p>
+        <p className="text-white/75 text-sm mt-1">Live dispatch and all rider transactions.</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2">
         <button onClick={() => setTab('dispatch')} className={`chip border ${tab === 'dispatch' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>🚚 Live Dispatch</button>
-        <button onClick={() => setTab('history')} className={`chip border ${tab === 'history' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>📜 Delivery History</button>
+        <button onClick={() => setTab('history')} className={`chip border ${tab === 'history' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>🛵 Rider Transactions</button>
       </div>
 
       {tab === 'dispatch' ? (
@@ -119,7 +131,11 @@ export default function StaffDispatch({ user }) {
           {/* Map */}
           {ready.length > 0 && (
             <div className="card !p-0 overflow-hidden" style={{ height: 220 }}>
-              <DeliveryMap origin={[123.1948, 13.6218]} destination={ready[0]?.latitude && ready[0]?.longitude ? [ready[0].longitude, ready[0].latitude] : undefined} className="w-full h-full" />
+              <DeliveryMap
+                origin={ready[0]?.merchant?.latitude && ready[0]?.merchant?.longitude ? [ready[0].merchant.longitude, ready[0].merchant.latitude] : [123.1948, 13.6218]}
+                destination={ready[0]?.latitude && ready[0]?.longitude ? [ready[0].longitude, ready[0].latitude] : undefined}
+                className="w-full h-full"
+              />
             </div>
           )}
 
@@ -133,7 +149,10 @@ export default function StaffDispatch({ user }) {
                     <p className="font-bold text-ink-800">Order #{o.id} — ₱{Number(o.total_amount).toLocaleString()}</p>
                     <p className="text-xs text-ink-400">Customer: {o.customer?.name} · {o.customer?.phone}</p>
                     <p className="text-xs text-ink-500">📦 {o.items?.map((i) => i.product?.name).join(', ') || '—'}</p>
-                    <p className="text-[11px] text-ink-400">📍 {o.delivery_address || 'Address on record'}</p>
+                    <div className="mt-2 grid gap-1 rounded-xl bg-ink-50 p-2 text-[11px]">
+                      <p className="text-ink-600"><span className="font-bold text-bayan-700">🏪 Pickup · {o.merchant?.name || 'Merchant'}</span> — {locationLabel(o.merchant, 'Merchant address on record')}</p>
+                      <p className="text-ink-600"><span className="font-bold text-orange-700">📍 Deliver to · {o.customer?.name || 'Customer'}</span> — {o.delivery_address || locationLabel(o.customer)}</p>
+                    </div>
                   </div>
                   <div className="mt-3 space-y-2">
                     <button onClick={() => assignAuto(o.id)} disabled={assigning === `auto-${o.id}`} className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl">
@@ -159,7 +178,9 @@ export default function StaffDispatch({ user }) {
             <div className="flex flex-wrap gap-2 items-center">
               <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search by Order ID, customer, merchant, rider…" aria-label="Search history" className="field flex-1 min-w-48" />
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Status filter" className="field bg-white w-36">
-                <option value="all">All statuses</option>
+                <option value="all">All transactions</option>
+                <option value="assigned">Assigned / collecting</option>
+                <option value="out_for_delivery">Out for delivery</option>
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="disputed">Failed / Returned</option>
@@ -189,7 +210,7 @@ export default function StaffDispatch({ user }) {
           {loading ? (
             <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-12 bg-ink-200 rounded-xl animate-pulse-soft" />)}</div>
           ) : history.length === 0 ? (
-            <EmptyState icon="📜" title="No delivery history" hint="No records match your filters." />
+            <EmptyState icon="🛵" title="No rider transactions" hint="No rider-assigned deliveries match your filters." />
           ) : (
             <div className="card overflow-x-auto">
               <table className="w-full text-xs" role="table">
@@ -197,7 +218,7 @@ export default function StaffDispatch({ user }) {
                   <th className="p-2 text-left">Order ID</th>
                   <th className="p-2 text-left">Merchant</th>
                   <th className="p-2 text-left">Customer</th>
-                  <th className="p-2 text-left">Raider</th>
+                  <th className="p-2 text-left">Rider</th>
                   <th className="p-2 text-center">Method</th>
                   <th className="p-2 text-right">Duration</th>
                   <th className="p-2 text-center">Status</th>
@@ -212,7 +233,7 @@ export default function StaffDispatch({ user }) {
                       </td>
                       <td className="p-2">
                         <p className="font-bold text-ink-700">{h.merchant?.name || '—'}</p>
-                        <p className="text-[10px] text-ink-400">{h.merchant?.municipality || ''}</p>
+                        <p className="text-[10px] text-ink-400">{locationLabel(h.merchant, '')}</p>
                       </td>
                       <td className="p-2">
                         <p className="text-ink-800">{h.customer?.name || '—'}</p>
@@ -229,7 +250,7 @@ export default function StaffDispatch({ user }) {
                       </td>
                       <td className="p-2 text-right font-bold">{h.trip_duration_min != null ? `${h.trip_duration_min} min` : '—'}</td>
                       <td className="p-2 text-center">
-                        <span className={`chip border ${STATUS_STYLE[h.status] || 'bg-ink-100 text-ink-500'}`}>{h.status}</span>
+                        <span className={`chip border ${STATUS_STYLE[h.delivery_state] || 'bg-ink-100 text-ink-500'}`}>{String(h.delivery_state || h.status).replace('raider', 'rider').replace(/_/g, ' ')}</span>
                       </td>
                       <td className="p-2 text-center">
                         <button onClick={() => loadAudit(h.id)} className="px-2 py-1 bg-bayan-50 hover:bg-bayan-100 text-bayan-700 text-[10px] font-bold rounded-lg">👁 Timeline</button>

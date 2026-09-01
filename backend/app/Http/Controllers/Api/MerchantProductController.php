@@ -24,6 +24,7 @@ class MerchantProductController extends Controller
     {
         return response()->json(
             Product::where('merchant_id', $request->user()->id)
+                ->with('images:id,product_id,image_url,sort_order')
                 ->latest()
                 ->paginate($request->integer('per_page', 20))
         );

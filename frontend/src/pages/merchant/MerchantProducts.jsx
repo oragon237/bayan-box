@@ -243,7 +243,9 @@ export default function MerchantProducts({ user }) {
           <div className="space-y-3">
             {products.map((p) => (
               <div key={p.id} className="card p-4 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-bayan-100 to-ink-100 flex items-center justify-center text-xl shrink-0">🛒</div>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-bayan-100 to-ink-100 flex items-center justify-center text-xl shrink-0 overflow-hidden">
+                  {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : '🛒'}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className="font-bold text-ink-800 truncate">{p.name}</h4>
@@ -256,6 +258,7 @@ export default function MerchantProducts({ user }) {
                     {Number(p.suki_points_award) > 0 && ` · 🪙 +${p.suki_points_award}`}
                     {Number(p.affiliate_percentage) > 0 && ` · 🔗 ${p.affiliate_percentage}%`}
                     · {p.availability === 'available' ? '✅ Available' : p.availability === 'out_of_stock' ? '📦 Out of stock' : '🚫 Unavailable'}
+                    {(p.images?.length || 0) > 0 && ` · 🖼️ ${p.images.length} gallery photo${p.images.length === 1 ? '' : 's'}`}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">

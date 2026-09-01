@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bayan">
+  <!-- Habi Knot — white variant for dark surfaces (ink-900 header, purple tile, dark hero) -->
+  <path d="M32 5 L32 59" stroke="#ffffff" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <path d="M8.5 18.5 L55.5 45.5" stroke="#ffffff" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <path d="M55.5 18.5 L8.5 45.5" stroke="#ffffff" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- Woven hub eye (suki node / town center) — amber-400 on dark -->
+  <rect x="32" y="32" width="12" height="12" rx="3.5" transform="rotate(45 32 32)" fill="#fbbf24" stroke="#ffffff" stroke-width="1.5"/>
+</svg>

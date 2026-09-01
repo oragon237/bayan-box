@@ -2,30 +2,17 @@ import { useEffect, useState } from 'react';
 import client from '../../api/client.js';
 import { EmptyState } from '../../components/ui.jsx';
 
-// Customer-facing lifecycle, driven by the authoritative `delivery_state`
-// (OrderStateMachine). Intermediate raider states map to their nearest
-// milestone so the timeline always shows progress.
-const STATE_STEPS = [
-  { key: 'pending_merchant', label: 'Order placed' },
-  { key: 'preparing', label: 'Accepted by merchant' },
+// Keep the customer-visible tracker aligned with Merchant Orders and Mall
+// Orders. The detailed rider-only states below are collapsed into their
+// matching customer milestones.
+const ORDER_STEPS = [
+  { key: 'pending_merchant', label: 'New order' },
+  { key: 'preparing', label: 'Preparing' },
   { key: 'ready_for_pickup', label: 'Ready for pickup' },
-  { key: 'raider_assigned', label: 'Raider assigned' },
+  { key: 'raider_assigned', label: 'Rider assigned' },
   { key: 'in_transit', label: 'In transit' },
   { key: 'delivered', label: 'Delivered' },
 ];
-
-// delivery_state -> step index (intermediates fold into their milestone)
-const STEP_MAP = {
-  pending_merchant: 0,
-  preparing: 1,
-  ready_for_pickup: 2,
-  raider_assigned: 3,
-  raider_en_route_to_merchant: 3,
-  at_merchant: 3,
-  in_transit: 4,
-  arrived: 4,
-  delivered: 5,
-};
 
 const CHIP_STYLES = {
   pending_merchant: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -40,13 +27,17 @@ const CHIP_STYLES = {
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 };
 
-function stepIndexOf(state) {
-  return STEP_MAP[state] ?? -1;
-}
+function customerStatus(order) {
+  const state = order.delivery_state || 'pending_merchant';
+  const step = state === 'pending_merchant' ? 0
+    : state === 'preparing' ? 1
+      : state === 'ready_for_pickup' ? 2
+        : ['raider_assigned', 'raider_en_route_to_merchant', 'at_merchant'].includes(state) ? 3
+          : ['in_transit', 'arrived'].includes(state) ? 4
+            : state === 'delivered' ? 5 : 0;
+  const label = ORDER_STEPS[step].label;
 
-function stateLabel(state) {
-  const found = STATE_STEPS.find((s) => s.key === state);
-  return found ? found.label : (state || 'pending_merchant').replace(/_/g, ' ');
+  return { state, steps: ORDER_STEPS, step, label };
 }
 
 export default function MyOrders({ user }) {
@@ -85,7 +76,7 @@ export default function MyOrders({ user }) {
           {orders.map((o) => {
             const state = o.delivery_state || 'pending_merchant';
             const isCancelled = state === 'cancelled';
-            const step = stepIndexOf(state);
+            const progress = customerStatus(o);
             return (
               <div key={o.id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -97,7 +88,7 @@ export default function MyOrders({ user }) {
                     </p>
                   </div>
                   <span className={`chip border shrink-0 ${CHIP_STYLES[state] || 'bg-ink-50 text-ink-600 border-ink-100'}`}>
-                    {stateLabel(state)}
+                    {progress.label}
                   </span>
                 </div>
 
@@ -116,15 +107,15 @@ export default function MyOrders({ user }) {
                   </div>
                 ) : (
                   <div className="mt-3 flex items-center gap-1 text-[10px] font-bold overflow-x-auto pb-1">
-                    {STATE_STEPS.map((s, i) => {
-                      const done = i <= step;
+                    {progress.steps.map((s, i) => {
+                      const done = i <= progress.step;
                       return (
-                        <div key={s.key} className="flex items-center gap-1 shrink-0">
+                        <div key={s.label} className="flex items-center gap-1 shrink-0">
                           <span className={`w-5 h-5 rounded-full flex items-center justify-center ${done ? 'bg-bayan-600 text-white' : 'bg-ink-100 text-ink-400'}`}>
                             {done ? '✓' : '·'}
                           </span>
                           <span className={done ? 'text-ink-700' : 'text-ink-400'}>{s.label}</span>
-                          {i < STATE_STEPS.length - 1 && <span className="w-4 h-0.5 bg-ink-200" />}
+                          {i < progress.steps.length - 1 && <span className="w-4 h-0.5 bg-ink-200" />}
                         </div>
                       );
                     })}

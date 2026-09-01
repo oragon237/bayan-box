@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\DeliveryAssignmentService;
+use App\Services\OrderStateMachine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,7 @@ class RiderDeliveryController extends Controller
 {
     public function __construct(
         protected DeliveryAssignmentService $assignments,
+        protected OrderStateMachine $states,
     ) {}
 
     /**
@@ -34,7 +36,13 @@ class RiderDeliveryController extends Controller
             ])
             ->where('rider_id', $request->user()->id)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
-            ->whereIn('status', [DeliveryAssignmentService::STATUS_ASSIGNED, DeliveryAssignmentService::STATUS_OUT_FOR_DELIVERY])
+            ->whereIn('delivery_state', [
+                Order::STATE_RAIDER_ASSIGNED,
+                Order::STATE_RAIDER_EN_ROUTE,
+                Order::STATE_AT_MERCHANT,
+                Order::STATE_IN_TRANSIT,
+                Order::STATE_ARRIVED,
+            ])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Order $o) => $this->withMerchant($o));
@@ -54,7 +62,7 @@ class RiderDeliveryController extends Controller
             ])
             ->where('rider_id', $request->user()->id)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
-            ->whereIn('status', [DeliveryAssignmentService::STATUS_DELIVERED, 'cancelled', 'disputed'])
+            ->whereIn('delivery_state', [Order::STATE_DELIVERED, Order::STATE_CANCELLED])
             ->orderByDesc('updated_at')
             ->paginate($request->integer('per_page', 20));
 
@@ -109,7 +117,8 @@ class RiderDeliveryController extends Controller
     }
 
     /**
-     * POST /api/rider/deliveries/{id}/out-for-delivery
+     * Legacy endpoint retained for installed clients. It now means departing
+     * for the merchant, the first rider-owned step after staff assignment.
      */
     public function outForDelivery(int $id, Request $request): JsonResponse
     {
@@ -117,9 +126,9 @@ class RiderDeliveryController extends Controller
             ->where('rider_id', $request->user()->id)
             ->firstOrFail();
 
-        $this->assignments->markOutForDelivery($order);
+        $order = $this->states->transition($order, 'depart_to_merchant', $request->user());
 
-        return response()->json(['message' => 'Marked as out for delivery.', 'order' => $order]);
+        return response()->json(['message' => 'Heading to the merchant.', 'order' => $order]);
     }
 
     /**
@@ -131,13 +140,9 @@ class RiderDeliveryController extends Controller
             ->where('rider_id', $request->user()->id)
             ->firstOrFail();
 
-        $this->assignments->markDelivered($order);
+        $validated = $request->validate(['photo_url' => 'required|string|max:255']);
+        $order = $this->states->transition($order, 'complete_delivery', $request->user(), $validated);
 
-        // Fix #1: COD cash is collected at delivery — release deferred payouts
-        if ($order->payment_method === 'cod') {
-            app(\App\Services\MarketplaceService::class)->releaseOrderPayouts($order->fresh());
-        }
-
-        return response()->json(['message' => 'Delivery completed.', 'order' => $order->fresh()]);
+        return response()->json(['message' => 'Delivery completed.', 'order' => $order]);
     }
 }

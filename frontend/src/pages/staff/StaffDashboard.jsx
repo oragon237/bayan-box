@@ -14,18 +14,21 @@ export default function StaffDashboard({ user }) {
   const [board, setBoard] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [hazards, setHazards] = useState([]);
+  const [mallOrders, setMallOrders] = useState([]);
+  const [fulfillingOrder, setFulfillingOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hazardModal, setHazardModal] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [o, i, b, t, h] = await Promise.all([
+      const [o, i, b, t, h, m] = await Promise.all([
         client.get('/staff/ops/overview'), client.get('/staff/ops/incidents'), client.get('/staff/ops/status-board'),
-        client.get('/staff/ops/tickets'), client.get('/staff/ops/hazards'),
+        client.get('/staff/ops/tickets'), client.get('/staff/ops/hazards'), client.get('/staff/ops/mall-orders'),
       ]);
       setOverview(o.data); setIncidents(i.data); setBoard(b.data); setTickets(t.data);
       setHazards(h.data.zones || []);
+      setMallOrders((m.data.orders || []).filter((order) => ['pending_merchant', 'preparing'].includes(order.delivery_state) || (order.fulfillment_type === 'pickup' && order.delivery_state === 'ready_for_pickup')));
     } catch {
       notify('Could not load dashboard.', 'error');
     } finally {
@@ -47,16 +50,23 @@ export default function StaffDashboard({ user }) {
     load();
   };
 
-  const forceStatus = async (orderId, status) => {
-    await client.put(`/staff/ops/orders/${orderId}/status`, { status }).catch(() => {});
-    notify('Order status updated.');
-    load();
-  };
-
   const saveHazards = async () => {
     await client.post('/staff/ops/hazards', { zones: hazards }).catch(() => {});
     notify('Hazard zones updated.');
     setHazardModal(false);
+  };
+
+  const fulfillMallOrder = async (id, action) => {
+    setFulfillingOrder(`${id}-${action}`);
+    try {
+      const res = await client.post(`/orders/${id}/state/${action}`);
+      notify(res.data.message);
+      await load();
+    } catch (err) {
+      notify(err.response?.data?.message || 'Could not update the Mall order.', 'error');
+    } finally {
+      setFulfillingOrder(null);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Spinner /></div>;
@@ -83,7 +93,7 @@ export default function StaffDashboard({ user }) {
       </div>
 
       {/* KPI bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="card p-3 text-center">
           <p className="text-xl font-black text-bayan-700">{overview.active_riders}</p>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">🛵 Active Riders</p>
@@ -100,6 +110,50 @@ export default function StaffDashboard({ user }) {
           <p className="text-xl font-black">{overview.unassigned_orders}</p>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">⏳ Unassigned</p>
         </div>
+        <div className="card p-3 text-center">
+          <p className={`text-xl font-black ${overview.mall_orders_waiting > 0 ? 'text-amber-600' : ''}`}>{overview.mall_orders_waiting || 0}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-400">🏪 Mall orders</p>
+        </div>
+      </div>
+
+      {/* Official Mall fulfillment queue */}
+      <div>
+        <div className="flex items-center justify-between gap-3 px-1 mb-2">
+          <div>
+            <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider">🏪 Official Mall orders ({mallOrders.length})</h3>
+            <p className="text-xs text-ink-400 mt-0.5">Accept and prepare orders for admin-owned Mall products.</p>
+          </div>
+          <button onClick={() => navigate('/staff/mall/orders')} className="text-xs font-bold text-bayan-700 hover:underline shrink-0">View all orders →</button>
+        </div>
+        {mallOrders.length === 0 ? (
+          <div className="card p-5 text-center"><p className="text-ink-400 text-sm">No Mall orders need fulfillment.</p></div>
+        ) : (
+          <div className="space-y-2">
+            {mallOrders.map((order) => {
+              const isNew = order.delivery_state === 'pending_merchant';
+              const isCollection = order.fulfillment_type === 'pickup' && order.delivery_state === 'ready_for_pickup';
+              const action = isNew ? 'accept' : isCollection ? 'confirm_collection' : 'mark_ready';
+              const isWorking = fulfillingOrder === `${order.id}-${action}`;
+              return (
+                <div key={order.id} className="card p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-bayan-50 flex items-center justify-center text-lg shrink-0">🏪</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-ink-800 text-sm">Order #{order.id} — ₱{Number(order.total_amount || 0).toLocaleString()}</p>
+                    <p className="text-xs text-ink-400 truncate">{order.customer?.name} · {order.items?.map((item) => item.product?.name).join(', ')}</p>
+                    <p className="text-[11px] font-semibold text-amber-700 mt-1">{isNew ? 'New — awaiting acceptance' : isCollection ? 'Ready — awaiting customer collection' : 'Accepted — prepare for handoff'}</p>
+                  </div>
+                  <button
+                    onClick={() => fulfillMallOrder(order.id, action)}
+                    disabled={isWorking}
+                    className={`w-full sm:w-auto px-4 py-2.5 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl ${isNew ? 'bg-green-600 hover:bg-green-700' : 'bg-bayan-600 hover:bg-bayan-700'}`}
+                  >
+                    {isWorking ? 'Updating…' : isNew ? '✓ Accept order' : isCollection ? '✓ Mark collected' : '📦 Mark ready'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Emergency queue */}
@@ -150,12 +204,7 @@ export default function StaffDashboard({ user }) {
                         <p className="font-bold text-ink-800">Order #{o.id} · ₱{Number(o.total_amount || 0).toLocaleString()}</p>
                         <p className="text-ink-400">{o.customer?.name} · {o.items?.map((i) => i.product?.name).join(', ')}</p>
                         {delayed && <p className="text-red-600 font-bold mt-0.5">⚠️ Delayed ({o.elapsed_minutes}min)</p>}
-                        {state === 'in_transit' && (
-                          <div className="flex gap-1 mt-1">
-                            <button onClick={() => forceStatus(o.id, 'delivered')} className="px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded">Delivered</button>
-                            <button onClick={() => forceStatus(o.id, 'disputed')} className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded">Fail</button>
-                          </div>
-                        )}
+                        {state === 'in_transit' && <p className="mt-1 text-[10px] font-semibold text-bayan-700">Rider is completing the delivery flow.</p>}
                       </div>
                     );
                   })}

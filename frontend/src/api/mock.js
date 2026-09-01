@@ -1,5 +1,5 @@
 /**
- * BayanBox demo mode — in-memory mock API.
+ * Bayan demo mode — in-memory mock API.
  *
  * Lets you explore the full UI/UX locally without the Laravel backend
  * (which needs PHP 8.2+ and is not installed on this machine). Activated via
@@ -111,7 +111,21 @@ const PRODUCTS = [
   { id: 2, merchant_id: 4, name: 'Home-baked Pan de Sal', description: 'Warm pandesal, fresh daily.', price: '25.00', stock: 60, suki_points_award: 1, affiliate_percentage: '3.00', image_url: null, category: 'Home Cooks', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
   { id: 3, merchant_id: 4, name: 'Abaca Tote Bag', description: 'Handwoven abaca tote from local artisans.', price: '180.00', stock: 30, suki_points_award: 5, affiliate_percentage: '10.00', image_url: null, category: 'Local Crafts', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
   { id: 4, merchant_id: 4, name: 'Bicol Express Bagoong', description: 'Fiery bagoong for authentic Bicol express.', price: '95.00', stock: 45, suki_points_award: 3, affiliate_percentage: '0.00', image_url: null, category: 'Fresh Produce', status: 'active', merchant: { id: 4, name: 'Aling Maria Merch' } },
-  { id: 11, merchant_id: 1, name: 'Official BayanBox Tumbler', description: 'Exclusive tumbler — redeem with Suki Points only.', price: '0.00', points_price: 300, points_only: true, stock: 25, suki_points_award: 0, affiliate_percentage: '0.00', image_url: null, category: 'Points Shop', status: 'active', is_official_mall: true, merchant: { id: 1, name: 'BayanBox Admin' } },
+  { id: 11, merchant_id: 1, name: 'Official HABI Tumbler', description: 'Exclusive tumbler — redeem with Suki Points only.', price: '0.00', points_price: 300, points_only: true, stock: 25, suki_points_award: 0, affiliate_percentage: '0.00', image_url: null, category: 'Points Shop', status: 'active', is_official_mall: true, merchant: { id: 1, name: 'HABI Admin' } },
+];
+
+// Keep Mall stock outside mockRequest so additions survive subsequent admin,
+// staff, and customer requests during a demo session.
+const MALL_PRODUCTS = [
+  { id: 201, merchant_id: 1, name: 'Bulk Bubble Wrap (50m)', description: 'Official HABI Mall item', price: '350.00', stock: 40, suki_points_award: 8, affiliate_percentage: '3.00', image_url: null, images: [], category: 'Packaging', status: 'active', availability: 'available', is_official_mall: true, merchant: { id: 1, name: 'HABI Mall' } },
+  { id: 202, merchant_id: 1, name: 'Thermal Label Rolls (x100)', description: 'Official HABI Mall item', price: '220.00', stock: 80, suki_points_award: 5, affiliate_percentage: '0.00', image_url: null, images: [], category: 'Packaging', status: 'active', availability: 'available', is_official_mall: true, merchant: { id: 1, name: 'HABI Mall' } },
+  { id: 203, merchant_id: 1, name: 'Cardboard Mailers (x50)', description: 'Official HABI Mall item', price: '480.00', stock: 25, suki_points_award: 10, affiliate_percentage: '5.00', image_url: null, images: [], category: 'Packaging', status: 'active', availability: 'available', is_official_mall: true, merchant: { id: 1, name: 'HABI Mall' } },
+  { id: 204, merchant_id: 1, name: 'Bicol Pili Nuts (Official)', description: 'Official HABI Mall item', price: '145.00', stock: 60, suki_points_award: 4, affiliate_percentage: '8.00', image_url: null, images: [], category: 'Provincial Goods', status: 'active', availability: 'available', is_official_mall: true, merchant: { id: 1, name: 'HABI Mall' } },
+];
+
+const MALL_ORDERS = [
+  { id: 16, total_amount: '495.00', payment_method: 'gcash', delivery_state: 'pending_merchant', customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, items: [{ id: 16, quantity: 1, product: { id: 201, name: 'Bulk Bubble Wrap (50m)', merchant_id: 1, is_official_mall: true } }, { id: 17, quantity: 1, product: { id: 204, name: 'Bicol Pili Nuts (Official)', merchant_id: 1, is_official_mall: true } }] },
+  { id: 17, total_amount: '220.00', payment_method: 'cod', fulfillment_type: 'pickup', delivery_state: 'ready_for_pickup', customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, items: [{ id: 18, quantity: 1, product: { id: 202, name: 'Thermal Label Rolls (x100)', merchant_id: 1, is_official_mall: true } }] },
 ];
 
 let MOCK_CART = [];
@@ -203,7 +217,8 @@ export function mockRequest(url, method, data, params = {}) {
     const cat = params?.category;
     const pointsOnly = params?.points_only;
     const onSale = params?.on_sale;
-    let list = PRODUCTS.filter((p) => p.status === 'active' && p.stock > 0);
+    let list = [...MALL_PRODUCTS, ...PRODUCTS].filter((p) => p.status === 'active' && p.stock > 0);
+    if (params?.official_mall) list = list.filter((p) => p.is_official_mall);
     if (pointsOnly) list = list.filter((p) => p.points_only);
     if (onSale) list = list.filter((p) => p.sale_price);
     if (cat) list = list.filter((p) => p.category === cat);
@@ -216,7 +231,7 @@ export function mockRequest(url, method, data, params = {}) {
   }
   if (/^\/products\/\d+$/.test(path) && lower === 'get') {
     const pid = Number(path.match(/products\/(\d+)/)[1]);
-    const product = PRODUCTS.find((p) => p.id === pid);
+    const product = [...MALL_PRODUCTS, ...PRODUCTS].find((p) => p.id === pid);
     if (!product) return Promise.resolve(mockResponse({ data: null }, 404));
     return Promise.resolve(mockResponse({
       data: {
@@ -246,8 +261,39 @@ export function mockRequest(url, method, data, params = {}) {
     const others = PRODUCTS.filter((p) => p.id !== pid && p.status === 'active');
     return Promise.resolve(mockResponse({ related: others.slice(0, 4) }));
   }
+
+  // Public merchant / official Mall storefront.
+  if (/^\/merchants\/\d+\/store$/.test(path) && lower === 'get') {
+    const merchantId = Number(path.match(/merchants\/(\d+)\/store/)[1]);
+    const isMall = merchantId === 1;
+    const catalogue = (isMall ? MALL_PRODUCTS : PRODUCTS)
+      .filter((product) => product.merchant_id === merchantId && product.status === 'active');
+    if (!catalogue.length && !isMall) return undefined;
+    const categories = [...new Set(catalogue.map((product) => product.category))];
+    return Promise.resolve(mockResponse({
+      merchant: {
+        id: merchantId,
+        name: isMall ? 'HABI Mall' : catalogue[0]?.merchant?.name || 'Local Store',
+        verified: true,
+        barangay: isMall ? 'San Jose' : '—',
+        municipality: 'Naga City',
+        is_official_mall: isMall,
+      },
+      stats: { rating: 4.7, review_count: 0, product_count: catalogue.length, units_sold: 0, response_time: '~2h', fulfillment_rate: 98 },
+      categories,
+      products: { data: catalogue, current_page: 1, last_page: 1, total: catalogue.length },
+    }));
+  }
+  if (/^\/merchants\/\d+\/reviews$/.test(path) && lower === 'get') return Promise.resolve(mockResponse({ data: [] }));
   if (path === '/products/categories' && lower === 'get') {
     return Promise.resolve(mockResponse([...new Set(PRODUCTS.filter((p) => p.status === 'active').map((p) => p.category))]));
+  }
+  if (path === '/products/category-images' && lower === 'get') {
+    const map = {};
+    (PRODUCTS.filter((p) => p.status === 'active' && p.image_url)).forEach((p) => {
+      if (!map[p.category]) map[p.category] = p.image_url;
+    });
+    return Promise.resolve(mockResponse(Object.entries(map).map(([c, u]) => ({ category: c, image_url: u }))));
   }
   if (path === '/cart' && lower === 'get') {
     const items = MOCK_CART.map((i) => {
@@ -535,13 +581,31 @@ export function mockRequest(url, method, data, params = {}) {
   if (path === '/merchant/cash-out' && lower === 'post') return Promise.resolve(mockResponse({ message: 'Withdrawal requested.', cash_out: {} }, 201));
 
     // Staff ops
-  if (path === '/staff/ops/overview' && lower === 'get') return Promise.resolve(mockResponse({ active_riders: 2, deliveries_in_transit: 1, emergency_alerts: 1, unassigned_orders: 2 }));
+  if (path === '/staff/ops/overview' && lower === 'get') return Promise.resolve(mockResponse({ active_riders: 2, deliveries_in_transit: 1, emergency_alerts: 1, unassigned_orders: 2, mall_orders_waiting: MALL_ORDERS.filter((order) => ['pending_merchant', 'preparing'].includes(order.delivery_state)).length }));
+  if (path === '/staff/ops/mall-orders' && lower === 'get') return Promise.resolve(mockResponse({ orders: MALL_ORDERS }));
   if (path === '/staff/ops/incidents' && lower === 'get') return Promise.resolve(mockResponse([{ id: 1, rider: { id: 3, name: 'Rico the Rider', phone: '09170000003' }, order_id: 8, type: 'accident', description: 'Minor accident near San Jose', created_at: new Date().toISOString(), status: 'open' }]));
   if (/^\/staff\/ops\/incidents\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Incident resolved.', incident: {} }));
+  if (/^\/orders\/\d+\/state\/(accept|reject|mark_ready|confirm_collection)$/.test(path) && lower === 'post') {
+    const [, orderId, action] = path.match(/^\/orders\/(\d+)\/state\/(accept|reject|mark_ready|confirm_collection)$/) || [];
+    const order = MALL_ORDERS.find((item) => item.id === Number(orderId));
+    if (order) {
+      order.delivery_state = { accept: 'preparing', mark_ready: 'ready_for_pickup', confirm_collection: 'delivered', reject: 'cancelled' }[action];
+    }
+    return Promise.resolve(mockResponse({ message: 'Mall order status updated.', order }));
+  }
   if (path === '/staff/ops/dispatch' && lower === 'get') return Promise.resolve(mockResponse({ ready_orders: [{ id: 15, total_amount: '150.00', customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, items: [{ product: { name: 'Fresh Sili' } }], delivery_address: 'San Jose, Naga', latitude: 13.62, longitude: 123.18 }], riders: [{ id: 3, name: 'Rico the Rider', active_orders: 1 }, { id: 18, name: 'Berto', active_orders: 0 }] }));
   if (/^\/staff\/ops\/dispatch\/\d+\/assign$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Assigned to Rico the Rider.' }));
   if (path === '/staff/ops/status-board' && lower === 'get') return Promise.resolve(mockResponse({ ready_for_pickup: [], in_transit: [{ id: 8, total_amount: '80.00', customer: { name: 'Juan' }, items: [], status: 'out_for_delivery', elapsed_minutes: 60, estimated_delivery_minutes: 45 }], delivered: [{ id: 4, total_amount: '160.00', customer: { name: 'Maria' }, items: [], status: 'delivered' }], failed_returned: [] }));
   if (/^\/staff\/ops\/orders\/\d+\/status$/.test(path) && lower === 'put') return Promise.resolve(mockResponse({ message: 'Order status updated.' }));
+  if (path === '/staff/ops/history' && lower === 'get') {
+    const transactions = [
+      { id: 18, display_id: 'ORD-00018', created_at: new Date().toISOString(), status: 'assigned', delivery_state: 'raider_en_route_to_merchant', customer: { name: 'Juan Dela Cruz' }, merchant: { name: 'HABI Mall', barangay: 'San Jose', municipality: 'Naga City' }, rider: { id: 3, name: 'Rico the Rider' }, delivery_address: 'San Jose, Naga', dispatch_method: 'auto', total_amount: '495.00', trip_duration_min: null },
+      { id: 15, display_id: 'ORD-00015', created_at: new Date(Date.now() - 45 * 60e3).toISOString(), status: 'out_for_delivery', delivery_state: 'in_transit', customer: { name: 'Maria Santos' }, merchant: { name: 'Aling Maria Merch', barangay: 'Poblacion', municipality: 'Naga City' }, rider: { id: 18, name: 'Berto' }, delivery_address: 'Concepcion Grande, Naga', dispatch_method: 'manual', total_amount: '150.00', trip_duration_min: 26 },
+      { id: 8, display_id: 'ORD-00008', created_at: new Date(Date.now() - 864e5).toISOString(), status: 'delivered', delivery_state: 'delivered', customer: { name: 'Cora Bautista' }, merchant: { name: 'HABI Mall', barangay: 'San Jose', municipality: 'Naga City' }, rider: { id: 3, name: 'Rico the Rider' }, delivery_address: 'Sta. Cruz, Naga', dispatch_method: 'auto', total_amount: '320.00', trip_duration_min: 41 },
+    ];
+    const filtered = params?.status && params.status !== 'all' ? transactions.filter((transaction) => transaction.status === params.status) : transactions;
+    return Promise.resolve(mockResponse({ data: filtered, current_page: 1, last_page: 1, total: filtered.length }));
+  }
   if (path === '/staff/ops/tickets' && lower === 'get') return Promise.resolve(mockResponse([{ id: 1, subject: 'Damaged item', reporter_role: 'customer', user: { name: 'Juan' }, order_id: 4, description: 'Received dented can', proof_url: null, status: 'open' }]));
   if (/^\/staff\/ops\/tickets\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Ticket resolved.' }));
   if (path === '/staff/ops/hazards' && lower === 'get') return Promise.resolve(mockResponse({ zones: [{ name: 'San Jose', impassable: false }, { name: 'Sta. Cruz', impassable: false }] }));
@@ -604,27 +668,48 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse({ message: path.endsWith('activate') ? 'Merchant activated.' : 'Merchant deactivated.' }));
   }
 
-  // Module 2: BeCoolBox Mall
-  const MALL_PRODUCTS = [
-    { id: 201, merchant_id: 1, name: 'Bulk Bubble Wrap (50m)', description: 'Official BeCoolBox Mall item', price: '350.00', stock: 40, suki_points_award: 8, affiliate_percentage: '3.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
-    { id: 202, merchant_id: 1, name: 'Thermal Label Rolls (x100)', description: 'Official BeCoolBox Mall item', price: '220.00', stock: 80, suki_points_award: 5, affiliate_percentage: '0.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
-    { id: 203, merchant_id: 1, name: 'Cardboard Mailers (x50)', description: 'Official BeCoolBox Mall item', price: '480.00', stock: 25, suki_points_award: 10, affiliate_percentage: '5.00', image_url: null, category: 'Packaging', status: 'active', is_official_mall: true },
-    { id: 204, merchant_id: 1, name: 'Bicol Pili Nuts (Official)', description: 'Official BeCoolBox Mall item', price: '145.00', stock: 60, suki_points_award: 4, affiliate_percentage: '8.00', image_url: null, category: 'Provincial Goods', status: 'active', is_official_mall: true },
-  ];
+  // Module 2: HABI Mall
   if (path === '/admin/mall/products' && lower === 'get') return Promise.resolve(mockResponse({ data: MALL_PRODUCTS, total: MALL_PRODUCTS.length }));
   if (path === '/admin/mall/products' && lower === 'post') {
-    const p = { ...data, id: MALL_PRODUCTS.length + 200, merchant_id: 1, is_official_mall: true, status: 'active' };
+    const p = {
+      ...data,
+      id: Math.max(200, ...MALL_PRODUCTS.map((product) => product.id)) + 1,
+      merchant_id: 1,
+      merchant: { id: 1, name: 'HABI Mall' },
+      images: (data?.gallery || []).map((image, index) => ({ id: index + 1, image_url: image.image_url, sort_order: index })),
+      is_official_mall: true,
+      status: 'active',
+      availability: data?.availability || 'available',
+    };
     MALL_PRODUCTS.push(p);
     return Promise.resolve(mockResponse(p, 201));
   }
   if (/^\/admin\/mall\/products\/\d+$/.test(path) && (lower === 'put' || lower === 'delete')) {
     const pid = Number(path.match(/products\/(\d+)/)[1]);
     const idx = MALL_PRODUCTS.findIndex((p) => p.id === pid);
-    if (lower === 'put' && idx >= 0) MALL_PRODUCTS[idx] = { ...MALL_PRODUCTS[idx], ...data };
+    if (lower === 'put' && idx >= 0) MALL_PRODUCTS[idx] = {
+      ...MALL_PRODUCTS[idx],
+      ...data,
+      images: data?.gallery ? data.gallery.map((image, index) => ({ id: index + 1, image_url: image.image_url, sort_order: index })) : MALL_PRODUCTS[idx].images,
+    };
     if (lower === 'delete' && idx >= 0) MALL_PRODUCTS[idx] = { ...MALL_PRODUCTS[idx], status: 'archived' };
     return Promise.resolve(mockResponse(lower === 'put' ? MALL_PRODUCTS[idx] : { message: 'Mall product archived.' }));
   }
   if (path === '/staff/mall/inventory' && lower === 'get') return Promise.resolve(mockResponse({ data: MALL_PRODUCTS, total: MALL_PRODUCTS.length }));
+  if (path === '/staff/mall/products' && lower === 'post') {
+    const product = {
+      ...data,
+      id: Math.max(200, ...MALL_PRODUCTS.map((item) => item.id)) + 1,
+      merchant_id: 1,
+      merchant: { id: 1, name: 'HABI Mall' },
+      images: (data?.gallery || []).map((image, index) => ({ id: index + 1, image_url: image.image_url, sort_order: index })),
+      is_official_mall: true,
+      status: 'active',
+      availability: data?.availability || 'available',
+    };
+    MALL_PRODUCTS.push(product);
+    return Promise.resolve(mockResponse(product, 201));
+  }
 
   if (path === '/delivery/calculate' && lower === 'post') {
     const a = data?.dest_lat ?? SAN_JOSE.lat;
@@ -669,6 +754,10 @@ export function mockRequest(url, method, data, params = {}) {
       pending_cashouts: [
         { id: 1, user_name: 'Mang Juan', wallet_type: 'merchant_earnings', amount: 500, requested_at: new Date().toISOString() },
       ],
+      transaction_register: [
+        { id: 'ledger-1', recorded_at: new Date().toISOString(), source: 'ledger', type: 'sales_receipt', description: 'Customer payment received Order #17', amount: 220, direction: 'credit', account: 'System · sales escrow', counterparty: '—', order_id: 17 },
+        { id: 'ledger-2', recorded_at: new Date(Date.now() - 60000).toISOString(), source: 'ledger', type: 'mall_sale', description: 'Bayan Mall sale Order #17', amount: 220, direction: 'credit', account: 'HABI Admin · admin earnings', counterparty: 'System · sales escrow', order_id: 17 },
+      ],
     }));
   }
 
@@ -682,6 +771,14 @@ export function mockRequest(url, method, data, params = {}) {
       recent: [
         { id: 1, rider_name: 'Rider Juan', amount: 500, notes: 'Batch #12', recorded_by: 'Admin', created_at: new Date().toISOString() },
         { id: 2, rider_name: 'Rider Maria', amount: 300, notes: null, recorded_by: 'Admin', created_at: new Date(Date.now() - 864e5).toISOString() },
+      ],
+      pickup_collections: [
+        { id: 17, display_id: 'ORD-00017', hub_name: 'Nena San Jose Sari-Sari', collected_by: 'Nena Sari-Sari', amount: 220, collected_at: new Date().toISOString() },
+      ],
+      pickup_cod_collected: 220,
+      collection_transactions: [
+        { id: 'pickup-order-17', recorded_at: new Date().toISOString(), type: 'hub_cod_collection', reference: 'ORD-00017', collected_by: 'Nena Sari-Sari', amount: 220 },
+        { id: 'remittance-1', recorded_at: new Date(Date.now() - 864e5).toISOString(), type: 'rider_cod_remittance', reference: 'REM-00001', collected_by: 'Rider Juan', amount: 500 },
       ],
       total_outstanding: 400,
     }));

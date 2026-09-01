@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * BeCoolBox Mall CRUD (Module 2).
+ * Bayan Mall CRUD (Module 2).
  *
  * Admin manages the official flagship store's products (wholesale packaging
  * supplies, official provincial goods, bulk thermal paper, mailers).
@@ -24,7 +24,10 @@ class AdminMallController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json(
-            Product::officialMall()->with('merchant:id,name')->latest()->paginate($request->integer('per_page', 30))
+            Product::officialMall()
+                ->with(['merchant:id,name', 'images:id,product_id,image_url,sort_order'])
+                ->latest()
+                ->paginate($request->integer('per_page', 30))
         );
     }
 
@@ -52,6 +55,7 @@ class AdminMallController extends Controller
             'merchant_id' => (int) config('bayanbox.ledger.platform_user_id', 1),
             'is_official_mall' => true,
             'status' => 'active',
+            'availability' => $validated['availability'] ?? 'available',
         ]));
 
         $this->syncGallery($product, $validated['gallery'] ?? []);

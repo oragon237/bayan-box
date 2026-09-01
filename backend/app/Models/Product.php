@@ -76,7 +76,7 @@ class Product extends Model
     }
 
     /**
-     * BeCoolBox Mall flagship items (Module 2).
+     * Bayan Mall flagship items (Module 2).
      */
     public function scopeOfficialMall(Builder $query): Builder
     {

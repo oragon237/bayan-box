@@ -52,29 +52,91 @@ export default function StaffFinance({ user }) {
   if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
   if (!data) return <div className="text-center text-ink-400 py-20">No data available.</div>;
 
-  const { riders, recent } = data;
+  const { riders, recent, pickup_collections: pickupCollections = [], pickup_cod_collected: pickupCodCollected = 0, collection_transactions: collectionTransactions = [] } = data;
 
   return (
     <div className="space-y-5">
       <div className="rounded-3xl bg-gradient-to-br from-teal-700 to-teal-500 text-white p-5 shadow-lift">
-        <h2 className="text-2xl font-black tracking-tight">COD Remittance</h2>
-        <p className="text-white/75 text-sm mt-1">Record rider cash deposits and reconcile outstanding balances.</p>
+        <h2 className="text-2xl font-black tracking-tight">COD Collections & Remittance</h2>
+        <p className="text-white/75 text-sm mt-1">Track hub collections, record rider cash deposits, and reconcile balances.</p>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card p-4 text-center">
           <p className="text-[10px] font-bold text-ink-400 uppercase">Riders</p>
           <p className="text-2xl font-black text-ink-900">{riders.length}</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-[10px] font-bold text-ink-400 uppercase">Total COD collected</p>
+          <p className="text-[10px] font-bold text-ink-400 uppercase">Rider COD collected</p>
           <p className="text-2xl font-black text-amber-700">₱{Number(riders.reduce((s, r) => s + r.cod_collected, 0)).toLocaleString()}</p>
+        </div>
+        <div className="card p-4 text-center">
+          <p className="text-[10px] font-bold text-ink-400 uppercase">Hub COD collected</p>
+          <p className="text-2xl font-black text-bayan-700">₱{Number(pickupCodCollected).toLocaleString()}</p>
         </div>
         <div className="card p-4 text-center">
           <p className="text-[10px] font-bold text-ink-400 uppercase">Outstanding</p>
           <p className="text-2xl font-black text-red-600">₱{Number(data.total_outstanding).toLocaleString()}</p>
         </div>
+      </div>
+
+      {/* All cash collection events */}
+      <div>
+        <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">Collection Transaction Register</h3>
+        {collectionTransactions.length === 0 ? (
+          <div className="card p-4 text-center text-sm text-ink-400">No COD collection transactions recorded yet.</div>
+        ) : (
+          <div className="card overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="bg-ink-50 text-ink-500 font-bold uppercase tracking-wider">
+                <th className="p-2 text-left">Recorded</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Reference</th><th className="p-2 text-left">Handled by</th><th className="p-2 text-right">Amount</th>
+              </tr></thead>
+              <tbody>{collectionTransactions.map((transaction) => (
+                <tr key={transaction.id} className="border-t border-ink-50">
+                  <td className="p-2 text-ink-400 whitespace-nowrap">{transaction.recorded_at ? new Date(transaction.recorded_at).toLocaleString() : '—'}</td>
+                  <td className="p-2"><span className="chip border bg-bayan-50 text-bayan-700 border-bayan-200">{String(transaction.type).replace(/_/g, ' ')}</span></td>
+                  <td className="p-2 font-bold text-ink-700">{transaction.reference}</td>
+                  <td className="p-2 text-ink-600">{transaction.collected_by}</td>
+                  <td className="p-2 text-right font-bold text-green-700">₱{Number(transaction.amount).toLocaleString()}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Click-and-collect COD receipts */}
+      <div>
+        <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">Hub COD Collections</h3>
+        {pickupCollections.length === 0 ? (
+          <div className="card p-4 text-center text-sm text-ink-400">No completed click-and-collect COD orders.</div>
+        ) : (
+          <div className="card overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-ink-50 text-ink-500 font-bold uppercase tracking-wider">
+                  <th className="p-2 text-left">Order</th>
+                  <th className="p-2 text-left">Hub</th>
+                  <th className="p-2 text-left">Collected by</th>
+                  <th className="p-2 text-right">Amount</th>
+                  <th className="p-2 text-right">Collected at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pickupCollections.map((collection) => (
+                  <tr key={collection.id} className="border-t border-ink-50">
+                    <td className="p-2 font-bold text-ink-800">{collection.display_id}</td>
+                    <td className="p-2 text-ink-600">{collection.hub_name}</td>
+                    <td className="p-2 text-ink-600">{collection.collected_by}</td>
+                    <td className="p-2 text-right font-bold text-bayan-700">₱{Number(collection.amount).toLocaleString()}</td>
+                    <td className="p-2 text-right text-ink-400">{collection.collected_at ? new Date(collection.collected_at).toLocaleString() : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Record remittance form */}
@@ -145,10 +207,10 @@ export default function StaffFinance({ user }) {
         </div>
       </div>
 
-      {/* Recent remittances */}
+      {/* Rider remittances */}
       {recent?.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">Recent Remittances</h3>
+          <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">Rider COD Remittances</h3>
           <div className="card overflow-hidden">
             <table className="w-full text-xs">
               <thead>

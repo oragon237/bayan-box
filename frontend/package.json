@@ -3,7 +3,7 @@
   "private": true,
   "version": "3.0.0",
   "type": "module",
-  "description": "BayanBox (BodegaBarangay) Provincial Last-Mile Logistics PWA",
+  "description": "Bayan (BodegaBarangay) Provincial Last-Mile Logistics PWA",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

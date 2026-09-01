@@ -17,7 +17,7 @@ export default function AdminFinance({ user }) {
   if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
   if (!data) return <div className="text-center text-ink-400 py-20">No data available.</div>;
 
-  const { collected, wallets, riders, merchants, pending_cashouts } = data;
+  const { collected, wallets, riders, merchants, pending_cashouts, transaction_register: transactionRegister = [] } = data;
 
   return (
     <div className="space-y-5">
@@ -45,6 +45,31 @@ export default function AdminFinance({ user }) {
           <p className="text-2xl font-black text-amber-700 mt-1">₱{Number(collected.cod).toLocaleString()}</p>
           <p className="text-[10px] text-ink-400">Pending: ₱{Number(collected.cod_pending).toLocaleString()}</p>
         </div>
+      </div>
+
+      {/* Financial transaction register */}
+      <div>
+        <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider px-1 mb-2">Financial Transaction Register</h3>
+        {transactionRegister.length === 0 ? (
+          <div className="card p-4 text-center text-sm text-ink-400">No financial transactions recorded yet.</div>
+        ) : (
+          <div className="card overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="bg-ink-50 text-ink-500 font-bold uppercase tracking-wider">
+                <th className="p-2 text-left">Recorded</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Details</th><th className="p-2 text-left">Account</th><th className="p-2 text-right">Amount</th>
+              </tr></thead>
+              <tbody>{transactionRegister.map((transaction) => (
+                <tr key={transaction.id} className="border-t border-ink-50">
+                  <td className="p-2 text-ink-400 whitespace-nowrap">{transaction.recorded_at ? new Date(transaction.recorded_at).toLocaleString() : '—'}</td>
+                  <td className="p-2"><span className={`chip border ${transaction.direction === 'credit' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>{String(transaction.type).replace(/_/g, ' ')}</span></td>
+                  <td className="p-2 text-ink-600">{transaction.description}{transaction.order_id ? ` · Order #${transaction.order_id}` : ''}</td>
+                  <td className="p-2 text-ink-500">{transaction.account}{transaction.counterparty && transaction.counterparty !== '—' ? ` ↔ ${transaction.counterparty}` : ''}</td>
+                  <td className={`p-2 text-right font-bold ${transaction.direction === 'credit' ? 'text-green-700' : 'text-red-600'}`}>{transaction.direction === 'credit' ? '+' : '−'}₱{Number(transaction.amount).toLocaleString()}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Wallet Balances */}

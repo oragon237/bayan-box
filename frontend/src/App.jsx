@@ -21,6 +21,7 @@ import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
 import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
 import MarketplaceHome from './pages/marketplace/MarketplaceHome.jsx';
+import HomepageV2 from './pages/marketplace/HomepageV2.jsx';
 import SearchPage from './pages/marketplace/SearchPage.jsx';
 import MerchantStorefront from './pages/marketplace/MerchantStorefront.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
@@ -44,6 +45,7 @@ import AdminAds from './pages/admin/AdminAds.jsx';
 import AdminSettings from './pages/admin/AdminSettings.jsx';
 import AdminFinance from './pages/admin/AdminFinance.jsx';
 import StaffMall from './pages/staff/StaffMall.jsx';
+import StaffMallOrders from './pages/staff/StaffMallOrders.jsx';
 import StaffFinance from './pages/staff/StaffFinance.jsx';
 import StaffDispatch from './pages/staff/StaffDispatch.jsx';
 import StaffDashboard from './pages/staff/StaffDashboard.jsx';
@@ -123,7 +125,7 @@ export default function App() {
   if (booting) {
     return (
       <div className="min-h-screen bg-ink-100 flex items-center justify-center">
-        <div className="text-center text-ink-400 animate-pulse-soft">Loading BayanBox…</div>
+        <div className="text-center text-ink-400 animate-pulse-soft">Loading HABI…</div>
       </div>
     );
   }
@@ -164,9 +166,10 @@ export default function App() {
 function MainRoutes({ user, onAuth }) {
   return (
     <Routes>
-      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : user?.role === 'rider' ? <RiderDashboard user={user} /> : <MarketplaceHome user={user} />} />
+      <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : user?.role === 'rider' ? <RiderDashboard user={user} /> : <HomepageV2 user={user} />} />
       <Route path="/rider/dashboard" element={<RiderDashboard user={user} />} />
       <Route path="/search" element={<SearchPage user={user} />} />
+      <Route path="/mall" element={<SearchPage user={user} />} />
       <Route path="/store/:id" element={<MerchantStorefront user={user} />} />
       <Route path="/marketplace/category/:slug" element={<SearchPage user={user} />} />
       <Route path="/admin/dashboard" element={<AdminDashboard user={user} />} />
@@ -205,6 +208,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/admin/mall" element={<AdminMall user={user} />} />
           <Route path="/admin/riders" element={<AdminRiders user={user} />} />
           <Route path="/staff/mall" element={<StaffMall user={user} />} />
+          <Route path="/staff/mall/orders" element={<StaffMallOrders user={user} />} />
           <Route path="/staff/dispatch" element={<StaffDispatch user={user} />} />
           <Route path="/provider/profile" element={<ProviderProfile user={user} />} />
           <Route path="/provider/jobs" element={<ProviderJobs user={user} />} />

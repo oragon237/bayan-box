@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import { useToast } from '../../components/ui.jsx';
 
-const DEFAULT_BANNER = 'https://placehold.co/1200x300/673de6/ffffff?text=BayanBox+Store';
+const DEFAULT_BANNER = 'https://placehold.co/1200x300/0f766e/ffffff?text=HABI+Store';
 const DEFAULT_LOGO = 'https://placehold.co/200x200/673de6/ffffff?text=🛍️';
 
 const TABS = [
@@ -156,7 +156,7 @@ export default function MerchantStorefront({ user }) {
         <div className="relative h-36 sm:h-44 bg-gradient-to-br from-bayan-700 to-bayan-500">
           <SafeImg src={merchant.banner_url} alt="banner" fallback={DEFAULT_BANNER} className="w-full h-full object-cover" />
           {merchant.is_official_mall && (
-            <span className="absolute top-3 left-3 bg-bayan-600 text-white text-[11px] font-black px-2 py-1 rounded-full">BeCoolBox Official</span>
+            <span className="absolute top-3 left-3 bg-bayan-600 text-white text-[11px] font-black px-2 py-1 rounded-full">HABI Official</span>
           )}
         </div>
         <div className="p-5">
@@ -331,7 +331,7 @@ export default function MerchantStorefront({ user }) {
           </div>
           <div>
             <h4 className="font-bold text-ink-800 mb-1">Seller background</h4>
-            <p className="text-sm text-ink-500">{merchant.verified ? 'This is a verified merchant on BayanBox, serving the local community.' : 'This merchant is pending verification.'}</p>
+            <p className="text-sm text-ink-500">{merchant.verified ? 'This is a verified merchant on HABI, serving the local community.' : 'This merchant is pending verification.'}</p>
           </div>
         </div>
       )}

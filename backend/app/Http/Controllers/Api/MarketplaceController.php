@@ -60,6 +60,13 @@ class MarketplaceController extends Controller
             $query->where('points_only', true);
         }
 
+        // Dedicated public HABI Mall catalogue. Mall goods remain in the
+        // general marketplace too, but this lets customers browse the
+        // official catalogue without mixing in third-party listings.
+        if ($request->boolean('official_mall')) {
+            $query->where('is_official_mall', true);
+        }
+
         // Sorting
         switch ($request->input('sort')) {
             case 'reviews':
@@ -149,6 +156,25 @@ class MarketplaceController extends Controller
         return response()->json(
             Product::active()->distinct()->orderBy('category')->pluck('category')
         );
+    }
+
+    /**
+     * GET /api/products/category-images — one hero image per category.
+     * Lightweight (6-ish rows) for the homepage category rail.
+     * Priority: official mall goods first, then newest product with a photo.
+     */
+    public function categoryImages(): JsonResponse
+    {
+        $images = Product::active()
+            ->whereNotNull('image_url')
+            ->where('image_url', '!=', '')
+            ->orderByDesc('is_official_mall')
+            ->orderByDesc('id')
+            ->get(['category', 'image_url'])
+            ->unique('category')
+            ->values();
+
+        return response()->json($images);
     }
 
     /**

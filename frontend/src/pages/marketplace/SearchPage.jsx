@@ -82,6 +82,7 @@ export default function SearchPage({ user }) {
   const notify = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const mallOnly = searchParams.get('mall') === '1' || window.location.pathname === '/mall';
   const inputRef = useRef(null);
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
@@ -124,6 +125,7 @@ export default function SearchPage({ user }) {
       if (minPrice) params.min_price = minPrice;
       if (maxPrice) params.max_price = maxPrice;
       if (onSaleOnly) params.on_sale = 1;
+      if (mallOnly) params.official_mall = 1;
       if (sort !== 'relevance') params.sort = sort;
       const res = await client.get('/products', { params });
       const list = Array.isArray(res.data.data) ? res.data.data : [];
@@ -140,7 +142,7 @@ export default function SearchPage({ user }) {
     }
   };
 
-  useEffect(() => { setPage(1); load(true); }, [debouncedQuery, category, city, minPrice, maxPrice, onSaleOnly, sort]);
+  useEffect(() => { setPage(1); load(true); }, [debouncedQuery, category, city, minPrice, maxPrice, onSaleOnly, sort, mallOnly]);
   useEffect(() => { if (page > 1) load(false); }, [page]);
 
   const saveRecent = (q) => {
@@ -185,13 +187,20 @@ export default function SearchPage({ user }) {
 
   return (
     <div className="space-y-5">
+      {mallOnly && (
+        <div className="rounded-3xl bg-gradient-to-br from-ink-900 via-bayan-800 to-bayan-600 p-5 text-white shadow-lift">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-bayan-200">Official store</p>
+          <h1 className="mt-1 text-2xl font-black tracking-tight">HABI Mall</h1>
+          <p className="mt-1 text-sm text-white/75">Browse every official HABI product in one place.</p>
+        </div>
+      )}
       {/* Sticky search bar */}
       <div className="sticky top-[88px] z-30 bg-ink-100/95 backdrop-blur -mx-4 px-4 py-2">
         <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveRecent(query); }} placeholder="Search products, stores, or descriptions…" className="field" />
       </div>
 
       {/* Empty state: suggestions */}
-      {!debouncedQuery && !category && (
+      {!mallOnly && !debouncedQuery && !category && (
         <div className="space-y-4">
           {RECENT.length > 0 && (
             <div>

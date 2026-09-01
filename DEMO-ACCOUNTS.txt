@@ -1,0 +1,55 @@
+============================================================
+ BAYAN — DEMO / DUMMY ACCOUNTS (REFERENCE)
+============================================================
+ Login URL : http://localhost:3000
+ Username  : PHONE NUMBER (no spaces, no +63)
+ Password  : Password123!  (SAME FOR ALL ACCOUNTS)
+============================================================
+
+QUICK START — CORE ROLES
+------------------------------------------------------------
+ Admin    → 09170000001  (Bayan Admin)
+ Staff    → 09170000002  (Nena Sari-Sari)
+ Rider    → 09170000003  (Rico the Rider)
+ Merchant → 09170000004  (Aling Maria Merch — verified, Tara Sipocot)
+ Customer → 09170000005  (Juan Dela Cruz — Tara Sipocot)
+ Provider → 09170000006  (Mang Cardo Pro)
+
+------------------------------------------------------------
+ ALL ACCOUNTS (22) — sorted by ID
+------------------------------------------------------------
+ID | NAME                | PHONE        | ROLE     | LOCATION / NOTES
+1  | Bayan Admin         | 09170000001  | admin    | Naga City — flagship store
+2  | Nena Sari-Sari      | 09170000002  | staff    | Naga City
+3  | Rico the Rider      | 09170000003  | rider    | Naga City
+4  | Aling Maria Merch   | 09170000004  | merchant | Tara, Sipocot, Camarines Sur (verified)
+5  | Juan Dela Cruz      | 09170000005  | customer | Tara, Sipocot, Camarines Sur
+6  | Mang Cardo Pro      | 09170000006  | provider | Sta. Cruz, Naga City
+7  | Raul Berina         | 09774755505  | customer | (personal)
+8  | Raul Berina         | 09774755501  | customer | (personal)
+10 | Ate Belen Aircon    | 09170000007  | provider | Naga City
+11 | Kuya Dom Plumber    | 09170000008  | provider | Naga City
+12 | Manong Ely Electrician | 09170000009| provider | Naga City
+13 | Nanay Imelda Handyman | 09170000010 | provider | Naga City
+14 | New Seller          | 09179999999  | merchant | verified
+15 | Unverified Seller   | 09178888888  | merchant | NOT verified (tests 403 gates)
+16 | Unverified Seller 2 | 09177777777  | merchant | NOT verified (tests 403 gates)
+17 | Unverified Seller 3 | 09176666666  | merchant | DEACTIVATED
+18 | Berto the Rider     | 09175550000  | rider    | —
+19 | Referred User       | 09179990000  | customer | affiliate-referred
+20 | Referred User 2     | 09179990001  | customer | affiliate-referred
+21 | Liza Reviewer       | 09170000011  | customer | Poblacion, Santa Cruz
+22 | Tomas Reviewer      | 09170000012  | customer | Poblacion, Santa Cruz
+23 | Jucy Berina         | 09885866606  | customer | (personal)
+
+------------------------------------------------------------
+ ROLE NOTES
+------------------------------------------------------------
+* Staff (02)    → blocked from personal affiliate program (403).
+* Merchant 15/16 → pending_verification → cannot create/update products.
+* Merchant 17   → deactivated → cannot log in to merchant flows.
+* Providers 6, 10-13 → skilled workers (aircon, plumbing, electrician,
+  handyman) with official Bayan Worker badge where applicable.
+* Customers 21/22 → reviewer accounts (Santa Cruz area).
+
+============================================================

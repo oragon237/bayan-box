@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         // 1. Users (all six RBAC roles)
         // -----------------------------------------------------------------
         $users = [
-            ['name' => 'BayanBox Admin', 'phone' => '09170000001', 'role' => 'admin'],
+            ['name' => 'Bayan Admin', 'phone' => '09170000001', 'role' => 'admin'],
             ['name' => 'Nena Sari-Sari', 'phone' => '09170000002', 'role' => 'staff'],
             ['name' => 'Rico the Rider', 'phone' => '09170000003', 'role' => 'rider'],
             ['name' => 'Aling Maria Merch', 'phone' => '09170000004', 'role' => 'merchant'],
@@ -207,7 +207,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // -----------------------------------------------------------------
-        // 9. BeCoolBox Mall (Module 2) — mark admin as flagship store
+        // 9. Bayan Mall (Module 2) — mark admin as flagship store
         // -----------------------------------------------------------------
         $admin = $created['admin'];
         $admin->update([
@@ -226,7 +226,7 @@ class DatabaseSeeder extends Seeder
                 ['name' => $mallProduct['name']],
                 array_merge($mallProduct, [
                     'merchant_id' => $admin->id,
-                    'description' => "Official BeCoolBox Mall item — {$mallProduct['name']}.",
+                    'description' => "Official Bayan Mall item — {$mallProduct['name']}.",
                     'image_url' => null,
                     'status' => 'active',
                     'is_official_mall' => true,
@@ -240,6 +240,6 @@ class DatabaseSeeder extends Seeder
             ['balance' => 0.00, 'currency' => 'PHP', 'created_at' => now(), 'updated_at' => now()],
         );
 
-        $this->command->info('BayanBox demo data seeded.');
+        $this->command->info('Bayan demo data seeded.');
     }
 }

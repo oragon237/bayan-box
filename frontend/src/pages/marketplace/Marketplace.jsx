@@ -205,7 +205,7 @@ export default function Marketplace({ user }) {
                   {p.image_url || (p.images && p.images[0]?.image_url) ? <img src={p.image_url || p.images[0].image_url} alt={p.name} className="w-full h-full object-cover" /> : <span>🛒</span>}
                 </button>
                 <span className="inline-block bg-bayan-50 text-bayan-700 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">{p.category}</span>
-                {p.is_official_mall && <span className="inline-block bg-bayan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ml-1">BeCoolBox Official</span>}
+                {p.is_official_mall && <span className="inline-block bg-bayan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ml-1">HABI Official</span>}
                 {p.is_sponsored && <span className="inline-block bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ml-1">Sponsored</span>}
                 <button
                   onClick={() => {
