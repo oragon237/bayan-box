@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -207,6 +208,19 @@ class MarketplaceService
             // 6. Clear the cart
             CartItem::where('customer_id', $customer->id)->delete();
 
+            Log::info('Checkout completed', [
+                'order_id' => $order->id,
+                'customer_id' => $customer->id,
+                'total_amount' => $order->total_amount,
+                'shipping_amount' => $order->shipping_amount,
+                'fulfillment' => $fulfillment,
+                'payment_method' => $payload['payment_method'] ?? 'gcash',
+                'is_cod' => $isCod,
+                'affiliate_id' => $affiliate?->id,
+                'item_count' => $items->count(),
+                'points_total' => $pointsTotal,
+            ]);
+
             return $order->load('items.product');
         });
     }
@@ -236,6 +250,15 @@ class MarketplaceService
             return;
         }
 
+        Log::info('Releasing order payouts', [
+            'order_id' => $order->id,
+            'total_amount' => $order->total_amount,
+            'shipping_amount' => $order->shipping_amount,
+            'fulfillment' => $order->fulfillment_type,
+            'payment_method' => $order->payment_method,
+            'is_cod' => $order->payment_method === 'cod',
+        ]);
+
         $platformUserId = (int) config('bayanbox.ledger.platform_user_id', 1);
         $escrow = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_SALES_ESCROW);
         $platformWallet = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_PLATFORM_EARNINGS);
@@ -258,12 +281,12 @@ class MarketplaceService
             $affiliatePayout = (float) $item->affiliate_payout_amount;
 
             if ($product->is_official_mall) {
-                // Bayan Mall: 100% to admin_earnings, 0% rake
+                // HABI Mall: 100% to admin_earnings, 0% rake
                 $adminPayout = round($itemTotal, 2) - $affiliatePayout;
                 $adminWallet = $this->wallets->ensureWallet($platformUserId, Wallet::TYPE_ADMIN_EARNINGS);
                 if ($adminPayout > 0) {
                     $this->wallets->transfer($escrow, $adminWallet, $adminPayout,
-                        "Bayan Mall sale Order #{$order->id} — {$product->name}",
+                        "HABI Mall sale Order #{$order->id} — {$product->name}",
                         'mall_sale', $order);
                 }
             } else {
@@ -285,14 +308,14 @@ class MarketplaceService
             }
 
             // Affiliate commission — held in escrow for the grace period
-            // (FR-AFF-004). The affiliate wallet is credited only after
-            // `affiliate:release-commissions` runs and the order was not
-            // cancelled within commission_hold_hours.
-            if ($affiliatePayout > 0 && $order->referring_affiliate_id) {
-                $affiliate = User::find($order->referring_affiliate_id);
-                if ($affiliate) {
-                    $this->affiliate->holdCommission($order, $affiliate, $affiliatePayout);
-                }
+            // (FR-AFF-004) via holdCommission; released to the affiliate
+            // wallet by `affiliate:release-commissions` after the 72h hold
+            // elapses and the order was not cancelled. Staff referrers are
+            // excluded from the program (F4): their share stays in escrow.
+            $affiliate = $order->referring_affiliate_id ? User::find($order->referring_affiliate_id) : null;
+            $affiliateEligible = $affiliate && $affiliate->role !== 'staff';
+            if ($affiliateEligible && $affiliatePayout > 0) {
+                $this->affiliate->holdCommission($order, $affiliate, $affiliatePayout);
             }
         }
 
@@ -334,6 +357,14 @@ class MarketplaceService
                 "Click-and-collect handling fee Order #{$order->id}",
                 'pickup_handling_fee', $order);
         }
+
+        Log::info('Order payouts released', [
+            'order_id' => $order->id,
+            'total_released' => $totalDue,
+            'ledger_rows' => \App\Models\LedgerTransaction::where('reference_type', Order::class)
+                ->where('reference_id', $order->id)
+                ->count(),
+        ]);
     }
 
     /**

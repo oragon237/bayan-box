@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -223,6 +224,15 @@ class OrderStateMachine
 
         $order->save();
 
+        Log::info('Order state transition', [
+            'order_id' => $order->id,
+            'action' => $action,
+            'from_state' => $order->getOriginal('delivery_state'),
+            'to_state' => $to,
+            'actor_id' => $actor->id,
+            'actor_role' => $actor->role,
+        ]);
+
         // Release COD payouts when delivered (collect cash at hand-off)
         if ($to === Order::STATE_DELIVERED && $order->payment_method === 'cod') {
             app(MarketplaceService::class)->releaseOrderPayouts($order);
@@ -259,6 +269,11 @@ class OrderStateMachine
         if ($order->delivery_state !== Order::STATE_PENDING_MERCHANT) {
             return false;
         }
+
+        Log::info('Order auto-cancelled', [
+            'order_id' => $order->id,
+            'reason' => $reason,
+        ]);
 
         $order->update(['delivery_state' => Order::STATE_CANCELLED, 'status' => 'cancelled', 'cancel_reason' => $reason]);
 

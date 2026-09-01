@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Bayan Referral — {{ $hub->name }}</title>
+    <title>HABI Referral — {{ $hub->name }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1f2937; }
@@ -27,9 +27,9 @@
     <div class="poster">
         <div class="brand">
             @if(!empty($logoDataUrl))
-                <img src="{{ $logoDataUrl }}" alt="Bayan">
+                <img src="{{ $logoDataUrl }}" alt="HABI">
             @endif
-            Bayan
+            HABI
         </div>
         <div class="tagline">Local stores · Riders · Your community</div>
 
@@ -49,11 +49,11 @@
 
         <div class="steps">
             <div class="step"><b>1. Scan</b>Scan this QR with your phone camera</div>
-            <div class="step"><b>2. Register</b>Create your free Bayan account</div>
+            <div class="step"><b>2. Register</b>Create your free HABI account</div>
             <div class="step"><b>3. Earn</b>Every parcel you receive supports this store</div>
         </div>
 
-        <div class="footer">Bayan · Referral Code: {{ $hub->referral_code }}</div>
+        <div class="footer">HABI · Referral Code: {{ $hub->referral_code }}</div>
     </div>
 </body>
 </html>

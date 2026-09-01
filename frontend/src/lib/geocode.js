@@ -50,7 +50,7 @@ async function tryGeocode(query) {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ph&q=${encodeURIComponent(query)}`,
-      { headers: { Accept: 'application/json', 'User-Agent': 'Bayan/1.0' } },
+      { headers: { Accept: 'application/json', 'User-Agent': 'HABI/1.0' } },
     );
     if (!res.ok) return null;
     const data = await res.json();

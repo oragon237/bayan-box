@@ -182,14 +182,14 @@ class MasterSeeder extends Seeder
             ['Bulk Bubble Wrap (50m)', $m1, 'Packaging', 350, null, 40, false, null, 8],
             ['Thermal Label Rolls', $m1, 'Packaging', 220, 180, 80, false, null, 5],
             ['Cardboard Mailers (x50)', $m1, 'Packaging', 480, null, 25, false, null, 10],
-            ['Bayan Sticker Pack', $m1, 'Packaging', 90, null, 5, false, null, 1],
+            ['HABI Sticker Pack', $m1, 'Packaging', 90, null, 5, false, null, 1],
             ['Pili Nuts (Official)', $admin, 'Provincial Goods', 145, 120, 60, false, null, 4],
             ['Bicol Chili Oil', $admin, 'Provincial Goods', 160, null, 35, false, null, 3],
             ['Provincial Honey (250g)', $admin, 'Provincial Goods', 280, 230, 20, false, null, 5],
             ['Coconut Vinegar (Sukang Sasa)', $admin, 'Provincial Goods', 75, null, 90, false, null, 2],
-            ['Official Bayan Tumbler', $admin, 'Points Shop', 0, null, 25, true, 300, 0],
+            ['Official HABI Tumbler', $admin, 'Points Shop', 0, null, 25, true, 300, 0],
             ['Suki Rewards Notebook', $admin, 'Points Shop', 0, null, 50, true, 120, 0],
-            ['Bayan Eco Tote (Points)', $admin, 'Points Shop', 0, null, 40, true, 200, 0],
+            ['HABI Eco Tote (Points)', $admin, 'Points Shop', 0, null, 40, true, 200, 0],
             ['Fresh Mangoes (1kg)', $m2, 'Fresh Produce', 150, 130, 30, false, null, 4],
             ['Homemade Longganisa', $m2, 'Home Cooks', 180, null, 15, false, null, 3],
             ['Souvenir Keychains', $m2, 'Local Crafts', 50, null, 200, false, null, 1],
@@ -492,7 +492,7 @@ class MasterSeeder extends Seeder
     {
         $this->command->newLine();
         $this->command->info('╔════════════════════════════════════════════════════════════╗');
-        $this->command->info('║            Bayan Master Seed Complete                    ║');
+        $this->command->info('║            HABI Master Seed Complete                     ║');
         $this->command->info('╚════════════════════════════════════════════════════════════╝');
         $this->command->newLine();
 

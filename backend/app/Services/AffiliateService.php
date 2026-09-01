@@ -9,6 +9,7 @@ use App\Models\PendingAffiliateCommission;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -49,16 +50,33 @@ class AffiliateService
             $customer->referred_by_id = $hub->staff_id;
             $customer->save();
 
+            Log::info('Referral registered via hub', [
+                'customer_id' => $customer->id,
+                'referrer_id' => $hub->staff_id,
+                'hub_id' => $hub->id,
+                'referral_code' => $referralCode,
+            ]);
+
             return true;
         }
 
-        // 2. User affiliate code → that user (no self-referral)
+        // 2. User affiliate code → that user (no self-referral).
+        //    Staff accounts are excluded from the affiliate program: their
+        //    codes can never attribute referrals (F4).
         $referrer = User::where('affiliate_code', $referralCode)
             ->where('id', '!=', $customer->id)
+            ->whereNotIn('role', ['staff', 'admin'])
             ->first();
         if ($referrer) {
             $customer->referred_by_id = $referrer->id;
             $customer->save();
+
+            Log::info('Referral registered via user', [
+                'customer_id' => $customer->id,
+                'referrer_id' => $referrer->id,
+                'referrer_role' => $referrer->role,
+                'referral_code' => $referralCode,
+            ]);
 
             return true;
         }
@@ -156,13 +174,22 @@ class AffiliateService
     {
         $hours = (int) config('bayanbox.affiliate.commission_hold_hours', 72);
 
-        return PendingAffiliateCommission::create([
+        $record = PendingAffiliateCommission::create([
             'order_id' => $order->id,
             'affiliate_id' => $affiliate->id,
             'amount' => round($amount, 2),
             'held_until' => now()->addHours($hours),
             'status' => PendingAffiliateCommission::STATUS_PENDING,
         ]);
+
+        Log::info('Affiliate commission held', [
+            'order_id' => $order->id,
+            'affiliate_id' => $affiliate->id,
+            'amount' => round($amount, 2),
+            'held_until' => $record->held_until,
+        ]);
+
+        return $record;
     }
 
     /**
@@ -217,6 +244,13 @@ class AffiliateService
                 }
             });
 
+        if ($released > 0) {
+            Log::info('Affiliate commissions released', [
+                'count' => $released,
+                'escrow_wallet' => $escrow->id,
+            ]);
+        }
+
         return $released;
     }
 
@@ -226,11 +260,20 @@ class AffiliateService
      */
     public function voidPendingForOrder(Order $order): int
     {
-        return PendingAffiliateCommission::where('order_id', $order->id)
+        $voided = PendingAffiliateCommission::where('order_id', $order->id)
             ->where('status', PendingAffiliateCommission::STATUS_PENDING)
             ->update([
                 'status' => PendingAffiliateCommission::STATUS_CANCELLED,
                 'cancelled_at' => now(),
             ]);
+
+        if ($voided > 0) {
+            Log::info('Pending affiliate commissions voided', [
+                'order_id' => $order->id,
+                'count' => $voided,
+            ]);
+        }
+
+        return $voided;
     }
 }

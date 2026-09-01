@@ -8,7 +8,7 @@ $appUrl = (string) env('APP_URL', 'http://localhost:8000');
 $isLive = Str::contains($appUrl, 'becoolbox.app');
 
 return [
-    'name' => env('APP_NAME', 'Bayan'),
+    'name' => env('APP_NAME', 'HABI'),
 
     'env' => env('APP_ENV', $isLive ? 'production' : 'local'),
 

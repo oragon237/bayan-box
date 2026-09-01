@@ -6,6 +6,7 @@ use App\Models\LedgerTransaction;
 use App\Models\Order;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -44,7 +45,7 @@ class WalletService
                 throw new RuntimeException("Duplicate transaction hash: {$hash}");
             }
 
-            return LedgerTransaction::create([
+            $entry = LedgerTransaction::create([
                 'wallet_id' => $wallet->id,
                 'counterparty_wallet_id' => $counterpartyWallet?->id,
                 'amount' => $amount,
@@ -57,6 +58,19 @@ class WalletService
                 'reference_id' => $reference?->getKey(),
                 'meta' => $meta,
             ]);
+
+            Log::info('Wallet credited', [
+                'wallet_id' => $wallet->id,
+                'wallet_type' => $wallet->wallet_type,
+                'user_id' => $wallet->user_id,
+                'amount' => $amount,
+                'balance_after' => $wallet->balance,
+                'type' => $type ?? 'manual',
+                'hash' => $hash,
+                'counterparty_wallet_id' => $counterpartyWallet?->id,
+            ]);
+
+            return $entry;
         });
     }
 
@@ -89,7 +103,7 @@ class WalletService
                 throw new RuntimeException("Duplicate transaction hash: {$hash}");
             }
 
-            return LedgerTransaction::create([
+            $entry = LedgerTransaction::create([
                 'wallet_id' => $wallet->id,
                 'counterparty_wallet_id' => $counterpartyWallet?->id,
                 'amount' => -$amount,
@@ -102,6 +116,19 @@ class WalletService
                 'reference_id' => $reference?->getKey(),
                 'meta' => $meta,
             ]);
+
+            Log::info('Wallet debited', [
+                'wallet_id' => $wallet->id,
+                'wallet_type' => $wallet->wallet_type,
+                'user_id' => $wallet->user_id,
+                'amount' => $amount,
+                'balance_after' => $wallet->balance,
+                'type' => $type ?? 'manual',
+                'hash' => $hash,
+                'counterparty_wallet_id' => $counterpartyWallet?->id,
+            ]);
+
+            return $entry;
         });
     }
 
@@ -123,6 +150,16 @@ class WalletService
 
             $debit = $this->debit($sourceLocked, $amount, $description, $type, $destinationLocked, $reference, $meta);
             $credit = $this->credit($destinationLocked, $amount, $description, $type, $sourceLocked, $reference, $meta);
+
+            Log::info('Wallet transfer', [
+                'from_wallet' => $sourceLocked->id,
+                'from_type' => $sourceLocked->wallet_type,
+                'to_wallet' => $destinationLocked->id,
+                'to_type' => $destinationLocked->wallet_type,
+                'amount' => $amount,
+                'type' => $type,
+                'description' => $description,
+            ]);
 
             return compact('debit', 'credit');
         });
@@ -150,6 +187,12 @@ class WalletService
     {
         $platformUserId = (int) config('bayanbox.ledger.platform_user_id', 1);
         $escrow = $this->ensureWallet($platformUserId, Wallet::TYPE_SALES_ESCROW);
+
+        Log::info('Refund initiated', [
+            'order_id' => $order->id,
+            'reason' => $reason,
+            'escrow_wallet' => $escrow->id,
+        ]);
 
         // Reverse every recipient payout back into the escrow pool.
         // The `sales_receipt` (escrow money-in) is intentionally excluded — it

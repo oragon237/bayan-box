@@ -50,4 +50,13 @@ class SystemSettingService
     {
         return $this->get($group)[$key] ?? $default;
     }
+
+    /**
+     * Minimum cash-out threshold from admin settings (F2), falling back to
+     * the env-based config default.
+     */
+    public function minCashout(): float
+    {
+        return (float) ($this->get('fees')['min_cashout'] ?? config('bayanbox.affiliate.min_cashout', 200));
+    }
 }

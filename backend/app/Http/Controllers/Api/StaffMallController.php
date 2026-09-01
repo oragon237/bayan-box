@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Staff inventory visibility for Bayan Mall (Module 2).
+ * Staff inventory visibility for HABI Mall (Module 2).
  *
  * Hub staff can view stock levels of all official mall products, reserve
  * items for local hub inventory, and process local over-the-counter pickups.

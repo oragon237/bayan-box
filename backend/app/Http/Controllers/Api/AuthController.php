@@ -68,13 +68,18 @@ class AuthController extends Controller
             'municipality' => $validated['municipality'] ?? null,
         ]);
 
-        // FR-AFF-001: Register referral link if scanned a hub poster
+        // FR-AFF-001: Register referral link if scanned a hub poster.
+        // Track attribution outcome so the user can be informed (F5).
+        $referralStatus = 'none';
         if (! empty($validated['referral_code'])) {
             try {
                 $this->affiliate->registerReferral($user, $validated['referral_code']);
+                $referralStatus = 'applied';
             } catch (\Throwable) {
-                // Non-blocking: referral doesn't prevent registration
+                $referralStatus = 'invalid'; // surfaced to the user, non-blocking
             }
+        } elseif ($isMerchant) {
+            $referralStatus = 'none';
         }
 
         // Item 11: notify admins of a new merchant applicant
@@ -84,6 +89,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user->only(['id', 'name', 'phone', 'role', 'affiliate_code', 'barangay', 'municipality']),
+            'referral_status' => $referralStatus,
             'token' => $user->createToken('bayanbox-pwa', [$user->role])->plainTextToken,
         ], 201);
     }

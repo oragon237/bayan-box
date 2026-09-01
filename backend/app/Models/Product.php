@@ -76,7 +76,7 @@ class Product extends Model
     }
 
     /**
-     * Bayan Mall flagship items (Module 2).
+     * HABI Mall flagship items (Module 2).
      */
     public function scopeOfficialMall(Builder $query): Builder
     {

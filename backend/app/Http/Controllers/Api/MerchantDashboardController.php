@@ -9,6 +9,8 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Wallet;
 use App\Services\WalletService;
+use App\Services\DeliveryAssignmentService;
+use App\Services\SystemSettingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ class MerchantDashboardController extends Controller
 {
     public function __construct(
         protected WalletService $wallets,
+        protected SystemSettingService $settings,
     ) {}
 
     /**
@@ -144,7 +147,7 @@ class MerchantDashboardController extends Controller
 
         $amount = round((float) $validated['amount'], 2);
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_MERCHANT_EARNINGS);
-        $min = (float) config('bayanbox.affiliate.min_cashout', 200);
+        $min = $this->settings->minCashout();
 
         if ($amount < $min) {
             return response()->json(['message' => "Minimum cash-out is ₱".number_format($min, 2).'.'], 422);

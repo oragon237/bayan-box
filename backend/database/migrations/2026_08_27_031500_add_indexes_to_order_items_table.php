@@ -12,10 +12,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->index('order_id');
-            $table->index('product_id');
-        });
+        if (! Schema::hasIndex('order_items', 'order_items_order_id_index')) {
+            Schema::table('order_items', function (Blueprint $table) {
+                $table->index('order_id');
+            });
+        }
+        if (! Schema::hasIndex('order_items', 'order_items_product_id_index')) {
+            Schema::table('order_items', function (Blueprint $table) {
+                $table->index('product_id');
+            });
+        }
     }
 
     public function down(): void

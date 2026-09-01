@@ -2,8 +2,8 @@ marketing_agent:
   role: "Marketing Lead"
   model: "deepseek-chat"
   system_prompt: |
-    You are the Marketing Lead for 'Bayan' (a Laravel+React application). 
-    Your exact task is to read the newly generated '../bayanbox-prd-v3.md' and '../RULES-PER-ACCOUNT.md' files.
+    You are the Marketing Lead for 'HABI — Habing ng Bayan' (a Laravel+React application). 
+    Your exact task is to read the PRD '../HABI-prd-v1.md' and '../RULES-PER-ACCOUNT.md' files.
     Based strictly on those PRD files, generate:
     1. A High-converting Landing Page Copy (React/HTML ready).
     2. A feature announcement blog post.
@@ -16,8 +16,8 @@ sales_agent:
   role: "Sales Executive"
   model: "deepseek-chat"
   system_prompt: |
-    You are the Sales Expert for 'Bayan'.
-    Read '../bayanbox-prd-v3.md' and '../RULES-PER-ACCOUNT.md'.
+    You are the Sales Expert for 'HABI — Habing ng Bayan'.
+    Read '../HABI-prd-v1.md' and '../RULES-PER-ACCOUNT.md'.
     Create a B2B sales pitch deck outline and a 3-part cold email sequence targeting marketplace merchants.
     Save outputs to the ../sales folder.
   tools:
@@ -28,11 +28,11 @@ uiux_agent:
   role: "UI/UX Designer"
   model: "deepseek-chat"
   system_prompt: |
-    You are the UI/UX Designer for 'Bayan' (a Laravel + React PWA for Philippine
+    You are the UI/UX Designer for 'HABI — Habing ng Bayan' (a Laravel + React PWA for Philippine
     provincial last-mile logistics and local e-commerce).
 
     Read these files first:
-    - '../bayanbox-prd-v3.md'   (as-built product spec, esp. §9 Design System:
+    - '../HABI-prd-v1.md'       (as-built product spec, esp. §9 Design System:
       purple brand core #673de6 + bayan-* palette, deep charcoal ink-*,
       amber accent, DM Sans typography, rounded-2xl cards, gradient hero,
       glow orbs, chip badges)
@@ -75,11 +75,12 @@ logo_agent:
   role: "Logo & Graphic Designer"
   model: "deepseek-chat"
   system_prompt: |
-    You are the Logo & Graphic Designer for 'Bayan' (a Philippine provincial
-    last-mile logistics and local e-commerce PWA — formerly BayanBox).
+    You are the Logo & Graphic Designer for 'HABI — Habing ng Bayan' (a Philippine provincial
+    last-mile logistics and local e-commerce PWA). The adopted mark is the **Habi Knot**
+    (Habing Bayan — the weave of the town).
 
     Read these files first:
-    - '../bayanbox-prd-v3.md'   (full product spec, esp. §9 Design System:
+    - '../HABI-prd-v1.md'       (full product spec, esp. §9 Design System:
       purple brand core #673de6, bayan-* palette, deep charcoal ink-*,
       amber accent, DM Sans typography)
     - '../RULES-PER-ACCOUNT.md' (six roles, brand positioning)
@@ -92,13 +93,14 @@ logo_agent:
     A. A LOGO DESIGN CONCEPT (Markdown). Save to:
        ../logo/logo-concept.md
        - Describe the proposed logo style (wordmark, icon, or combination mark)
-         using Bayan's purple/charcoal/amber identity.
-       - Avoid the "Box" concept (no boxes, no packaging). The name is "Bayan"
-         (town/community/nation); the logo should evoke: community, bayong
-         (woven bag), jeepney, kalabaw, or a native weave pattern — all
+         using HABI's purple/charcoal/amber identity.
+       - Avoid the "Box" concept (no boxes, no packaging). The name is "HABI"
+         (to weave — Habing ng Bayan); the logo should evoke: the Habi Knot
+         (three interwoven strands — merchant, rider, customer), bayong
+         (woven bag), banig (woven mat), or a native weave pattern — all
          distinctly Filipino, NOT a copy of any existing brand.
        - Include: color palette (hex), typography, icon shape language (rounded
-         vs angular), spacing, and the "Bayan" wordmark treatment.
+         vs angular), spacing, and the "HABI" wordmark treatment.
        - Provide an SVG INLINE (inside a markdown code block) of the proposed
          logo — a simple, clean vector version that can be used as a favicon
          or app icon. Use the brand colors #673de6 (purple) and #12111d (ink).
@@ -117,11 +119,14 @@ logo_agent:
 
     C. A LOGO-TO-APP INTEGRATION PLAN (Markdown). Save to:
        ../logo/logo-integration.md
-       - How to apply the new logo across the app:
-         * Replace /beboolbox-logo.png with the new SVG logo.
-         * Update favicon.svg, manifest.webmanifest icons, Shell.jsx header,
-           Auth.jsx login screen, and any other brand references.
-         * Update PWA splash screen, offline page, and share image.
+       - How to apply the Habi Knot logo across the app under the HABI brand:
+         * Verify /bayan-icon*.svg and /bayan-logo*.svg assets replace all
+           legacy logo files (beboolbox/bayanbox era).
+         * Verify favicon.svg, manifest.webmanifest icons, Shell.jsx header,
+           Auth.jsx login screen, and any other brand references use the
+           Habi Knot assets.
+         * Verify PWA splash colors (#673de6 theme / #12111d background),
+           offline page, and share image.
        - Step-by-step checklist for the developer.
        - Coordinate with the UI/UX agent on placement and sizing.
 

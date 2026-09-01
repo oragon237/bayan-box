@@ -80,6 +80,22 @@ Route::get('/banners', [BannerController::class, 'index']);
 Route::post('/ads/{id}/impression', [AdTrackingController::class, 'impression'])->whereNumber('id');
 Route::post('/ads/{id}/click', [AdTrackingController::class, 'click'])->whereNumber('id');
 
+// Frontend error reporting (FR-ERR-001) — PWA uncaught errors & boundary catches
+Route::post('/errors/report', function (Illuminate\Http\Request $request) {
+    \Illuminate\Support\Facades\Log::warning('Frontend error reported', [
+        'message' => $request->input('message'),
+        'source' => $request->input('source'),
+        'line' => $request->input('line'),
+        'column' => $request->input('column'),
+        'stack' => $request->input('stack'),
+        'url' => $request->input('url'),
+        'user_agent' => $request->userAgent(),
+        'user_id' => $request->user()?->id,
+    ]);
+
+    return response()->json(['ok' => true]);
+})->middleware('throttle:60,1');
+
 // Public provider directory — browse workers without login (item 7)
 Route::get('/providers', [ProviderController::class, 'index']);
 Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
@@ -237,6 +253,11 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::post('/ops/tickets/{id}/resolve', [StaffOpsController::class, 'resolveTicket'])->whereNumber('id');
     Route::get('/ops/hazards', [StaffOpsController::class, 'hazards']);
     Route::post('/ops/hazards', [StaffOpsController::class, 'setHazards']);
+
+    // Affiliate cash-out review (staff can review/approve; activation stays admin)
+    Route::get('/affiliates/cash-outs', [AdminAffiliateController::class, 'cashOuts']);
+    Route::post('/affiliates/cash-outs/{id}/approve', [AdminAffiliateController::class, 'approveCashOut'])->whereNumber('id');
+    Route::post('/affiliates/cash-outs/{id}/decline', [AdminAffiliateController::class, 'declineCashOut'])->whereNumber('id');
 
     // Staff finance: rider COD remittance tracking
     Route::get('/finance', [StaffFinanceController::class, 'summary']);

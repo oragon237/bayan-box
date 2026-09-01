@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'bayan-tile-192.png', 'bayan-tile-512.png', 'bayan-icon.svg', 'bayan-icon-white.svg', 'bayan-logo.svg', 'bayan-logo-white.svg', 'bayan-lockup.svg', 'bayan-tile.svg'],
       manifest: {
-        name: 'Bayan',
-        short_name: 'Bayan',
-        description: 'Provincial Last-Mile Logistics & Local E-Commerce',
+        name: 'HABI',
+        short_name: 'HABI',
+        description: 'Local commerce, delivery, and services woven together.',
         theme_color: '#673de6',
         background_color: '#12111d',
         start_url: '/',

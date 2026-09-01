@@ -33,14 +33,15 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
 
-            // RBAC role whitelist (PRD section 2)
             $table->index('role');
         });
 
-        DB::statement(
-            "ALTER TABLE users ADD CONSTRAINT users_role_check
-             CHECK (role IN ('admin', 'staff', 'rider', 'merchant', 'customer', 'provider'))"
-        );
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement(
+                "ALTER TABLE users ADD CONSTRAINT users_role_check
+                 CHECK (role IN ('admin', 'staff', 'rider', 'merchant', 'customer', 'provider'))"
+            );
+        }
     }
 
     public function down(): void

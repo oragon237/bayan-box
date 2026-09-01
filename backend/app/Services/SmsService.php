@@ -40,12 +40,12 @@ class SmsService
 
     public function merchantApproved(string $phone): void
     {
-        $this->send($phone, 'Suki! Your Bayan Merchant Account is now APPROVED. You can now upload products.');
+        $this->send($phone, 'Suki! Your HABI Merchant Account is now APPROVED. You can now upload products.');
     }
 
     public function merchantRejected(string $phone, ?string $reason): void
     {
-        $message = 'Your Bayan Merchant application was not approved.';
+        $message = 'Your HABI Merchant application was not approved.';
         if ($reason) {
             $message .= " Reason: {$reason}";
         }

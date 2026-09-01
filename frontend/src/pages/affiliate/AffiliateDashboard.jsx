@@ -208,28 +208,39 @@ const [uploading, setUploading] = useState(false);
             </p>
           </div>
 
-          {/* Cash-out form */}
+          {/* Cash-out form — locked until admin activates the affiliate */}
           <div className="card p-4 space-y-3">
             <h3 className="font-extrabold text-ink-800">Request cash-out</h3>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={data.min_cashout}
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Min ₱${Number(data.min_cashout).toLocaleString()}`}
-                className="field flex-1"
-              />
-              <button
-                onClick={requestCashOut}
-                disabled={submitting || Number(amount) < data.min_cashout}
-                className="px-5 py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl transition"
-              >
-                {submitting ? '…' : 'Request'}
-              </button>
-            </div>
-            <p className="text-[11px] text-ink-400">Affiliate earnings can also be used to pay for marketplace purchases at checkout.</p>
+            {data.affiliate_status !== 'active' ? (
+              <div className="bg-amber-50 rounded-xl p-4 space-y-2 text-center">
+                <p className="text-2xl">🔒</p>
+                <p className="text-sm font-bold text-amber-800">Withdrawals locked — pending admin approval</p>
+                <p className="text-xs text-amber-700">Submit your ID requirement below. Once the admin activates your affiliate account, you can withdraw your earnings (₱{Number(data.balance).toLocaleString()} waiting).</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={data.min_cashout}
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={`Min ₱${Number(data.min_cashout).toLocaleString()}`}
+                    aria-label="Cash-out amount"
+                    className="field flex-1"
+                  />
+                  <button
+                    onClick={requestCashOut}
+                    disabled={submitting || Number(amount) < data.min_cashout}
+                    className="px-5 py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl transition"
+                  >
+                    {submitting ? '…' : 'Request'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-ink-400">Affiliate earnings can also be used to pay for marketplace purchases at checkout.</p>
+              </>
+            )}
           </div>
 
           {/* Cash-out history */}

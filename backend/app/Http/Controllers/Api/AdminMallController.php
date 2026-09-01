@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Bayan Mall CRUD (Module 2).
+ * HABI Mall CRUD (Module 2).
  *
  * Admin manages the official flagship store's products (wholesale packaging
  * supplies, official provincial goods, bulk thermal paper, mailers).

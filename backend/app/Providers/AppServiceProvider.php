@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
             return [
                 Limit::perMinute(5)->by('login-phone:'.$phone),
                 Limit::perMinute(20)->by('login-ip:'.$ip),
-                Limit::perHour(30)->by('login-ip-hour:'.$ip),
+                Limit::perHour(120)->by('login-ip-hour:'.$ip),
             ];
         });
     }

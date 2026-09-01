@@ -1,5 +1,5 @@
 /**
- * Bayan demo mode — in-memory mock API.
+ * HABI demo mode — in-memory mock API.
  *
  * Lets you explore the full UI/UX locally without the Laravel backend
  * (which needs PHP 8.2+ and is not installed on this machine). Activated via
@@ -756,7 +756,7 @@ export function mockRequest(url, method, data, params = {}) {
       ],
       transaction_register: [
         { id: 'ledger-1', recorded_at: new Date().toISOString(), source: 'ledger', type: 'sales_receipt', description: 'Customer payment received Order #17', amount: 220, direction: 'credit', account: 'System · sales escrow', counterparty: '—', order_id: 17 },
-        { id: 'ledger-2', recorded_at: new Date(Date.now() - 60000).toISOString(), source: 'ledger', type: 'mall_sale', description: 'Bayan Mall sale Order #17', amount: 220, direction: 'credit', account: 'HABI Admin · admin earnings', counterparty: 'System · sales escrow', order_id: 17 },
+        { id: 'ledger-2', recorded_at: new Date(Date.now() - 60000).toISOString(), source: 'ledger', type: 'mall_sale', description: 'HABI Mall sale Order #17', amount: 220, direction: 'credit', account: 'HABI Admin · admin earnings', counterparty: 'System · sales escrow', order_id: 17 },
       ],
     }));
   }

@@ -8,6 +8,7 @@ use App\Models\Hub;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\AffiliateService;
+use App\Services\SystemSettingService;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,16 @@ class AffiliateController extends Controller
     public function __construct(
         protected AffiliateService $affiliate,
         protected WalletService $wallets,
+        protected SystemSettingService $settings,
     ) {}
+
+    /**
+     * Minimum cash-out threshold from admin settings (F2 — applied, not just stored).
+     */
+    protected function minCashout(): float
+    {
+        return (float) $this->settings->minCashout();
+    }
 
     /**
      * Personal affiliate program is restricted to CUSTOMER, MERCHANT, RIDER,
@@ -175,7 +185,7 @@ class AffiliateController extends Controller
             'referral_url' => url('/login?ref='.$user->affiliate_code),
             'affiliate_status' => $user->affiliate_status ?? 'pending',
             'affiliate_documents' => $user->affiliate_documents ?? [],
-            'min_cashout' => (float) config('bayanbox.affiliate.min_cashout', 200),
+            'min_cashout' => $this->minCashout(),
             'income_sources' => $sources,
             'ledger' => $wallet->ledgerTransactions()->latest()->limit(50)->get(),
         ]);
@@ -256,7 +266,7 @@ class AffiliateController extends Controller
         $wallet = $this->wallets->ensureWallet($user->id, Wallet::TYPE_AFFILIATE_PAYOUT);
         $amount = round((float) $validated['amount'], 2);
         $amount = round((float) $validated['amount'], 2);
-        $min = (float) config('bayanbox.affiliate.min_cashout', 200);
+        $min = $this->minCashout();
 
         if ($amount < $min) {
             return response()->json([

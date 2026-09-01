@@ -19,7 +19,7 @@ QUICK START — CORE ROLES
  ALL ACCOUNTS (22) — sorted by ID
 ------------------------------------------------------------
 ID | NAME                | PHONE        | ROLE     | LOCATION / NOTES
-1  | Bayan Admin         | 09170000001  | admin    | Naga City — flagship store
+1  | HABI Admin          | 09170000001  | admin    | Naga City — flagship store
 2  | Nena Sari-Sari      | 09170000002  | staff    | Naga City
 3  | Rico the Rider      | 09170000003  | rider    | Naga City
 4  | Aling Maria Merch   | 09170000004  | merchant | Tara, Sipocot, Camarines Sur (verified)

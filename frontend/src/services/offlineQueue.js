@@ -1,5 +1,5 @@
 /**
- * Bayan offline queue — IndexedDB-backed store (FR-OFF-001).
+ * HABI offline queue — IndexedDB-backed store (FR-OFF-001).
  * Cap: 1,000 queued entries (NFR 6.2). Actions are flushed via the service
  * worker when connectivity returns (FR-OFF-002).
  */
