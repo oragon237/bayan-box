@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
@@ -10,7 +10,7 @@ const STATUS_STYLE = {
   at_merchant: 'bg-purple-50 text-purple-700 border-purple-200',
   in_transit: 'bg-orange-50 text-orange-700 border-orange-200',
   arrived: 'bg-orange-50 text-orange-700 border-orange-200',
-  delivered: 'bg-green-50 text-green-700 border-green-200',
+  delivered: 'bg-green-50 text-green-600 border-green-200',
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 };
 
@@ -29,6 +29,11 @@ export default function StaffDispatch({ user }) {
   const [selectedRider, setSelectedRider] = useState({});
   const [auditOrder, setAuditOrder] = useState(null);
   const [auditData, setAuditData] = useState(null);
+
+  // Pabili queue (buy-for-me requests)
+  const [pabili, setPabili] = useState([]);
+  const [quotes, setQuotes] = useState({});
+  const [quoting, setQuoting] = useState(null);
 
   // History filters
   const [history, setHistory] = useState([]);
@@ -67,7 +72,44 @@ export default function StaffDispatch({ user }) {
     } catch { setHistory([]); } finally { setLoading(false); }
   };
 
-  useEffect(() => { if (tab === 'dispatch') loadDispatch(); }, [tab]);
+  const loadPabili = async () => {
+    try { const res = await client.get('/staff/ops/pabili'); setPabili(res.data.data || []); }
+    catch { setPabili([]); }
+  };
+
+  const qKey = (r, field) => `${r.id}:${field}`;
+  const qVal = (r, field) => quotes[qKey(r, field)] ?? '';
+  const setQVal = (r, field) => (e) => { const v = e.target.value; setQuotes((p) => ({ ...p, [qKey(r, field)]: v })); };
+
+  const sendQuote = async (r) => {
+    const items = {};
+    for (const it of r.items) {
+      const price = Number(qVal(r, it.id) === '' ? (it.quoted_price ?? '') : qVal(r, it.id));
+      if (!Number.isFinite(price) || price < 0) { notify(`Enter a confirmed price for “${it.product_name}”.`, 'error'); return; }
+      items[it.id] = { price };
+    }
+    const shipping = Number(qVal(r, 'ship') || 0);
+    setQuoting(r.id);
+    try {
+      const res = await client.post(`/staff/ops/pabili/${r.id}/quote`, { items, shipping_fee: shipping });
+      notify(res.data.message);
+      loadPabili();
+    } catch (err) { notify(err.response?.data?.message || 'Could not save the quote.', 'error'); } finally { setQuoting(null); }
+  };
+
+  useEffect(() => {
+    if (tab !== 'pabili') return undefined;
+    loadPabili();
+    const timer = setInterval(loadPabili, 20_000);
+    return () => clearInterval(timer);
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'dispatch') return undefined;
+    loadDispatch();
+    const timer = setInterval(loadDispatch, 15_000);
+    return () => clearInterval(timer);
+  }, [tab]);
   useEffect(() => { if (tab === 'history') loadHistory(); }, [tab, histPage, perPage, statusFilter, dateRange]);
   useEffect(() => { setHistPage(1); }, [searchQ, statusFilter, dateRange]);
   useEffect(() => { if (dateRange === 'custom' && customFrom && customTo) loadHistory(); }, [customFrom, customTo]);
@@ -92,6 +134,19 @@ export default function StaffDispatch({ user }) {
     catch { notify('Could not load audit.', 'error'); }
   };
 
+  const riderPins = useMemo(
+    () => riders
+      .filter((r) => r.latitude && r.longitude)
+      .map((r) => ({
+        lngLat: [Number(r.longitude), Number(r.latitude)],
+        emoji: '🛵',
+        color: 'bg-blue-600',
+        name: r.name,
+        label: `${r.name} · ${r.active_orders} active`,
+      })),
+    [riders],
+  );
+
   const exportCSV = () => {
     const rows = [['Order ID','Date','Status','Customer','Merchant','Rider','Method','Total','Trip Min']];
     history.forEach((h) => rows.push([h.display_id, h.created_at?.slice(0,10), h.status, h.customer?.name, h.merchant?.name, h.rider?.name, h.dispatch_method, h.total_amount, h.trip_duration_min]));
@@ -113,6 +168,7 @@ export default function StaffDispatch({ user }) {
       {/* Tabs */}
       <div className="flex gap-2">
         <button onClick={() => setTab('dispatch')} className={`chip border ${tab === 'dispatch' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>🚚 Live Dispatch</button>
+        <button onClick={() => setTab('pabili')} className={`chip border ${tab === 'pabili' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>🧾 Pabili{pabili.some((p) => p.status === 'pending') ? ` (${pabili.filter((p) => p.status === 'pending').length})` : ''}</button>
         <button onClick={() => setTab('history')} className={`chip border ${tab === 'history' ? 'bg-bayan-600 text-white border-bayan-600' : 'bg-white text-ink-600 border-ink-200'}`}>🛵 Rider Transactions</button>
       </div>
 
@@ -123,21 +179,22 @@ export default function StaffDispatch({ user }) {
             {riders.map((r) => (
               <div key={r.id} className="card px-3 py-2 shrink-0">
                 <p className="font-bold text-ink-800 text-sm">🛵 {r.name}</p>
-                <p className="text-[10px] text-ink-400">{r.active_orders} active order(s)</p>
+                <p className="text-[10px] text-ink-400">{r.active_orders} active order(s){r.latitude ? ' · GPS' : ''}</p>
               </div>
             ))}
           </div>
 
-          {/* Map */}
-          {ready.length > 0 && (
+          {(ready.length > 0 || riders.some((r) => r.latitude && r.longitude)) && (
             <div className="card !p-0 overflow-hidden" style={{ height: 220 }}>
               <DeliveryMap
-                origin={ready[0]?.merchant?.latitude && ready[0]?.merchant?.longitude ? [ready[0].merchant.longitude, ready[0].merchant.latitude] : [123.1948, 13.6218]}
-                destination={ready[0]?.latitude && ready[0]?.longitude ? [ready[0].longitude, ready[0].latitude] : undefined}
+                origin={ready[0]?.merchant?.latitude && ready[0]?.merchant?.longitude ? [Number(ready[0].merchant.longitude), Number(ready[0].merchant.latitude)] : undefined}
+                destination={ready[0]?.latitude && ready[0]?.longitude ? [Number(ready[0].longitude), Number(ready[0].latitude)] : undefined}
+                extraMarkers={riderPins}
                 className="w-full h-full"
               />
             </div>
           )}
+          <p className="text-[11px] text-ink-400 px-1">🛵 Live rider GPS · 🏪 pickup · 🏠 drop-off · map refreshes every 15s</p>
 
           {loading ? <div className="space-y-3" /> : ready.length === 0 ? (
             <EmptyState icon="✅" title="All dispatched" hint="No orders awaiting rider assignment." />
@@ -171,6 +228,65 @@ export default function StaffDispatch({ user }) {
             </div>
           )}
         </>
+      ) : tab === 'pabili' ? (
+        <div className="space-y-3">
+          <p className="text-[11px] text-ink-400 px-1">Confirm prices so the customer can approve — approved requests become regular orders you can mark ready and dispatch. Queue refreshes every 20s.</p>
+          {pabili.length === 0 ? (
+            <EmptyState icon="🧾" title="No pabili requests" hint="Customer buy-for-me requests will show up here." />
+          ) : (
+            pabili.map((r) => {
+              const closed = ['converted', 'declined', 'cancelled'].includes(r.status);
+              const total = r.items.reduce((s, it) => s + Number(qVal(r, it.id) === '' ? (it.quoted_price ?? 0) : qVal(r, it.id)), 0);
+              const shipVal = qVal(r, 'ship') === '' ? (r.quoted_shipping ?? '') : qVal(r, 'ship');
+              return (
+                <div key={r.id} className="card p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-ink-800 text-sm">🧾 Pabili #{r.id} — {r.customer?.name} ({r.customer?.phone})</p>
+                    <span className={`chip border shrink-0 ${
+                      r.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : r.status === 'quoted' ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : r.status === 'converted' ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-ink-100 text-ink-500 border-ink-200'}`}>{r.status}</span>
+                  </div>
+                  <p className="text-[11px] text-ink-500">📍 Deliver to: {r.delivery_address || 'address on their profile'}{r.latitude ? ` · GPS saved` : ''}</p>
+                  {r.notes && <p className="text-[11px] text-ink-400">📝 {r.notes}</p>}
+                  {r.items.map((it) => (
+                    <div key={it.id} className="flex items-center gap-2 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-ink-700 truncate">{it.product_name} <span className="font-normal text-ink-400">×{it.quantity}</span></p>
+                        {it.details && <p className="text-[10px] text-ink-400 truncate">{it.details}</p>}
+                        {it.max_price && <p className="text-[10px] text-ink-400">Customer hint: ≤ ₱{Number(it.max_price).toLocaleString()}</p>}
+                      </div>
+                      {closed ? (
+                        <span className="font-black text-ink-800">{it.quoted_price != null ? `₱${Number(it.quoted_price).toLocaleString()}` : '—'}</span>
+                      ) : (
+                        <input type="number" min="0" step="0.01" placeholder="Price ₱" aria-label={`Confirmed price ${it.product_name}`} value={qVal(r, it.id) !== '' ? qVal(r, it.id) : (it.quoted_price ?? '')} onChange={setQVal(r, it.id)} className="field w-24 bg-white text-xs" />
+                      )}
+                    </div>
+                  ))}
+                  {!closed && (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <label className="flex items-center gap-2 text-xs font-bold text-ink-600">
+                        Delivery ₱
+                        <input type="number" min="0" step="0.01" aria-label="Shipping fee" value={shipVal} onChange={setQVal(r, 'ship')} className="field w-24 bg-white text-xs" />
+                      </label>
+                      <span className="text-xs text-ink-500">Total: <b>₱{(total + Number(shipVal || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</b></span>
+                    </div>
+                  )}
+                  {r.status === 'quoted' && <p className="text-[11px] text-blue-600 font-semibold">⏳ Quote sent — waiting for the customer to approve.</p>}
+                  {r.status === 'converted' && (
+                    <p className="text-[11px] text-green-700 font-semibold">✅ Approved by customer — Order #{r.order_id} is in the Mall queue (mark ready, then it appears on Live Dispatch).</p>
+                  )}
+                  {!closed && (
+                    <button onClick={() => sendQuote(r)} disabled={quoting === r.id} className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl">
+                      {quoting === r.id ? 'Saving…' : '✅ Confirm price & ask approval'}
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       ) : (
         <>
           {/* Filters bar */}

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
 import { calculateDeliveryFee, fetchDrivingDistance, formatFeeSummary, MAX_DELIVERY_KM } from '../../lib/distance.js';
-import { geocodeAddress } from '../../lib/geocode.js';
 import { EmptyState, Spinner, useToast } from '../../components/ui.jsx';
 
 const DEFAULT_COORDS = { lat: 13.6218, lng: 123.1948 }; // Naga default (hub origin)
@@ -16,59 +15,42 @@ export default function CartPage({ user }) {
   const [fulfillment, setFulfillment] = useState('pickup');
   const [paymentMethod, setPaymentMethod] = useState('gcash');
   const [hubId, setHubId] = useState(1);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [coords, setCoords] = useState(DEFAULT_COORDS);
-  const [referralCode, setReferralCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
   const [useAffiliateBalance, setUseAffiliateBalance] = useState(false);
   const [affiliateBalance, setAffiliateBalance] = useState(0);
 
+  // Delivery address + home location come from the customer's saved profile
+  // only — shown read-only here and edited on the Profile page.
+  const [profileAddress, setProfileAddress] = useState(null);
+
   // Delivery estimate
   const [deliveryEstimate, setDeliveryEstimate] = useState(null);
   const [routeGeometry, setRouteGeometry] = useState(null);
-  const [geocoding, setGeocoding] = useState(false);
-  const [geoError, setGeoError] = useState('');
   const [rangeError, setRangeError] = useState('');
   // Delivery origin = merchant store location (from cart items)
   const [merchantOrigin, setMerchantOrigin] = useState(null);
 
-  // Auto-detect location from the typed delivery address (debounced)
-  const geoTimer = useRef(null);
   useEffect(() => {
-    if (fulfillment !== 'delivery' || !deliveryAddress.trim()) {
-      setGeoError('');
-      return;
-    }
-    clearTimeout(geoTimer.current);
-    setGeocoding(true);
-    geoTimer.current = setTimeout(async () => {
-      const result = await geocodeAddress(deliveryAddress.trim());
-      if (result) {
-        setCoords(result);
-        setGeoError('');
-      } else {
-        setGeoError('Could not auto-locate this address. Enter coordinates manually below.');
-      }
-      setGeocoding(false);
-    }, 700);
-    return () => clearTimeout(geoTimer.current);
-  }, [deliveryAddress, fulfillment]);
+    if (!user) return;
+    client.get('/profile')
+      .then((res) => {
+        const p = res.data.user || {};
+        const lat = Number(p.latitude);
+        const lng = Number(p.longitude);
+        setProfileAddress({
+          barangay: p.barangay || '',
+          municipality: p.municipality || '',
+          lat: Number.isFinite(lat) && lat !== 0 ? lat : null,
+          lng: Number.isFinite(lng) && lng !== 0 ? lng : null,
+        });
+      })
+      .catch(() => setProfileAddress(null));
+  }, [user]);
 
-  // Use device GPS to auto-fill coordinates
-  const useMyLocation = () => {
-    if (!navigator.geolocation) { notify('Geolocation not supported.', 'error'); return; }
-    setGeocoding(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: Number(pos.coords.latitude.toFixed(6)), lng: Number(pos.coords.longitude.toFixed(6)) });
-        setGeoError('');
-        setGeocoding(false);
-      },
-      () => { setGeoError('Location access denied. Enter coordinates manually.'); setGeocoding(false); },
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
-  };
+  const homeAddress = profileAddress ? [profileAddress.barangay, profileAddress.municipality].filter(Boolean).join(', ') : '';
+  const hasHomeLocation = Boolean(profileAddress?.lat && profileAddress?.lng);
+  const homeCoords = hasHomeLocation ? { lat: profileAddress.lat, lng: profileAddress.lng } : null;
 
   useEffect(() => {
     if (!user) {
@@ -107,9 +89,9 @@ export default function CartPage({ user }) {
     client.get('/affiliate/earnings').then((res) => setAffiliateBalance(Number(res.data.balance || 0))).catch(() => {});
   }, [user]);
 
-  // Fetch driving distance + fee when delivery coords are set (merchant → customer)
+  // Fetch driving distance + fee for the order (merchant → saved home)
   useEffect(() => {
-    if (fulfillment !== 'delivery' || !coords.lat || !coords.lng) {
+    if (fulfillment !== 'delivery' || !homeCoords) {
       setDeliveryEstimate(null);
       setRangeError('');
       return;
@@ -118,13 +100,13 @@ export default function CartPage({ user }) {
     const originLat = merchantOrigin?.lat ?? DEFAULT_COORDS.lat;
     let cancelled = false;
     const origin = [originLng, originLat];
-    const destination = [coords.lng, coords.lat];
+    const destination = [homeCoords.lng, homeCoords.lat];
     fetchDrivingDistance(origin, destination).then((route) => {
       if (cancelled) return;
       setRouteGeometry(route.geometry);
       if (route.distanceKm > MAX_DELIVERY_KM) {
         setDeliveryEstimate(null);
-        setRangeError(`This location is about ${Number(route.distanceKm).toFixed(1)} km away — outside our ${MAX_DELIVERY_KM} km delivery area. Pick a nearer address or choose Click & Collect.`);
+        setRangeError(`This location is about ${Number(route.distanceKm).toFixed(1)} km away — outside our ${MAX_DELIVERY_KM} km delivery area. Update your address on Profile or choose Click & Collect.`);
       } else {
         setRangeError('');
         setDeliveryEstimate({
@@ -135,7 +117,7 @@ export default function CartPage({ user }) {
       }
     });
     return () => { cancelled = true; };
-  }, [fulfillment, coords.lat, coords.lng, merchantOrigin?.lat, merchantOrigin?.lng]);
+  }, [fulfillment, homeCoords?.lat, homeCoords?.lng, merchantOrigin?.lat, merchantOrigin?.lng]);
 
   const addToCart = (product) => {
     setCart((prev) => {
@@ -171,6 +153,10 @@ export default function CartPage({ user }) {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    if (fulfillment === 'delivery' && !hasHomeLocation) {
+      notify('Set your address and home location in Profile first.', 'error');
+      return;
+    }
     if (rangeError) {
       notify('Delivery is not available to this location.', 'error');
       return;
@@ -178,9 +164,9 @@ export default function CartPage({ user }) {
     setSubmitting(true);
     try {
       await client.post('/cart/sync', { cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })) });
-      const payload = { fulfillment_type: fulfillment, payment_method: paymentMethod, referral_code: referralCode.trim() || null, use_affiliate_balance: useAffiliateBalance };
+      const payload = { fulfillment_type: fulfillment, payment_method: paymentMethod, use_affiliate_balance: useAffiliateBalance };
       if (fulfillment === 'pickup') payload.hub_id = hubId;
-      else { payload.delivery_address = deliveryAddress; payload.latitude = coords.lat; payload.longitude = coords.lng; }
+      else { payload.delivery_address = homeAddress; payload.latitude = homeCoords.lat; payload.longitude = homeCoords.lng; }
       const res = await client.post('/checkout', payload);
       setLastOrder(res.data.order);
       setCart([]);
@@ -277,32 +263,39 @@ export default function CartPage({ user }) {
                 <select value={hubId} onChange={(e) => setHubId(Number(e.target.value))} className="field mt-2 bg-white"><option value={1}>Nena San Jose Sari-Sari</option></select>
               ) : (
                 <div className="mt-2 space-y-2">
-                  <div className="relative">
-                    <input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Delivery address" aria-label="Delivery address" className="field pr-9" />
-                    {geocoding && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-bayan-600 font-bold animate-pulse-soft">Locating…</span>}
-                  </div>
-                  {geoError && <p className="text-[11px] text-red-600 font-semibold">{geoError}</p>}
-                  <button onClick={useMyLocation} type="button" className="w-full py-2 bg-ink-100 hover:bg-ink-200 text-ink-700 text-xs font-bold rounded-xl">📍 Use my current location</button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: Number(e.target.value) })} placeholder="Latitude" aria-label="Latitude" className="field" />
-                      {coords.lat === DEFAULT_COORDS.lat && coords.lng === DEFAULT_COORDS.lng && deliveryAddress.trim() && !geocoding && (
-                        <span className="absolute -top-2 right-0 text-[9px] text-amber-600 font-bold">⚠️ Default</span>
-                      )}
+                  {homeAddress === '' && !profileAddress ? (
+                    <div className="rounded-xl bg-ink-50 p-4 text-center space-y-2">
+                      <p className="text-xs text-ink-500 font-semibold">Loading your saved address…</p>
+                      <Spinner />
                     </div>
-                    <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: Number(e.target.value) })} placeholder="Longitude" aria-label="Longitude" className="field" />
-                  </div>
-                  {coords.lat === DEFAULT_COORDS.lat && coords.lng === DEFAULT_COORDS.lng && deliveryAddress.trim() && !geocoding && !geoError && (
-                    <p className="text-[11px] text-amber-600 font-semibold">Coordinates still show the default hub location. Type your address or click the map to correct them.</p>
+                  ) : hasHomeLocation ? (
+                    <div className="rounded-xl bg-ink-50 border border-ink-100 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-400">Delivering to (from your Profile)</p>
+                          <p className="text-sm font-bold text-ink-800 mt-0.5">🏠 {homeAddress}</p>
+                          <p className="text-[10px] text-ink-400">📍 {homeCoords.lat}, {homeCoords.lng}</p>
+                        </div>
+                        <Link to="/customer/profile" className="text-[11px] font-bold text-bayan-700 hover:underline shrink-0">✏️ Edit on Profile</Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-2">
+                      <p className="text-xs text-amber-700 font-semibold">We still need your delivery address and home location. Save it once on your Profile and it will be used automatically on every order.</p>
+                      <Link to="/customer/profile" className="inline-block w-full py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl text-center">🏠 Set address on Profile</Link>
+                    </div>
                   )}
-                  <DeliveryMap
-                    origin={merchantOrigin ? [merchantOrigin.lng, merchantOrigin.lat] : [DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
-                    destination={[coords.lng, coords.lat]}
-                    routeGeometry={routeGeometry}
-                    onPick={(p) => { setCoords(p); setGeoError(''); }}
-                    className="w-full h-48 rounded-xl"
-                  />
-                  <p className="text-[10px] text-ink-400 text-center">Click the map to pick a precise location.</p>
+                  {homeCoords && (
+                    <>
+                      <DeliveryMap
+                        origin={merchantOrigin ? [merchantOrigin.lng, merchantOrigin.lat] : [DEFAULT_COORDS.lng, DEFAULT_COORDS.lat]}
+                        destination={[homeCoords.lng, homeCoords.lat]}
+                        routeGeometry={routeGeometry}
+                        className="w-full h-48 rounded-xl"
+                      />
+                      <p className="text-[10px] text-ink-400 text-center">🟢 merchant · 🟡 your saved home · route and fee are computed from these</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -322,13 +315,8 @@ export default function CartPage({ user }) {
               )}
             </div>
 
-            <div>
-              <span className="block text-xs font-semibold text-ink-500 mb-2">🎫 Referral code (optional)</span>
-              <input value={referralCode} onChange={(e) => setReferralCode(e.target.value)} placeholder="e.g., NENA01" className="field" />
-            </div>
-
-            <button onClick={handleCheckout} disabled={submitting} className="w-full py-3.5 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white font-bold rounded-xl transition">
-              {submitting ? 'Processing…' : useAffiliateBalance ? 'Pay with affiliate earnings' : paymentMethod === 'cod' ? 'Place order (Cash on Delivery)' : 'Proceed to Checkout'}
+            <button onClick={handleCheckout} disabled={submitting || (fulfillment === 'delivery' && !hasHomeLocation)} className="w-full py-3.5 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white font-bold rounded-xl transition">
+              {submitting ? 'Processing…' : fulfillment === 'delivery' && !hasHomeLocation ? 'Save your address on Profile first' : useAffiliateBalance ? 'Pay with affiliate earnings' : paymentMethod === 'cod' ? 'Place order (Cash on Delivery)' : 'Proceed to Checkout'}
             </button>
           </div>
         </>

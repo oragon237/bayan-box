@@ -27,6 +27,11 @@ client.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('bayanbox_token');
     }
+    if (err.response?.status === 503 && err.response?.data?.maintenance) {
+      if (!window.location.pathname.startsWith('/maintenance') && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/maintenance');
+      }
+    }
     return Promise.reject(err);
   },
 );

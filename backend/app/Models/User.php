@@ -136,6 +136,11 @@ class User extends Authenticatable
         return $this->hasMany(Order::class, 'rider_id');
     }
 
+    public function pabiliRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PabiliRequest::class, 'customer_id');
+    }
+
     public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ProductReview::class);

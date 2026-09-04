@@ -191,7 +191,11 @@ export default function RiderDashboard({ user }) {
           <div className="card p-4">
             <p className="text-[10px] text-ink-400 uppercase font-bold">Cash on Hand (COD)</p>
             <p className="text-2xl font-black text-orange-600">₱{Number(data.earnings.cash_on_hand).toLocaleString()}</p>
-            <p className="text-[10px] text-ink-400 mt-2">Collected today</p>
+            <p className="text-[10px] text-ink-400 mt-2">
+              {Number(data.earnings.cash_on_hand) > 0
+                ? `₱${Number(data.earnings.cod_collected_total).toLocaleString()} collected · ₱${Number(data.earnings.cod_remitted_total).toLocaleString()} remitted — turn in to staff`
+                : 'All collected COD handed to staff ✓'}
+            </p>
           </div>
           <div className="card p-4">
             <p className="text-[10px] text-ink-400 uppercase font-bold">Pending Payout</p>

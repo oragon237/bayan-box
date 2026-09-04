@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\RiderLocation;
 use App\Models\User;
 use App\Services\DeliveryAssignmentService;
 use App\Services\OrderStateMachine;
@@ -32,6 +33,134 @@ class OrderStateController extends Controller
             'delivery_state' => $order->delivery_state,
             'allowed_actions' => $this->allowedActions($order, $request->user()->role),
         ]);
+    }
+
+    /**
+     * GET /api/orders/{id}/track — live delivery tracker payload:
+     * merchant pickup point, drop-off point, latest rider GPS position
+     * (with staleness badge), and a buffered ETA range (FR-MAP-001..004).
+     */
+    public function track(int $id, Request $request): JsonResponse
+    {
+        $order = Order::with([
+            'customer:id,name,phone',
+            'rider:id,name,phone',
+            'items.product:id,name,merchant_id',
+            'items.product.merchant:id,name,barangay,municipality,latitude,longitude',
+        ])->findOrFail($id);
+
+        $user = $request->user();
+        $isParticipant = $order->customer_id === $user->id
+            || $order->rider_id === $user->id
+            || in_array($user->role, ['staff', 'admin'], true);
+        abort_unless($isParticipant, 403, 'You cannot track this order.');
+
+        $merchant = $order->items->first()?->product?->merchant;
+
+        $activeStates = ['raider_assigned', 'raider_en_route_to_merchant', 'at_merchant', 'in_transit', 'arrived'];
+
+        $riderLocation = $order->rider_id
+            ? RiderLocation::where('rider_id', $order->rider_id)->latest('recorded_at')->first(['id', 'rider_id', 'latitude', 'longitude', 'recorded_at'])
+            : null;
+
+        // Live tracking only runs while the delivery is mid-flight. Rider live
+        // GPS is exposed only during that window (and never from a stale fix),
+        // so a past order can't be used to keep following the rider afterwards.
+        $live = $order->fulfillment_type === Order::FULFILLMENT_DELIVERY
+            && in_array($order->delivery_state, $activeStates, true);
+
+        $rider = null;
+        if ($order->rider) {
+            $isStale = false;
+            $lastSeenLabel = null;
+            if ($riderLocation) {
+                $minutesAgo = (int) $riderLocation->recorded_at->diffInMinutes(now());
+                $isStale = $minutesAgo > 15;
+                $lastSeenLabel = $isStale ? "Last seen {$minutesAgo} mins ago" : 'seen just now';
+            }
+            $useGps = $live && $riderLocation !== null && !$isStale;
+            $rider = [
+                'id' => $order->rider->id,
+                'name' => $order->rider->name,
+                'phone' => $order->rider->phone,
+                'latitude' => $useGps ? $riderLocation->latitude : null,
+                'longitude' => $useGps ? $riderLocation->longitude : null,
+                'is_stale' => $isStale,
+                'last_seen_label' => $lastSeenLabel,
+                'last_seen_at' => $useGps ? $riderLocation->recorded_at : null,
+                'active_orders' => Order::whereIn('delivery_state', $activeStates)->where('rider_id', $order->rider->id)->count(),
+            ];
+        }
+
+        $headingTo = null;
+        if ($live) {
+            $headingTo = in_array($order->delivery_state, ['raider_assigned', 'raider_en_route_to_merchant'], true)
+                ? 'merchant'
+                : 'customer';
+        }
+
+        $destCoords = [$order->longitude, $order->latitude];
+        $originCoords = $merchant?->longitude && $merchant?->latitude
+            ? [$merchant->longitude, $merchant->latitude]
+            : null;
+        $fromCoords = ($rider['latitude'] ?? null)
+            ? [$rider['longitude'], $rider['latitude']]
+            : $originCoords;
+
+        $eta = null;
+        if ($live && $fromCoords && $destCoords[0]) {
+            $km = $this->haversineKm((float) $fromCoords[1], (float) $fromCoords[0], (float) $destCoords[1], (float) $destCoords[0]);
+            $rawMinutes = ($km / 25) * 60; // provincial average speed
+            $buffered = $rawMinutes * (float) config('bayanbox.eta.buffer_multiplier', 1.30);
+            $spread = (int) config('bayanbox.eta.range_spread_minutes', 7);
+            $eta = [
+                'min' => max(1, (int) round($buffered - $spread / 2)),
+                'max' => max(2, (int) round($buffered + $spread / 2)),
+            ];
+        }
+
+        return response()->json([
+            'order' => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'delivery_state' => $order->delivery_state,
+                'fulfillment_type' => $order->fulfillment_type,
+                'payment_method' => $order->payment_method,
+                'total_amount' => $order->total_amount,
+                'created_at' => $order->created_at,
+            ],
+            'items' => $order->items->map(fn ($i) => [
+                'name' => $i->product?->name,
+                'quantity' => $i->quantity,
+            ]),
+            'merchant' => $merchant ? [
+                'id' => $merchant->id,
+                'name' => $merchant->name,
+                'barangay' => $merchant->barangay,
+                'municipality' => $merchant->municipality,
+                'latitude' => $merchant->latitude,
+                'longitude' => $merchant->longitude,
+            ] : null,
+            'destination' => [
+                'address' => $order->delivery_address,
+                'latitude' => $order->latitude,
+                'longitude' => $order->longitude,
+                'customer' => $order->customer?->only(['id', 'name', 'phone']),
+            ],
+            'rider' => $rider,
+            'heading_to' => $headingTo,
+            'live' => $live,
+            'eta' => $eta,
+        ]);
+    }
+
+    protected function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+
+        return 6371 * 2 * asin(min(1, sqrt($a)));
     }
 
     /**

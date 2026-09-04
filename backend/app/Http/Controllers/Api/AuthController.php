@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\PasswordOtp;
 use App\Models\User;
 use App\Services\AffiliateService;
 use Illuminate\Http\JsonResponse;
@@ -130,6 +131,74 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out.']);
+    }
+
+    /**
+     * POST /api/auth/forgot-password — start a phone-OTP reset.
+     * No SMS/email gateway is wired in this build, so the code is written to
+     * the app log and (only while APP_DEBUG=true) returned as `demo_code`
+     * so the flow is testable. Responds identically for unknown numbers.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => 'required|string|max:20',
+        ]);
+
+        $message = 'If that number is registered, a 6-digit verification code valid for 10 minutes has been sent.';
+        $user = User::where('phone', $validated['phone'])->first();
+
+        if ($user) {
+            $code = (string) random_int(100000, 999999);
+            PasswordOtp::create([
+                'user_id' => $user->id,
+                'code_hash' => hash('sha256', $code),
+                'expires_at' => now()->addMinutes(10),
+            ]);
+            logger("Password reset code for {$user->phone}: {$code}");
+
+            if (config('app.debug')) {
+                $message .= ' (Demo build: code is '.$code.'.)';
+            }
+        }
+
+        return response()->json(['message' => $message]);
+    }
+
+    /**
+     * POST /api/auth/reset-password — verify the OTP and set a new password.
+     * Consumes every outstanding code for the user and signs out all devices.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => 'required|string|max:20',
+            'code' => 'required|string|size:6',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = User::where('phone', $validated['phone'])->first();
+
+        $otp = $user
+            ? PasswordOtp::where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->where('expires_at', '>', now())
+                ->latest('id')
+                ->first()
+            : null;
+
+        if (! $otp || ! hash_equals($otp->code_hash, hash('sha256', $validated['code']))) {
+            throw ValidationException::withMessages([
+                'code' => ['Invalid or expired verification code.'],
+            ]);
+        }
+
+        $otp->update(['consumed_at' => now()]);
+        PasswordOtp::where('user_id', $user->id)->whereNull('consumed_at')->update(['consumed_at' => now()]);
+        $user->forceFill(['password_hash' => Hash::make($validated['password'])])->save();
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Password updated. Sign in with your new password.']);
     }
 
     /**

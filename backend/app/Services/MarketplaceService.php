@@ -325,7 +325,7 @@ class MarketplaceService
             $riderShare = round($shipping * 0.85, 2);
             $platformShare = round($shipping - $riderShare, 2);
 
-            $riderWallet = $this->resolveRiderWallet();
+            $riderWallet = $this->riderWalletFor($order);
             $riderWallet ??= $platformWallet;
 
             if ($riderShare > 0) {
@@ -423,13 +423,13 @@ class MarketplaceService
     }
 
     /**
-     * Pick the first active rider for the delivery payout. Returns null when
-     * no rider exists yet (payout is then skipped).
+     * The rider who owns the order (null when unassigned — payout then folds
+     * into the platform pool below).
      */
-    protected function resolveRiderWallet(): ?Wallet
+    protected function riderWalletFor(Order $order): ?Wallet
     {
-        $rider = User::where('role', 'rider')->where('status', 'active')->first();
-
-        return $rider ? $this->wallets->ensureWallet($rider->id, Wallet::TYPE_RIDER_PREPAID) : null;
+        return $order->rider_id
+            ? $this->wallets->ensureWallet($order->rider_id, Wallet::TYPE_RIDER_PREPAID)
+            : null;
     }
 }

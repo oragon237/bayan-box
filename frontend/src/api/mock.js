@@ -130,6 +130,20 @@ const MALL_ORDERS = [
 
 let MOCK_CART = [];
 
+let MOCK_PABILI = [
+  {
+    id: 1, customer_id: 5, status: 'pending', delivery_address: 'San Jose, Naga City',
+    notes: 'Malapit sa barangay hall, tawagan ang kapitbahay', latitude: '13.6218', longitude: '123.1948',
+    quoted_total: null, quoted_shipping: null, quote_note: null, quoted_by: null, order_id: null,
+    created_at: new Date().toISOString(),
+    items: [
+      { id: 101, product_name: 'Liptus 2L jerry can', details: 'Malinaw, may takop', quantity: 2, max_price: '180.00', quoted_price: null, staff_note: null },
+      { id: 102, product_name: 'Pandesal 1 dozen', details: 'Init pa, mula sa ibang panad', quantity: 1, max_price: '90.00', quoted_price: null, staff_note: null },
+    ],
+  },
+];
+let pabiliSeq = 1;
+
 function mockResponse(data, status = 200) {
   return { data, status, statusText: 'OK', headers: {}, config: {}, isDemo: true };
 }
@@ -295,10 +309,18 @@ export function mockRequest(url, method, data, params = {}) {
     });
     return Promise.resolve(mockResponse(Object.entries(map).map(([c, u]) => ({ category: c, image_url: u }))));
   }
+  if (path === '/auth/forgot-password' && lower === 'post') return Promise.resolve(mockResponse({ message: 'If that number is registered, a 6-digit verification code valid for 10 minutes has been sent. (Demo build: code is 246810.)' }));
+  if (path === '/auth/reset-password' && lower === 'post') {
+    if (data?.code !== '246810') return Promise.reject({ response: { status: 422, data: { errors: { code: ['Invalid or expired verification code.'] } } } });
+    return Promise.resolve(mockResponse({ message: 'Password updated. Sign in with your new password.' }));
+  }
   if (path === '/cart' && lower === 'get') {
     const items = MOCK_CART.map((i) => {
       const product = PRODUCTS.find((p) => p.id === i.product_id);
-      return { ...i, product, merchant: { id: 4, name: 'Aling Maria Merch', latitude: 13.6218, longitude: 123.1948 } };
+      const merchant = product?.merchant_id === 1
+        ? { id: 1, name: 'HABI Mall', latitude: 13.6218, longitude: 123.1948 }
+        : { id: 4, name: 'Aling Maria Merch', latitude: 13.7443691, longitude: 122.9727423 };
+      return { ...i, product, merchant };
     });
     return Promise.resolve(mockResponse({ items, count: items.length }));
   }
@@ -585,6 +607,19 @@ export function mockRequest(url, method, data, params = {}) {
   if (path === '/staff/ops/mall-orders' && lower === 'get') return Promise.resolve(mockResponse({ orders: MALL_ORDERS }));
   if (path === '/staff/ops/incidents' && lower === 'get') return Promise.resolve(mockResponse([{ id: 1, rider: { id: 3, name: 'Rico the Rider', phone: '09170000003' }, order_id: 8, type: 'accident', description: 'Minor accident near San Jose', created_at: new Date().toISOString(), status: 'open' }]));
   if (/^\/staff\/ops\/incidents\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Incident resolved.', incident: {} }));
+  if (/^\/orders\/\d+\/track$/.test(path) && lower === 'get') {
+    const [, orderId] = path.match(/^\/orders\/(\d+)\/track$/) || [];
+    return Promise.resolve(mockResponse({
+      order: { id: Number(orderId), status: 'out_for_delivery', delivery_state: 'in_transit', fulfillment_type: 'delivery', payment_method: 'cod', total_amount: '150.00', created_at: new Date().toISOString() },
+      items: [{ name: 'Fresh Sili (250g)', quantity: 2 }],
+      merchant: { id: 4, name: 'Aling Maria Merch', barangay: 'Tara', municipality: 'Sipocot, Camarines Sur', latitude: 13.7443691, longitude: 122.9727423 },
+      destination: { address: 'Concepcion Grande, Naga', latitude: 13.645, longitude: 123.215, customer: { id: 5, name: 'Maria Santos', phone: '09170000002' } },
+      rider: { id: 3, name: 'Rico the Rider', phone: '09170000003', latitude: 13.631, longitude: 123.203, is_stale: false, last_seen_label: 'seen just now', last_seen_at: new Date().toISOString(), active_orders: 2 },
+      heading_to: 'customer',
+      live: true,
+      eta: { min: 6, max: 13 },
+    }));
+  }
   if (/^\/orders\/\d+\/state\/(accept|reject|mark_ready|confirm_collection)$/.test(path) && lower === 'post') {
     const [, orderId, action] = path.match(/^\/orders\/(\d+)\/state\/(accept|reject|mark_ready|confirm_collection)$/) || [];
     const order = MALL_ORDERS.find((item) => item.id === Number(orderId));
@@ -593,7 +628,53 @@ export function mockRequest(url, method, data, params = {}) {
     }
     return Promise.resolve(mockResponse({ message: 'Mall order status updated.', order }));
   }
+  if (path === '/pabili' && lower === 'get') return Promise.resolve(mockResponse({ data: [...MOCK_PABILI].sort((a, b) => b.id - a.id) }));
+  if (path === '/pabili' && lower === 'post') {
+    const id = ++pabiliSeq;
+    const req = {
+      id, customer_id: 5, status: 'pending', delivery_address: 'San Jose, Naga City',
+      notes: data?.notes || null, latitude: '13.6218', longitude: '123.1948',
+      quoted_total: null, quoted_shipping: null, quote_note: null, quoted_by: null, order_id: null,
+      created_at: new Date().toISOString(),
+      items: (data?.items || []).map((it, i) => ({ id: id * 100 + i, quantity: 1, ...it, quoted_price: null, staff_note: null })),
+    };
+    MOCK_PABILI.push(req);
+    return Promise.resolve(mockResponse({ message: 'Pabili request sent! A staff will confirm the price shortly.', pabili: req }));
+  }
+  if (/^\/pabili\/(\d+)\/approve$/.test(path) && lower === 'post') {
+    const r = MOCK_PABILI.find((x) => x.id === Number(path.match(/^\/pabili\/(\d+)\/approve$/)[1]));
+    if (!r || r.status !== 'quoted') return Promise.reject({ response: { status: 422, data: { message: 'This request has no confirmed price yet.' } } });
+    r.status = 'converted'; r.order_id = 900 + r.id;
+    return Promise.resolve(mockResponse({ message: 'Approved! Your order is on — you can follow it live now.', pabili: r, order_id: r.order_id }));
+  }
+  if (/^\/pabili\/(\d+)\/decline$/.test(path) && lower === 'post') {
+    const r = MOCK_PABILI.find((x) => x.id === Number(path.match(/^\/pabili\/(\d+)\/decline$/)[1]));
+    if (!r || r.status !== 'quoted') return Promise.reject({ response: { status: 422, data: { message: 'This request can no longer be declined.' } } });
+    r.status = 'declined';
+    return Promise.resolve(mockResponse({ message: 'Quote declined. Sorry about that!', pabili: r }));
+  }
+  if (/^\/pabili\/(\d+)\/cancel$/.test(path) && lower === 'post') {
+    const r = MOCK_PABILI.find((x) => x.id === Number(path.match(/^\/pabili\/(\d+)\/cancel$/)[1]));
+    if (!r || r.status !== 'pending') return Promise.reject({ response: { status: 422, data: { message: 'This request can no longer be cancelled.' } } });
+    r.status = 'cancelled';
+    return Promise.resolve(mockResponse({ message: 'Pabili request cancelled.', pabili: r }));
+  }
   if (path === '/staff/ops/dispatch' && lower === 'get') return Promise.resolve(mockResponse({ ready_orders: [{ id: 15, total_amount: '150.00', customer: { id: 5, name: 'Juan Dela Cruz', phone: '09170000005' }, items: [{ product: { name: 'Fresh Sili' } }], delivery_address: 'San Jose, Naga', latitude: 13.62, longitude: 123.18 }], riders: [{ id: 3, name: 'Rico the Rider', active_orders: 1 }, { id: 18, name: 'Berto', active_orders: 0 }] }));
+  if (path === '/staff/ops/pabili' && lower === 'get') return Promise.resolve(mockResponse({ data: [...MOCK_PABILI].sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.id - a.id) }));
+  if (/^\/staff\/ops\/pabili\/\d+\/quote$/.test(path) && lower === 'post') {
+    const r = MOCK_PABILI.find((x) => x.id === Number(path.match(/^\/staff\/ops\/pabili\/(\d+)\/quote$/)[1]));
+    if (!r || !['pending', 'quoted'].includes(r.status)) return Promise.reject({ response: { status: 422, data: { message: 'This request is no longer open for quoting.' } } });
+    let total = 0;
+    r.items.forEach((it) => {
+      const line = data?.items?.[it.id];
+      if (line) { it.quoted_price = line.price; it.staff_note = line.note || null; total += Number(line.price); }
+    });
+    r.status = 'quoted';
+    r.quoted_total = total;
+    r.quoted_shipping = Number(data?.shipping_fee || 0);
+    r.quoted_at = new Date().toISOString();
+    return Promise.resolve(mockResponse({ message: 'Quote saved — waiting for the customer to approve.', pabili: r }));
+  }
   if (/^\/staff\/ops\/dispatch\/\d+\/assign$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Assigned to Rico the Rider.' }));
   if (path === '/staff/ops/status-board' && lower === 'get') return Promise.resolve(mockResponse({ ready_for_pickup: [], in_transit: [{ id: 8, total_amount: '80.00', customer: { name: 'Juan' }, items: [], status: 'out_for_delivery', elapsed_minutes: 60, estimated_delivery_minutes: 45 }], delivered: [{ id: 4, total_amount: '160.00', customer: { name: 'Maria' }, items: [], status: 'delivered' }], failed_returned: [] }));
   if (/^\/staff\/ops\/orders\/\d+\/status$/.test(path) && lower === 'put') return Promise.resolve(mockResponse({ message: 'Order status updated.' }));

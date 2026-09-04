@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\RiderCodRemittance;
 use App\Models\Wallet;
 use App\Services\DeliveryAssignmentService;
 use App\Services\WalletService;
@@ -90,11 +91,14 @@ class RiderDashboardController extends Controller
             ->where('created_at', '>=', $weekStart)
             ->sum('amount');
 
-        $codToday = Order::where('rider_id', $riderId)
+        $codCollected = Order::where('rider_id', $riderId)
+            ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->where('payment_method', 'cod')
-            ->whereDate('updated_at', today())
-            ->whereIn('status', ['delivered'])
-            ->sum('total_amount');
+            ->whereIn('status', ['delivered', 'completed'])
+            ->get()
+            ->sum(fn ($o) => (float) $o->total_amount + (float) $o->shipping_amount);
+
+        $codRemitted = (float) RiderCodRemittance::where('rider_id', $riderId)->sum('amount');
 
         return response()->json([
             'active_orders' => $activeOrders,
@@ -103,7 +107,12 @@ class RiderDashboardController extends Controller
                 'today' => round((float) $todayEarnings, 2),
                 'weekly' => round((float) $weeklyEarnings, 2),
                 'wallet_balance' => (float) $wallet->balance,
-                'cash_on_hand' => round((float) $codToday, 2),
+                // Cash physically held = COD collected minus what staff have
+                // already received via "Record Cash Remittance". Drops to 0
+                // once the full outstanding amount is handed over.
+                'cash_on_hand' => max(0, round($codCollected - $codRemitted, 2)),
+                'cod_collected_total' => round($codCollected, 2),
+                'cod_remitted_total' => round($codRemitted, 2),
             ],
         ]);
     }

@@ -12,6 +12,7 @@ import HubInventory from './pages/hub/HubInventory.jsx';
 import RiderBatches from './pages/rider/RiderBatches.jsx';
 import RiderWallet from './pages/rider/RiderWallet.jsx';
 import CustomerTracking from './pages/customer/CustomerTracking.jsx';
+import OrderTracking from './pages/customer/OrderTracking.jsx';
 import CustomerBookings from './pages/customer/CustomerBookings.jsx';
 import PointsShop from './pages/customer/PointsShop.jsx';
 import MyOrders from './pages/customer/MyOrders.jsx';
@@ -22,6 +23,8 @@ import ReferralQR from './pages/affiliate/ReferralQR.jsx';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
 import MarketplaceHome from './pages/marketplace/MarketplaceHome.jsx';
 import HomepageV2 from './pages/marketplace/HomepageV2.jsx';
+import Pabili from './pages/customer/Pabili.jsx';
+import MaintenancePage from './pages/MaintenancePage.jsx';
 import SearchPage from './pages/marketplace/SearchPage.jsx';
 import MerchantStorefront from './pages/marketplace/MerchantStorefront.jsx';
 import ProductDetail from './pages/marketplace/ProductDetail.jsx';
@@ -166,6 +169,8 @@ export default function App() {
 function MainRoutes({ user, onAuth }) {
   return (
     <Routes>
+      <Route path="/maintenance" element={<MaintenancePage />} />
+      <Route path="/pabili" element={<Pabili user={user} />} />
       <Route path="/" element={user?.role === 'admin' ? <AdminDashboard user={user} /> : user?.role === 'staff' ? <StaffDashboard user={user} /> : user?.role === 'merchant' ? <MerchantDashboard user={user} /> : user?.role === 'rider' ? <RiderDashboard user={user} /> : <HomepageV2 user={user} />} />
       <Route path="/rider/dashboard" element={<RiderDashboard user={user} />} />
       <Route path="/search" element={<SearchPage user={user} />} />
@@ -192,6 +197,7 @@ function MainRoutes({ user, onAuth }) {
           <Route path="/customer/profile" element={<CustomerProfile user={user} />} />
           <Route path="/track" element={<CustomerTracking />} />
           <Route path="/track/:tracking" element={<CustomerTracking />} />
+          <Route path="/orders/:id/track" element={<OrderTracking />} />
           <Route path="/bookings" element={<CustomerBookings user={user} />} />
           <Route path="/suki" element={<SukiPoints user={user} />} />
           <Route path="/delivery-cost" element={<DeliveryCostPreview user={user} />} />

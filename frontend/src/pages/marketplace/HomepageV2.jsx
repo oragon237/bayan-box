@@ -293,6 +293,29 @@ function ProductCard({ p, onGo }) {
   );
 }
 
+/* ── Pabili highlight — buy-for-me, items outside the catalog ─────── */
+function PabiliHighlight({ onGo }) {
+  return (
+    <section aria-label="Pabili — Buy For Me">
+      <button
+        onClick={() => onGo('/pabili')}
+        className="w-full text-left rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-bayan-600 text-white p-5 shadow-lift relative overflow-hidden group"
+      >
+        <span className="absolute -right-6 -top-6 text-[120px] opacity-15 leading-none select-none">🧾</span>
+        <span className="absolute top-3 right-3 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide">New</span>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/85">Di may sa store? Pabili mo lang!</p>
+        <p className="text-xl font-black tracking-tight mt-1">Pabili — Buy For Me 🛒</p>
+        <p className="text-[11px] text-white/85 mt-1 max-w-md">
+          Any item not in the catalog — list it, staff confirms the price, you approve, and a rider brings it straight to your door.
+        </p>
+        <span className="inline-flex items-center gap-1 mt-3 rounded-xl bg-white text-orange-600 px-3.5 py-2 text-xs font-black group-hover:bg-amber-50 transition">
+          Try Pabili <ArrowRightIcon className="w-3.5 h-3.5" />
+        </span>
+      </button>
+    </section>
+  );
+}
+
 function MallShelf({ products, onGo }) {
   if (!products.length) return null;
   return (
@@ -416,6 +439,7 @@ export default function HomepageV2({ user }) {
       </div>
 
       <HeroCarousel banners={banners} onGo={go} />
+      <PabiliHighlight onGo={go} />
       <DealBar flashEndsAt={flashEndsAt} onGo={go} />
       <CategoryRail categories={CATEGORIES} categoryImages={categoryImages} onGo={go} />
       <FlashGrid items={flash} flashEndsAt={flashEndsAt} onGo={go} />

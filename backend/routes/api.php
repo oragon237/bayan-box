@@ -28,6 +28,8 @@ use App\Http\Controllers\Api\MerchantAdController;
 use App\Http\Controllers\Api\MerchantProfileController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderStateController;
+use App\Http\Controllers\Api\PabiliController;
+use App\Http\Controllers\Api\PabiliStaffController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PromoController;
@@ -54,31 +56,39 @@ use Illuminate\Support\Facades\Route;
 */
 
 // ---- Public ----
-Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:3,60');
+// Login/error-reporting stay reachable during maintenance; every other
+// public marketplace surface is gated by the Emergency maintenance mode
+// toggle (admin → settings) and answers 503 while it is on.
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
-Route::get('/track/{tracking}', [TrackingController::class, 'show']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,60');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:8,60');
 
-// Public storefront — browse products without login (item 1, homepage)
-Route::get('/products', [MarketplaceController::class, 'index']);
-Route::get('/products/categories', [MarketplaceController::class, 'categories']);
-Route::get('/products/category-images', [MarketplaceController::class, 'categoryImages']);
-Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
-Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
-Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+Route::middleware('maintenance')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:3,60');
+    Route::get('/track/{tracking}', [TrackingController::class, 'show']);
 
-// QR referral redirect — /r/{code} → frontend /login?ref={code} (public, no auth)
-Route::get('/r/{code}', [AffiliateController::class, 'redirectReferral'])->where('code', '[A-Za-z0-9]+');
+    // Public storefront — browse products without login (item 1, homepage)
+    Route::get('/products', [MarketplaceController::class, 'index']);
+    Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+    Route::get('/products/category-images', [MarketplaceController::class, 'categoryImages']);
+    Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
+    Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
+    Route::get('/products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
 
-// Public merchant storefront
-Route::get('/merchants/{id}/store', [MerchantStoreController::class, 'store'])->whereNumber('id');
-Route::get('/merchants/{id}/reviews', [MerchantStoreController::class, 'reviews'])->whereNumber('id');
+    // QR referral redirect — /r/{code} → frontend /login?ref={code} (public, no auth)
+    Route::get('/r/{code}', [AffiliateController::class, 'redirectReferral'])->where('code', '[A-Za-z0-9]+');
 
-// Public banners
-Route::get('/banners', [BannerController::class, 'index']);
+    // Public merchant storefront
+    Route::get('/merchants/{id}/store', [MerchantStoreController::class, 'store'])->whereNumber('id');
+    Route::get('/merchants/{id}/reviews', [MerchantStoreController::class, 'reviews'])->whereNumber('id');
 
-// Ad impression/click tracking (public)
-Route::post('/ads/{id}/impression', [AdTrackingController::class, 'impression'])->whereNumber('id');
-Route::post('/ads/{id}/click', [AdTrackingController::class, 'click'])->whereNumber('id');
+    // Public banners
+    Route::get('/banners', [BannerController::class, 'index']);
+
+    // Ad impression/click tracking (public)
+    Route::post('/ads/{id}/impression', [AdTrackingController::class, 'impression'])->whereNumber('id');
+    Route::post('/ads/{id}/click', [AdTrackingController::class, 'click'])->whereNumber('id');
+});
 
 // Frontend error reporting (FR-ERR-001) — PWA uncaught errors & boundary catches
 Route::post('/errors/report', function (Illuminate\Http\Request $request) {
@@ -97,10 +107,12 @@ Route::post('/errors/report', function (Illuminate\Http\Request $request) {
 })->middleware('throttle:60,1');
 
 // Public provider directory — browse workers without login (item 7)
-Route::get('/providers', [ProviderController::class, 'index']);
-Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
-Route::get('/providers/{id}/reviews', [ProviderController::class, 'reviews'])->whereNumber('id');
-Route::get('/services', [BookingController::class, 'services']);
+Route::middleware('maintenance')->group(function () {
+    Route::get('/providers', [ProviderController::class, 'index']);
+    Route::get('/providers/{id}', [ProviderController::class, 'show'])->whereNumber('id');
+    Route::get('/providers/{id}/reviews', [ProviderController::class, 'reviews'])->whereNumber('id');
+    Route::get('/services', [BookingController::class, 'services']);
+});
 
 // ---- Authenticated (any role) ----
 Route::middleware('auth:sanctum')->group(function () {
@@ -143,6 +155,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
 
+    // Pabili — buy-for-me requests for items not in the catalog
+    Route::get('/pabili', [PabiliController::class, 'index']);
+    Route::post('/pabili', [PabiliController::class, 'store'])->middleware('throttle:10,60');
+    Route::get('/pabili/{id}', [PabiliController::class, 'show'])->whereNumber('id');
+    Route::post('/pabili/{id}/approve', [PabiliController::class, 'approve'])->whereNumber('id');
+    Route::post('/pabili/{id}/decline', [PabiliController::class, 'decline'])->whereNumber('id');
+    Route::post('/pabili/{id}/cancel', [PabiliController::class, 'cancel'])->whereNumber('id');
+
     // Offline sync queue (FR-OFF-001/002)
     Route::post('/sync/offline-queue', [OfflineSyncController::class, 'sync']);
 
@@ -157,6 +177,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Order lifecycle state machine
     Route::get('/orders/{id}/state', [OrderStateController::class, 'show'])->whereNumber('id');
+    Route::get('/orders/{id}/track', [OrderStateController::class, 'track'])->whereNumber('id');
     Route::post('/orders/{id}/state/{action}', [OrderStateController::class, 'transition'])->whereNumber('id');
     Route::post('/orders/{id}/generate-pin', [OrderStateController::class, 'generatePin'])->whereNumber('id');
 
@@ -246,6 +267,8 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
     Route::get('/ops/dispatch', [StaffOpsController::class, 'dispatch']);
     Route::post('/ops/dispatch/{orderId}/assign', [StaffOpsController::class, 'assign'])->whereNumber('orderId');
     Route::get('/ops/history', [StaffOpsController::class, 'history']);
+    Route::get('/ops/pabili', [PabiliStaffController::class, 'index']);
+    Route::post('/ops/pabili/{id}/quote', [PabiliStaffController::class, 'quote'])->whereNumber('id');
     Route::get('/ops/orders/{id}/audit', [StaffOpsController::class, 'audit'])->whereNumber('id');
     Route::get('/ops/status-board', [StaffOpsController::class, 'statusBoard']);
     Route::put('/ops/orders/{id}/status', [StaffOpsController::class, 'forceStatus'])->whereNumber('id');

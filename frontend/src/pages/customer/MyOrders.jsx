@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import client from '../../api/client.js';
 import { EmptyState } from '../../components/ui.jsx';
 
@@ -74,9 +75,11 @@ export default function MyOrders({ user }) {
       ) : (
         <div className="space-y-3">
           {orders.map((o) => {
-            const state = o.delivery_state || 'pending_merchant';
-            const isCancelled = state === 'cancelled';
-            const progress = customerStatus(o);
+              const state = o.delivery_state || 'pending_merchant';
+              const isCancelled = state === 'cancelled';
+              const isDelivered = state === 'delivered';
+              const trackable = o.fulfillment_type !== 'pickup' && !isCancelled && !isDelivered;
+              const progress = customerStatus(o);
             return (
               <div key={o.id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -120,6 +123,15 @@ export default function MyOrders({ user }) {
                       );
                     })}
                   </div>
+                )}
+
+                {trackable && (
+                  <Link
+                    to={`/orders/${o.id}/track`}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-bayan-50 border border-bayan-200 px-3 py-1.5 text-xs font-bold text-bayan-700 hover:bg-bayan-100 transition"
+                  >
+                    🛰 Live track {o.rider?.name ? `· ${o.rider.name}` : ''}
+                  </Link>
                 )}
               </div>
             );

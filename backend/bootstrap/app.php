@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureNotUnderMaintenance;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\LogContext;
 use Illuminate\Auth\AuthenticationException;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // RBAC route guard alias (PRD section 2)
         $middleware->alias([
             'role' => EnsureRole::class,
+            'maintenance' => EnsureNotUnderMaintenance::class,
         ]);
 
         $middleware->append(LogContext::class);

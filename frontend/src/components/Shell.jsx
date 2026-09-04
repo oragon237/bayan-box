@@ -53,8 +53,8 @@ function tabsFor(role) {
     ],
     customer: [
       ...base,
+      { to: '/pabili', label: 'Pabili', icon: TagIcon },
       cart,
-      affiliate,
       { to: '/orders', label: 'Orders', icon: PackageIcon },
       { to: '/points-shop', label: 'Points', icon: StarIcon },
       { to: '/bookings', label: 'Bookings', icon: StarIcon },

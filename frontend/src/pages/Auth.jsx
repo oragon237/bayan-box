@@ -7,9 +7,10 @@ export default function Auth({ onAuth }) {
   const [role, setRole] = useState('customer');
   const [form, setForm] = useState(() => {
     const ref = new URLSearchParams(window.location.search).get('ref');
-    return { name: '', phone: '', password: '', referral_code: ref || '' };
+    return { name: '', phone: '', password: '', password2: '', code: '', referral_code: ref || '' };
   });
   const [busy, setBusy] = useState(false);
+  const [resetHint, setResetHint] = useState('');
   const notify = useToast();
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -18,6 +19,26 @@ export default function Auth({ onAuth }) {
     e.preventDefault();
     setBusy(true);
     try {
+      if (mode === 'forgot') {
+        const { data } = await client.post('/auth/forgot-password', { phone: form.phone });
+        setResetHint(data.message);
+        setMode('reset');
+        return;
+      }
+      if (mode === 'reset') {
+        const { data } = await client.post('/auth/reset-password', {
+          phone: form.phone,
+          code: form.code,
+          password: form.password,
+          password_confirmation: form.password2,
+        });
+        notify(data.message);
+        setForm((f) => ({ ...f, password: '', password2: '', code: '' }));
+        setResetHint('');
+        setMode('login');
+        return;
+      }
+
       const payload =
         mode === 'login'
           ? { phone: form.phone, password: form.password }
@@ -70,6 +91,10 @@ export default function Auth({ onAuth }) {
             ))}
           </div>
 
+          {mode === 'reset' && resetHint && (
+            <p className="text-[11px] leading-snug text-bayan-700 bg-bayan-50 border border-bayan-200 rounded-xl p-2.5 mb-3">{resetHint}</p>
+          )}
+
           <form onSubmit={submit} className={mode === 'register' ? 'space-y-2.5' : 'space-y-3.5'}>
             {mode === 'register' && (
               <input className="input py-2 text-sm" placeholder="Full name" value={form.name} onChange={set('name')} required />
@@ -84,15 +109,42 @@ export default function Auth({ onAuth }) {
               required
             />
 
-            <input
-              className="input py-2 text-sm"
-              placeholder="Password"
-              type="password"
-              value={form.password}
-              onChange={set('password')}
-              required
-              minLength={6}
-            />
+            {mode === 'reset' && (
+              <input
+                className="input py-2 text-sm tracking-widest"
+                placeholder="6-digit code"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                value={form.code}
+                onChange={set('code')}
+                required
+              />
+            )}
+
+            {mode !== 'forgot' && (
+              <input
+                className="input py-2 text-sm"
+                placeholder={mode === 'reset' ? 'New password' : 'Password'}
+                type="password"
+                value={form.password}
+                onChange={set('password')}
+                required
+                minLength={6}
+              />
+            )}
+
+            {mode === 'reset' && (
+              <input
+                className="input py-2 text-sm"
+                placeholder="Confirm new password"
+                type="password"
+                value={form.password2}
+                onChange={set('password2')}
+                required
+                minLength={6}
+              />
+            )}
 
             {mode === 'register' && (
               <>
@@ -147,8 +199,19 @@ export default function Auth({ onAuth }) {
 
             <button type="submit" className="btn-primary flex items-center justify-center gap-2 !py-2.5 !text-sm" disabled={busy}>
               {busy && <Spinner size="sm" className="!text-white" />}
-              {mode === 'login' ? 'Sign In' : 'Create Account'}
+              {mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : mode === 'forgot' ? 'Send verification code' : 'Set new password'}
             </button>
+
+            {mode === 'login' && (
+              <button type="button" onClick={() => setMode('forgot')} className="w-full text-center text-xs font-bold text-bayan-700 hover:underline">
+                Forgot password?
+              </button>
+            )}
+            {(mode === 'forgot' || mode === 'reset') && (
+              <button type="button" onClick={() => { setMode('login'); setResetHint(''); }} className="w-full text-center text-xs font-bold text-ink-500 hover:underline">
+                ← Back to Sign In
+              </button>
+            )}
           </form>
         </div>
 
