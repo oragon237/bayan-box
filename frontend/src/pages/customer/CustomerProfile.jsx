@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import client from '../../api/client.js';
 import { useToast } from '../../components/ui.jsx';
 
@@ -155,6 +156,36 @@ export default function CustomerProfile({ user }) {
         >
           {saving ? 'Saving…' : 'Save profile'}
         </button>
+      </div>
+
+      {/* Affiliate & rewards links */}
+      <div className="space-y-2">
+        <h3 className="font-extrabold text-ink-800 px-1">KITA — Earnings</h3>
+        <Link
+          to="/affiliate"
+          className="block rounded-2xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-4 shadow-lift hover:from-bayan-800 hover:to-bayan-600 transition"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Share · Earn · Cash out</p>
+              <p className="text-base font-black tracking-tight mt-0.5">💸 Affiliate Program</p>
+              <p className="text-[11px] text-white/80 mt-1">Refer friends and earn commission from their orders. Check balance, history, and cash out here.</p>
+            </div>
+            <span className="shrink-0 w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-lg">→</span>
+          </div>
+        </Link>
+        <div className="grid grid-cols-2 gap-2">
+          <Link to="/referral" className="card p-3 text-center hover:bg-bayan-50 transition">
+            <p className="text-lg">🪪</p>
+            <p className="text-xs font-bold text-ink-700">My Referral QR</p>
+            <p className="text-[10px] text-ink-400">Poster your code</p>
+          </Link>
+          <Link to="/points-shop" className="card p-3 text-center hover:bg-bayan-50 transition">
+            <p className="text-lg">⭐</p>
+            <p className="text-xs font-bold text-ink-700">Suki Points</p>
+            <p className="text-[10px] text-ink-400">Redeem rewards</p>
+          </Link>
+        </div>
       </div>
     </div>
   );

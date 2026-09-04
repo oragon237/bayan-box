@@ -83,6 +83,13 @@ export const ShareIcon = (props) => (
   </svg>
 );
 
+export const BannerIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 9v6h3l7 4V5L7 9H4Z" />
+    <path d="M18 9a4 4 0 0 1 0 6" />
+  </svg>
+);
+
 export const BellIcon = (props) => (
   <svg {...base} {...props}>
     <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" />

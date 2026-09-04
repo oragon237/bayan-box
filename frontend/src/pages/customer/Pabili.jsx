@@ -103,8 +103,8 @@ export default function Pabili({ user }) {
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
-      <div className="rounded-3xl bg-gradient-to-br from-orange-600 to-bayan-500 text-white p-5 shadow-lift">
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/80">Di may sa store? Pabili mo lang!</p>
+      <div className="rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/80">Wala ba sa store? Pabili mo na lang!</p>
         <h2 className="text-2xl font-black tracking-tight mt-1">🧾 Pabili — Buy For Me</h2>
         <p className="text-white/85 text-sm mt-1">
           Item not in the catalog? List it (add as many items as you want), our staff will confirm the

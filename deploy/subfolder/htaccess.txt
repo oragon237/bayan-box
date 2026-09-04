@@ -1,0 +1,26 @@
+Options -MultiViews +FollowSymLinks
+
+# Serve the React SPA for the folder root regardless of the host's
+# index-file ordering (index.php also lives here as Laravel's entry).
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteBase /habi/
+
+# Laravel front controller (API lives under /habi/api on the same domain)
+RewriteRule ^api(/|$)     index.php [L]
+RewriteRule ^sanctum(/|$)  index.php [L]
+RewriteRule ^up$           index.php [L]
+
+# Real files: PWA assets, icons, and the storage/ symlink (uploads)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# React Router history-mode fallback
+RewriteRule ^ index.html [L]
+
+# Never leak environment or dot files
+<FilesMatch "^\.|\.(env|log|sqlite)$">
+    Require all denied
+</FilesMatch>

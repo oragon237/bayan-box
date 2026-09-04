@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import client from '../api/client.js';
 import DeliveryMap from './DeliveryMap.jsx';
 import { calculateDeliveryFee, fetchDrivingDistance } from '../lib/distance.js';
 import { useToast, Spinner } from './ui.jsx';
@@ -40,7 +40,7 @@ export default function DeliveryCostPreview({ user, hubCoords = null }) {
       const frontendFee = calculateDeliveryFee(route.distanceKm);
 
       // Backend: get the 85/15 split (also serves as verification)
-      const response = await axios.post('/api/delivery/calculate', {
+      const response = await client.post('/delivery/calculate', {
         origin_lat: origin.lat, origin_lng: origin.lng,
         dest_lat: customerPin.lat, dest_lng: customerPin.lng,
         municipality,

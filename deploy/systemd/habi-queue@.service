@@ -1,0 +1,16 @@
+[Unit]
+Description=HABI Laravel queue worker (%i)
+After=network.target redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/habi/backend
+ExecStart=/usr/bin/php /var/www/habi/backend/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+KillSignal=SIGUSR1
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

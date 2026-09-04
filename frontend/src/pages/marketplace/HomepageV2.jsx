@@ -50,7 +50,7 @@ function endOfToday() {
 }
 
 /* ── Image w/ offline-safe fallback (failed URL → emoji, never blank) ─ */
-function ImageFallback({ src, alt, className, emoji = '🛍️' }) {
+function ImageFallback({ src, alt, className, emoji = '🛍️', imgClassName = 'w-full h-full object-cover' }) {
   const [failed, setFailed] = useState(false);
   const show = src && !failed;
   return (
@@ -101,7 +101,12 @@ function HeroCarousel({ banners, onGo }) {
       onMouseLeave={() => setPaused(false)}
     >
       <button onClick={() => onGo(b.link_url || '/')} className="w-full block">
-        <ImageFallback src={b.image_url} alt={b.title} className="w-full h-40 sm:h-48" />
+        <ImageFallback
+          src={b.image_url}
+          alt={b.title}
+          className="w-full h-40 sm:h-48"
+          imgClassName="w-full h-full object-contain"
+        />
         <span className="absolute bottom-3 left-3 px-3 py-2 rounded-xl bg-bayan-600 text-white text-xs font-bold shadow-lg">
           {b.cta_text || 'Shop now'} →
         </span>
@@ -299,16 +304,16 @@ function PabiliHighlight({ onGo }) {
     <section aria-label="Pabili — Buy For Me">
       <button
         onClick={() => onGo('/pabili')}
-        className="w-full text-left rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-bayan-600 text-white p-5 shadow-lift relative overflow-hidden group"
+        className="w-full text-left rounded-3xl bg-gradient-to-br from-bayan-700 to-bayan-500 text-white p-5 shadow-lift relative overflow-hidden group"
       >
         <span className="absolute -right-6 -top-6 text-[120px] opacity-15 leading-none select-none">🧾</span>
         <span className="absolute top-3 right-3 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide">New</span>
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/85">Di may sa store? Pabili mo lang!</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/85">Wala ba sa store? Pabili mo na lang!</p>
         <p className="text-xl font-black tracking-tight mt-1">Pabili — Buy For Me 🛒</p>
         <p className="text-[11px] text-white/85 mt-1 max-w-md">
           Any item not in the catalog — list it, staff confirms the price, you approve, and a rider brings it straight to your door.
         </p>
-        <span className="inline-flex items-center gap-1 mt-3 rounded-xl bg-white text-orange-600 px-3.5 py-2 text-xs font-black group-hover:bg-amber-50 transition">
+        <span className="inline-flex items-center gap-1 mt-3 rounded-xl bg-white text-bayan-700 px-3.5 py-2 text-xs font-black group-hover:bg-bayan-50 transition">
           Try Pabili <ArrowRightIcon className="w-3.5 h-3.5" />
         </span>
       </button>
@@ -368,7 +373,7 @@ function Footer() {
   return (
     <footer className="pt-4 border-t border-ink-100">
       <div className="flex items-center gap-2 text-lg font-black text-ink-900">
-        <img src="/habi-logo-concept.png" alt="HABI" className="h-8 w-[92px] object-contain object-left" />
+        <img src={`${import.meta.env.BASE_URL}habi-logo-concept.png`} alt="HABI" className="h-8 w-[92px] object-contain object-left" />
       </div>
       <p className="mt-2 text-xs text-ink-500">Your neighbor barangay's store, at your door.</p>
       <p className="mt-4 text-center text-[11px] text-ink-400">© {new Date().getFullYear()} HABI · Made for Philippine provinces.</p>

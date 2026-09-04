@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import client from '../api/client.js';
 import {
   HomeIcon, MapPinIcon, StarIcon, WalletIcon, ScanIcon,
-  PackageIcon, RouteIcon, ShareIcon, TagIcon, LogoutIcon, BellIcon, CartIcon,
+  PackageIcon, RouteIcon, ShareIcon, TagIcon, LogoutIcon, BellIcon, CartIcon, BannerIcon,
 } from './icons.jsx';
 import { useToast } from './ui.jsx';
 import NotificationsBell from './NotificationsBell.jsx';
@@ -22,6 +22,7 @@ function tabsFor(role) {
       dash,
       { to: '/admin/merchant-list', label: 'Merchants', icon: PackageIcon },
       { to: '/admin/riders', label: 'Riders', icon: RouteIcon },
+      { to: '/admin/banners', label: 'Banners', icon: BannerIcon },
       { to: '/admin/settings', label: 'Settings', icon: StarIcon },
       { to: '/admin/ads', label: 'Ads', icon: TagIcon },
       { to: '/admin/finance', label: 'Finance', icon: WalletIcon },
@@ -106,7 +107,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img
-                src="/habi-logo-concept.png"
+                src={`${import.meta.env.BASE_URL}habi-logo-concept.png`}
                 alt="HABI"
                 className="h-9 w-[112px] sm:w-[128px] object-contain object-left habi-wordmark"
               />

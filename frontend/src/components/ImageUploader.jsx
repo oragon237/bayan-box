@@ -10,11 +10,16 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
  * Click-to-upload or drag-and-drop, with type/size validation. Uploads to
  * POST /api/upload and returns the optimized URL via onChange.
  */
-export default function ImageUploader({ value, onChange, label = 'Product image', multiple = false, folder = 'products' }) {
+export default function ImageUploader({ value, onChange, label = 'Product image', multiple = false, folder = 'products', onBusyChange }) {
   const notify = useToast();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+
+  const setBusy = (b) => {
+    setUploading(b);
+    onBusyChange?.(b);
+  };
 
   const values = multiple ? value || [] : value ? [value] : [];
 
@@ -33,7 +38,7 @@ export default function ImageUploader({ value, onChange, label = 'Product image'
   const handleFiles = async (files) => {
     const valid = Array.from(files).filter(validate);
     if (!valid.length) return;
-    setUploading(true);
+    setBusy(true);
     const uploaded = [];
     try {
       for (const file of valid) {
@@ -50,9 +55,12 @@ export default function ImageUploader({ value, onChange, label = 'Product image'
       }
       notify(uploaded.length > 1 ? 'Images uploaded.' : 'Image uploaded.');
     } catch (err) {
-      notify(err.response?.data?.message || 'Upload failed.', 'error');
+      const detail = err.response?.data?.errors?.image?.[0] || err.response?.data?.message;
+      notify(detail === 'The image field is required.'
+        ? 'Upload blocked by the server (PHP upload_max_filesize too low) — ask the host to raise it, or use a smaller image.'
+        : (detail || 'Upload failed.'), 'error');
     } finally {
-      setUploading(false);
+      setBusy(false);
     }
   };
 

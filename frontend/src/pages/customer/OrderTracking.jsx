@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import client from '../../api/client.js';
 import DeliveryMap from '../../components/DeliveryMap.jsx';
+import CancelOrderButton from '../../components/CancelOrderButton.jsx';
 import { Badge, Spinner } from '../../components/ui.jsx';
 
 const STATE_COPY = {
@@ -98,6 +99,11 @@ export default function OrderTracking() {
 
       <div className="card p-4">
         <p className="font-bold text-ink-800">{STATE_COPY[state] || state}</p>
+        {state === 'pending_merchant' && (
+          <div className="mt-2">
+            <CancelOrderButton orderId={data.order.id} onDone={() => load(true)} />
+          </div>
+        )}
         {data.live && (
           <p className="text-xs text-bayan-700 font-semibold mt-1">
             {heading} · map refreshes every 10 seconds

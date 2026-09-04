@@ -41,15 +41,15 @@ export default function MerchantDashboard({ user }) {
       {/* Header */}
       <div className="dark-section rounded-3xl p-5 shadow-lift-dark relative overflow-hidden">
         <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-bayan-600/30 blur-3xl" />
-        <div className="relative flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-              {store.name}
-              {store.verified && <span className="text-[10px] font-black bg-green-500 text-white px-2 py-0.5 rounded-full">✓ Verified</span>}
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-black tracking-tight flex flex-wrap items-center gap-2">
+              <span className="truncate max-w-full">{store.name}</span>
+              {store.verified && <span className="text-[10px] font-black bg-green-500 text-white px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">✓ Verified</span>}
             </h2>
-            <p className="text-white/75 text-sm mt-1">{store.verified ? 'Store open' : 'Store closed'} — accepting orders</p>
+            <p className="text-white/75 text-sm mt-1">{store.status === 'active' ? 'Store open' : 'Store closed'} — accepting orders</p>
           </div>
-          <span className={`chip border ${store.status === 'active' ? 'bg-green-500 text-white border-green-500' : 'bg-ink-600 text-white border-ink-600'}`}>
+          <span className={`chip border shrink-0 whitespace-nowrap ${store.status === 'active' ? 'bg-green-500 text-white border-green-500' : 'bg-ink-600 text-white border-ink-600'}`}>
             {store.status === 'active' ? '● Open' : '● Closed'}
           </span>
         </div>

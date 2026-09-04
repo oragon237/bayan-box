@@ -12,6 +12,7 @@ export default function AdminBanners({ user }) {
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -88,7 +89,7 @@ export default function AdminBanners({ user }) {
         </div>
         <div>
           <label className="block text-xs font-semibold text-ink-500 mb-1">Banner image *</label>
-          <ImageUploader value={form.image_url} onChange={(url) => setForm({ ...form, image_url: url })} folder="banners" label="Upload banner image" />
+          <ImageUploader value={form.image_url} onChange={(url) => setForm({ ...form, image_url: url })} folder="banners" label="Upload banner image" onBusyChange={setUploading} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -114,8 +115,8 @@ export default function AdminBanners({ user }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button type="submit" disabled={saving} className="px-4 py-2.5 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl">
-            {saving ? 'Saving…' : editingId ? 'Update banner' : 'Create banner'}
+          <button type="submit" disabled={saving || uploading} className="px-4 py-2.5 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-sm font-bold rounded-xl">
+            {uploading ? 'Uploading image…' : saving ? 'Saving…' : editingId ? 'Update banner' : 'Create banner'}
           </button>
           {editingId && <button type="button" onClick={() => { setEditingId(null); setForm(EMPTY); }} className="px-4 py-2.5 bg-ink-100 text-ink-700 text-sm font-bold rounded-xl">Cancel</button>}
         </div>

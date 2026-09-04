@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { isDemoMode, mockRequest } from './mock.js';
 
-export const API_URL = import.meta.env.VITE_API_URL || '/api';
+export const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, ''); // '' at root, '/habi' in a subfolder
+export const API_URL = import.meta.env.VITE_API_URL || `${APP_BASE}/api`;
 
 const client = axios.create({
   baseURL: API_URL,
@@ -28,8 +29,9 @@ client.interceptors.response.use(
       localStorage.removeItem('bayanbox_token');
     }
     if (err.response?.status === 503 && err.response?.data?.maintenance) {
-      if (!window.location.pathname.startsWith('/maintenance') && !window.location.pathname.startsWith('/login')) {
-        window.location.assign('/maintenance');
+      const target = `${APP_BASE}/maintenance`;
+      if (!window.location.pathname.startsWith(target) && !window.location.pathname.startsWith(`${APP_BASE}/login`)) {
+        window.location.assign(target);
       }
     }
     return Promise.reject(err);

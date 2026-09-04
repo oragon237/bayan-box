@@ -9,7 +9,7 @@ export default function MaintenancePage() {
           please check back shortly.
         </p>
         <button
-          onClick={() => window.location.assign('/')}
+          onClick={() => window.location.assign(import.meta.env.BASE_URL)}
           className="px-5 py-2.5 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-xl"
         >
           Try again

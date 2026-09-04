@@ -144,6 +144,11 @@ let MOCK_PABILI = [
 ];
 let pabiliSeq = 1;
 
+let CUSTOMER_ORDERS = [
+  { id: 11, total_amount: '80.00', payment_method: 'gcash', fulfillment_type: 'delivery', delivery_state: 'pending_merchant', items: [{ id: 1, product: { id: 1, name: 'Fresh Sili (250g)' }, quantity: 2 }] },
+  { id: 10, total_amount: '160.00', payment_method: 'affiliate', fulfillment_type: 'pickup', delivery_state: 'preparing', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 2 }] },
+];
+
 function mockResponse(data, status = 200) {
   return { data, status, statusText: 'OK', headers: {}, config: {}, isDemo: true };
 }
@@ -500,13 +505,7 @@ export function mockRequest(url, method, data, params = {}) {
     return Promise.resolve(mockResponse({ message: 'Order marked as ' + data?.fulfillment_status + '.', order: {} }));
   }
   if (path === '/orders' && lower === 'get') {
-    return Promise.resolve(mockResponse({
-      data: [
-        { id: 11, total_amount: '80.00', payment_method: 'gcash', fulfillment_type: 'delivery', fulfillment_status: 'packaging', items: [{ id: 1, product: { id: 1, name: 'Fresh Sili (250g)' }, quantity: 2 }] },
-        { id: 10, total_amount: '160.00', payment_method: 'affiliate', fulfillment_type: 'pickup', fulfillment_status: 'pending', items: [{ id: 2, product: { id: 4, name: 'Bicol Express Bagoong' }, quantity: 2 }] },
-      ],
-      total: 2,
-    }));
+    return Promise.resolve(mockResponse({ data: CUSTOMER_ORDERS, total: CUSTOMER_ORDERS.length }));
   }
 
     // Notifications (item 11)
@@ -609,24 +608,28 @@ export function mockRequest(url, method, data, params = {}) {
   if (/^\/staff\/ops\/incidents\/\d+\/resolve$/.test(path) && lower === 'post') return Promise.resolve(mockResponse({ message: 'Incident resolved.', incident: {} }));
   if (/^\/orders\/\d+\/track$/.test(path) && lower === 'get') {
     const [, orderId] = path.match(/^\/orders\/(\d+)\/track$/) || [];
+    const cust = CUSTOMER_ORDERS.find((x) => x.id === Number(orderId));
+    const base = cust
+      ? { id: cust.id, status: cust.delivery_state === 'cancelled' ? 'cancelled' : 'paid', delivery_state: cust.delivery_state, fulfillment_type: cust.fulfillment_type, payment_method: cust.payment_method, total_amount: cust.total_amount, created_at: new Date().toISOString() }
+      : { id: Number(orderId), status: 'out_for_delivery', delivery_state: 'in_transit', fulfillment_type: 'delivery', payment_method: 'cod', total_amount: '150.00', created_at: new Date().toISOString() };
+    const live = ['raider_assigned', 'raider_en_route_to_merchant', 'at_merchant', 'in_transit', 'arrived'].includes(base.delivery_state);
     return Promise.resolve(mockResponse({
-      order: { id: Number(orderId), status: 'out_for_delivery', delivery_state: 'in_transit', fulfillment_type: 'delivery', payment_method: 'cod', total_amount: '150.00', created_at: new Date().toISOString() },
-      items: [{ name: 'Fresh Sili (250g)', quantity: 2 }],
+      order: base,
+      items: cust ? (cust.items || []).map((i) => ({ name: i.product?.name, quantity: i.quantity })) : [{ name: 'Fresh Sili (250g)', quantity: 2 }],
       merchant: { id: 4, name: 'Aling Maria Merch', barangay: 'Tara', municipality: 'Sipocot, Camarines Sur', latitude: 13.7443691, longitude: 122.9727423 },
       destination: { address: 'Concepcion Grande, Naga', latitude: 13.645, longitude: 123.215, customer: { id: 5, name: 'Maria Santos', phone: '09170000002' } },
-      rider: { id: 3, name: 'Rico the Rider', phone: '09170000003', latitude: 13.631, longitude: 123.203, is_stale: false, last_seen_label: 'seen just now', last_seen_at: new Date().toISOString(), active_orders: 2 },
-      heading_to: 'customer',
-      live: true,
-      eta: { min: 6, max: 13 },
+      rider: live ? { id: 3, name: 'Rico the Rider', phone: '09170000003', latitude: 13.631, longitude: 123.203, is_stale: false, last_seen_label: 'seen just now', last_seen_at: new Date().toISOString(), active_orders: 2 } : null,
+      heading_to: live ? 'customer' : null,
+      live,
+      eta: live ? { min: 6, max: 13 } : null,
     }));
   }
-  if (/^\/orders\/\d+\/state\/(accept|reject|mark_ready|confirm_collection)$/.test(path) && lower === 'post') {
-    const [, orderId, action] = path.match(/^\/orders\/(\d+)\/state\/(accept|reject|mark_ready|confirm_collection)$/) || [];
-    const order = MALL_ORDERS.find((item) => item.id === Number(orderId));
-    if (order) {
-      order.delivery_state = { accept: 'preparing', mark_ready: 'ready_for_pickup', confirm_collection: 'delivered', reject: 'cancelled' }[action];
-    }
-    return Promise.resolve(mockResponse({ message: 'Mall order status updated.', order }));
+  if (/^\/orders\/\d+\/state\/(accept|reject|mark_ready|confirm_collection|cancel)$/.test(path) && lower === 'post') {
+    const [, orderId, action] = path.match(/^\/orders\/(\d+)\/state\/(accept|reject|mark_ready|confirm_collection|cancel)$/) || [];
+    const map = { accept: 'preparing', mark_ready: 'ready_for_pickup', confirm_collection: 'delivered', reject: 'cancelled', cancel: 'cancelled' };
+    const apply = (o) => { if (o && map[action]) { o.delivery_state = map[action]; if (action === 'cancel') { o.cancel_reason = data?.reason || 'Cancelled by customer'; } } };
+    apply(CUSTOMER_ORDERS.find((item) => item.id === Number(orderId)) || MALL_ORDERS.find((item) => item.id === Number(orderId)));
+    return Promise.resolve(mockResponse({ message: 'Order status updated.' }));
   }
   if (path === '/pabili' && lower === 'get') return Promise.resolve(mockResponse({ data: [...MOCK_PABILI].sort((a, b) => b.id - a.id) }));
   if (path === '/pabili' && lower === 'post') {

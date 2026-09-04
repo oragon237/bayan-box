@@ -30,11 +30,8 @@ export default function ReferralQR({ user }) {
   const downloadPoster = async () => {
     setBusy(true);
     try {
-      const token = localStorage.getItem('bayanbox_token');
-      const res = await fetch('/api/hub/affiliate/referral-qr/poster', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const blob = await res.blob();
+      const res = await client.get('/hub/affiliate/referral-qr/poster', { responseType: 'blob' });
+      const blob = await res.data;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

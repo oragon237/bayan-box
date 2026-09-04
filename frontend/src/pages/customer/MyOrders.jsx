@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../../api/client.js';
+import CancelOrderButton from '../../components/CancelOrderButton.jsx';
 import { EmptyState } from '../../components/ui.jsx';
 
 // Keep the customer-visible tracker aligned with Merchant Orders and Mall
@@ -126,12 +127,21 @@ export default function MyOrders({ user }) {
                 )}
 
                 {trackable && (
-                  <Link
-                    to={`/orders/${o.id}/track`}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-bayan-50 border border-bayan-200 px-3 py-1.5 text-xs font-bold text-bayan-700 hover:bg-bayan-100 transition"
-                  >
-                    🛰 Live track {o.rider?.name ? `· ${o.rider.name}` : ''}
-                  </Link>
+                  <div className="mt-3 flex items-center gap-3 flex-wrap">
+                    <Link
+                      to={`/orders/${o.id}/track`}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-bayan-50 border border-bayan-200 px-3 py-1.5 text-xs font-bold text-bayan-700 hover:bg-bayan-100 transition"
+                    >
+                      🛰 Live track {o.rider?.name ? `· ${o.rider.name}` : ''}
+                    </Link>
+                  </div>
+                )}
+
+                {/* Customer may cancel any open order (delivery or pickup) before the merchant accepts */}
+                {state === 'pending_merchant' && (
+                  <div className={`flex items-center gap-3 ${trackable ? '' : 'mt-3'}`}>
+                    <CancelOrderButton orderId={o.id} onDone={load} />
+                  </div>
                 )}
               </div>
             );

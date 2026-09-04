@@ -66,7 +66,7 @@ export default function Auth({ onAuth }) {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-4 py-2.5 shadow-lift">
             <img
-            src="/habi-logo-concept.png"
+            src={`${import.meta.env.BASE_URL}habi-logo-concept.png`}
             alt="HABI"
             className="h-11 w-[150px] object-contain"
           />

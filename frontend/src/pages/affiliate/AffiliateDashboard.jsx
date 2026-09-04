@@ -62,7 +62,7 @@ const [uploading, setUploading] = useState(false);
     }
   };
 
-  const referralUrl = data ? `${window.location.origin}/login?ref=${data.referral_code}` : '';
+  const referralUrl = data ? `${window.location.origin}${import.meta.env.BASE_URL}login?ref=${data.referral_code}` : '';
 
   return (
     <div className="space-y-5">

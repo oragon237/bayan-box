@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import client from '../../api/client.js';
+import client, { APP_BASE } from '../../api/client.js';
 import { EmptyState, useToast } from '../../components/ui.jsx';
 
 const RECENT = JSON.parse(localStorage.getItem('bayanbox_recent_searches') || '[]');
@@ -82,7 +82,7 @@ export default function SearchPage({ user }) {
   const notify = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const mallOnly = searchParams.get('mall') === '1' || window.location.pathname === '/mall';
+  const mallOnly = searchParams.get('mall') === '1' || window.location.pathname === `${APP_BASE}/mall`;
   const inputRef = useRef(null);
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
