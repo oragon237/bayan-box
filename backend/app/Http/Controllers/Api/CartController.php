@@ -15,6 +15,31 @@ use Illuminate\Http\Request;
  */
 class CartController extends Controller
 {
+    /** Add a single item without replacing the rest of the cart. */
+    public function add(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'product_id' => 'required|integer|exists:products,id',
+            'quantity' => 'required|integer|min:1|max:100',
+        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $data) {
+            // Serialize simultaneous additions, including the first insert for a product.
+            \App\Models\User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            $product = \App\Models\Product::active()->whereKey($data['product_id'])->lockForUpdate()->first();
+            if (! $product) {
+                return response()->json(['message' => 'This product is no longer available.'], 422);
+            }
+            $item = CartItem::firstOrNew(['customer_id' => $request->user()->id, 'product_id' => $product->id]);
+            $quantity = ($item->exists ? $item->quantity : 0) + $data['quantity'];
+            if ($quantity > min(100, $product->stock)) {
+                return response()->json(['message' => 'The requested quantity exceeds available stock or the 100-item limit.'], 422);
+            }
+            $item->quantity = $quantity;
+            $item->save();
+            return response()->json(['message' => 'Added to cart.', 'item' => $item]);
+        });
+    }
+
     /**
      * GET /api/cart — current customer cart.
      */

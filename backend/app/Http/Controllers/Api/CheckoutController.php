@@ -43,6 +43,21 @@ class CheckoutController extends Controller
             ], 422);
         }
 
+        // Measurement must never turn a successfully committed order into a checkout error.
+        try {
+            $context = \Illuminate\Support\Facades\Validator::make(
+                (array) $request->input('conversion', []), ConversionController::contextRules()
+            );
+            if (! $context->fails()) {
+                \Illuminate\Support\Facades\DB::table('conversion_events')->insertOrIgnore([
+                    ...$context->validated(), 'event_id' => (string) \Illuminate\Support\Str::uuid(),
+                    'event' => 'order_placed', 'order_id' => $order->id, 'created_at' => now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Order conversion recording failed', ['order_id' => $order->id]);
+        }
+
         return response()->json([
             'status' => 'purchase_completed',
             'order' => $order,

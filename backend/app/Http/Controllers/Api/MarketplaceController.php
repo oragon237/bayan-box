@@ -23,6 +23,7 @@ class MarketplaceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $request->validate(['city' => 'nullable|string|max:100', 'barangay' => 'nullable|string|max:100', 'exact_area' => 'nullable|boolean']);
         $query = Product::active()
             ->with(['merchant:id,name,barangay,municipality', 'images:id,product_id,image_url'])
             ->withCount('reviews')
@@ -44,10 +45,10 @@ class MarketplaceController extends Controller
 
         // Location filters (merchant's city / barangay)
         if ($city = $request->input('city')) {
-            $query->whereHas('merchant', fn ($m) => $m->where('municipality', 'ilike', "%{$city}%"));
+            $query->whereHas('merchant', fn ($m) => $m->where('municipality', $request->boolean('exact_area') ? '=' : 'ilike', $request->boolean('exact_area') ? $city : "%{$city}%"));
         }
         if ($barangay = $request->input('barangay')) {
-            $query->whereHas('merchant', fn ($m) => $m->where('barangay', 'ilike', "%{$barangay}%"));
+            $query->whereHas('merchant', fn ($m) => $m->where('barangay', $request->boolean('exact_area') ? '=' : 'ilike', $request->boolean('exact_area') ? $barangay : "%{$barangay}%"));
         }
 
         // On-sale filter: only products with an active discount price
@@ -89,6 +90,15 @@ class MarketplaceController extends Controller
 
         // Ad injection: tag sponsored products + provide featured/sponsored sets
         $activeAds = \App\Models\AdCampaign::active()
+            ->whereHas('product', function ($p) use ($request) {
+                $p->active();
+                if ($city = $request->input('city')) {
+                    $p->whereHas('merchant', fn ($m) => $m->where('municipality', $request->boolean('exact_area') ? '=' : 'ilike', $request->boolean('exact_area') ? $city : "%{$city}%"));
+                }
+                if ($barangay = $request->input('barangay')) {
+                    $p->whereHas('merchant', fn ($m) => $m->where('barangay', $request->boolean('exact_area') ? '=' : 'ilike', $request->boolean('exact_area') ? $barangay : "%{$barangay}%"));
+                }
+            })
             ->whereIn('ad_type', ['sponsored', 'homepage_featured', 'flash_deal'])
             ->with('product:id,name,image_url,price,sale_price,stock,merchant_id')
             ->get();
@@ -156,6 +166,13 @@ class MarketplaceController extends Controller
         return response()->json(
             Product::active()->distinct()->orderBy('category')->pluck('category')
         );
+    }
+
+    public function locations(): JsonResponse
+    {
+        return response()->json(\App\Models\User::whereHas('products', fn ($p) => $p->active())
+            ->whereNotNull('municipality')->where('municipality', '!=', '')
+            ->select('municipality as city', 'barangay')->distinct()->orderBy('municipality')->orderBy('barangay')->get());
     }
 
     /**

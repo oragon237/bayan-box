@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MapView from './MapView.jsx';
+
+maplibregl.setWorkerUrl(mapWorkerUrl);
 
 // Reliable OpenStreetMap raster tile style (no API key, widely reachable).
 const OSM_STYLE = {

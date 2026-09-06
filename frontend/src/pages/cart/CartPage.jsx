@@ -1,3 +1,5 @@
+import { track, conversionContext } from '../../services/conversion.js';
+import { cartCashSubtotal } from '../../lib/purchaseJourney.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
@@ -12,7 +14,7 @@ export default function CartPage({ user }) {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
   const [cartLoaded, setCartLoaded] = useState(false);
-  const [fulfillment, setFulfillment] = useState('pickup');
+  const [fulfillment, setFulfillment] = useState(() => sessionStorage.getItem('habi_fulfillment') === 'delivery' ? 'delivery' : 'pickup');
   const [paymentMethod, setPaymentMethod] = useState('gcash');
   const [hubId, setHubId] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -75,14 +77,16 @@ export default function CartPage({ user }) {
 
   // Auto-sync cart changes (persist across sessions)
   const syncTimer = useRef(null);
+  const cartDirty = useRef(false);
+  useEffect(() => { sessionStorage.setItem('habi_fulfillment', fulfillment); }, [fulfillment]);
   useEffect(() => {
-    if (!user || !cartLoaded) return;
+    if (!user || !cartLoaded || !cartDirty.current || submitting) return;
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
       client.post('/cart/sync', { cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })) }).catch(() => {});
     }, 800);
     return () => clearTimeout(syncTimer.current);
-  }, [cart, cartLoaded, user]);
+  }, [cart, cartLoaded, user, submitting]);
 
   useEffect(() => {
     if (!user) return;
@@ -131,6 +135,8 @@ export default function CartPage({ user }) {
   };
 
   const updateQty = (productId, amount) => {
+    if (submitting) return;
+    cartDirty.current = true;
     setCart((prev) => prev.map((i) => {
       if (i.id === productId) {
         const next = i.quantity + amount;
@@ -143,13 +149,29 @@ export default function CartPage({ user }) {
   };
 
   const removeFromCart = (productId) => {
+    if (submitting) return;
+    cartDirty.current = true;
     setCart((prev) => prev.filter((i) => i.id !== productId));
     client.delete(`/cart/items/${productId}`).catch(() => {});
   };
 
-  const cartTotal = cart.reduce((s, i) => s + Number(i.price) * i.quantity, 0);
+  const cartTotal = cartCashSubtotal(cart);
   const pointsTotal = cart.filter((i) => i.points_only).reduce((s, i) => s + Number(i.points_price || 0) * i.quantity, 0);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  const editAddress = async (event) => {
+    event.preventDefault();
+    clearTimeout(syncTimer.current);
+    try {
+      if (cartDirty.current) {
+        await client.post('/cart/sync', { cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })) });
+        cartDirty.current = false;
+      }
+      navigate('/customer/profile?return_to=%2Fcart');
+    } catch {
+      notify('Could not save your cart. Please try again before editing your address.', 'error');
+    }
+  };
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -161,17 +183,22 @@ export default function CartPage({ user }) {
       notify('Delivery is not available to this location.', 'error');
       return;
     }
+    if (submitting) return;
     setSubmitting(true);
+    clearTimeout(syncTimer.current);
+    track('begin_checkout');
     try {
       await client.post('/cart/sync', { cart: cart.map((i) => ({ product_id: i.id, quantity: i.quantity })) });
-      const payload = { fulfillment_type: fulfillment, payment_method: paymentMethod, use_affiliate_balance: useAffiliateBalance };
+      const payload = { fulfillment_type: fulfillment, payment_method: paymentMethod, use_affiliate_balance: useAffiliateBalance, conversion: conversionContext() };
       if (fulfillment === 'pickup') payload.hub_id = hubId;
       else { payload.delivery_address = homeAddress; payload.latitude = homeCoords.lat; payload.longitude = homeCoords.lng; }
       const res = await client.post('/checkout', payload);
+      cartDirty.current = false;
       setLastOrder(res.data.order);
       setCart([]);
       notify('Suki! Order placed.');
     } catch (err) {
+      track('checkout_error');
       notify(err.response?.data?.message || err.response?.data?.error || 'Checkout failed.', 'error');
     } finally {
       setSubmitting(false);
@@ -276,13 +303,13 @@ export default function CartPage({ user }) {
                           <p className="text-sm font-bold text-ink-800 mt-0.5">🏠 {homeAddress}</p>
                           <p className="text-[10px] text-ink-400">📍 {homeCoords.lat}, {homeCoords.lng}</p>
                         </div>
-                        <Link to="/customer/profile" className="text-[11px] font-bold text-bayan-700 hover:underline shrink-0">✏️ Edit on Profile</Link>
+                        <Link to="/customer/profile?return_to=%2Fcart" onClick={editAddress} className="text-[11px] font-bold text-bayan-700 hover:underline shrink-0">✏️ Edit on Profile</Link>
                       </div>
                     </div>
                   ) : (
                     <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-2">
                       <p className="text-xs text-amber-700 font-semibold">We still need your delivery address and home location. Save it once on your Profile and it will be used automatically on every order.</p>
-                      <Link to="/customer/profile" className="inline-block w-full py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl text-center">🏠 Set address on Profile</Link>
+                      <Link to="/customer/profile?return_to=%2Fcart" onClick={editAddress} className="inline-block w-full py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl text-center">🏠 Set address on Profile</Link>
                     </div>
                   )}
                   {homeCoords && (

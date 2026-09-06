@@ -1,3 +1,4 @@
+import { addProduct } from '../../services/shopping.js';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import client from '../../api/client.js';
@@ -104,15 +105,7 @@ export default function Marketplace({ user }) {
     });
   }, [products]);
 
-  const addToCart = (product) => {
-    if (!user) {
-      notify('Please log in to add items to your cart.', 'info');
-      navigate('/login');
-      return;
-    }
-    client.post('/cart/sync', { cart: [{ product_id: product.id, quantity: 1 }] }).catch(() => {});
-    notify('Added to cart.', 'success');
-  };
+  const addToCart = (product) => addProduct(product, 1, user, navigate, notify);
 
   return (
     <div className="space-y-5">

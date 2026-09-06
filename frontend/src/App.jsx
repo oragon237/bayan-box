@@ -1,66 +1,68 @@
-import { useEffect, useState } from 'react';
-import { Route, Routes, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { safeReturnTo } from './lib/purchaseJourney.js';
+import { track, conversionContext } from './services/conversion.js';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Route, Routes, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import client from './api/client.js';
 import { flushQueue, queueCount } from './services/offlineQueue.js';
-import { ToastProvider } from './components/ui.jsx';
+import { Spinner, ToastProvider } from './components/ui.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Shell from './components/Shell.jsx';
-import Auth from './pages/Auth.jsx';
+const Auth = lazy(() => import('./pages/Auth.jsx'));
 
-import HubScanner from './pages/hub/HubScanner.jsx';
-import HubInventory from './pages/hub/HubInventory.jsx';
-import RiderBatches from './pages/rider/RiderBatches.jsx';
-import RiderWallet from './pages/rider/RiderWallet.jsx';
-import CustomerTracking from './pages/customer/CustomerTracking.jsx';
-import OrderTracking from './pages/customer/OrderTracking.jsx';
-import CustomerBookings from './pages/customer/CustomerBookings.jsx';
-import PointsShop from './pages/customer/PointsShop.jsx';
-import MyOrders from './pages/customer/MyOrders.jsx';
-import CartPage from './pages/cart/CartPage.jsx';
-import SukiPoints from './pages/customer/SukiPoints.jsx';
-import DeliveryCostPreview from './components/DeliveryCostPreview.jsx';
-import ReferralQR from './pages/affiliate/ReferralQR.jsx';
-import AffiliateDashboard from './pages/affiliate/AffiliateDashboard.jsx';
-import MarketplaceHome from './pages/marketplace/MarketplaceHome.jsx';
-import HomepageV2 from './pages/marketplace/HomepageV2.jsx';
-import Pabili from './pages/customer/Pabili.jsx';
-import MaintenancePage from './pages/MaintenancePage.jsx';
-import SearchPage from './pages/marketplace/SearchPage.jsx';
-import MerchantStorefront from './pages/marketplace/MerchantStorefront.jsx';
-import ProductDetail from './pages/marketplace/ProductDetail.jsx';
-import ProviderDirectory from './pages/marketplace/ProviderDirectory.jsx';
-import HireProvider from './pages/marketplace/HireProvider.jsx';
-import MerchantProducts from './pages/merchant/MerchantProducts.jsx';
-import MerchantDashboard from './pages/merchant/MerchantDashboard.jsx';
-import MerchantReports from './pages/merchant/MerchantReports.jsx';
-import MerchantPayouts from './pages/merchant/MerchantPayouts.jsx';
-import MerchantAds from './pages/merchant/MerchantAds.jsx';
-import MerchantOrders from './pages/merchant/MerchantOrders.jsx';
-import MerchantProfile from './pages/merchant/MerchantProfile.jsx';
-import AdminMerchants from './pages/admin/AdminMerchants.jsx';
-import AdminDashboard from './pages/admin/AdminDashboard.jsx';
-import AdminMerchantList from './pages/admin/AdminMerchantList.jsx';
-import AdminMall from './pages/admin/AdminMall.jsx';
-import AdminRiders from './pages/admin/AdminRiders.jsx';
-import AdminAffiliates from './pages/admin/AdminAffiliates.jsx';
-import AdminBanners from './pages/admin/AdminBanners.jsx';
-import AdminAds from './pages/admin/AdminAds.jsx';
-import AdminSettings from './pages/admin/AdminSettings.jsx';
-import AdminFinance from './pages/admin/AdminFinance.jsx';
-import StaffMall from './pages/staff/StaffMall.jsx';
-import StaffMallOrders from './pages/staff/StaffMallOrders.jsx';
-import StaffFinance from './pages/staff/StaffFinance.jsx';
-import StaffDispatch from './pages/staff/StaffDispatch.jsx';
-import StaffDashboard from './pages/staff/StaffDashboard.jsx';
-import RiderDeliveries from './pages/rider/RiderDeliveries.jsx';
-import RiderProfile from './pages/rider/RiderProfile.jsx';
-import CustomerProfile from './pages/customer/CustomerProfile.jsx';
-import RiderDashboard from './pages/rider/RiderDashboard.jsx';
-import ProviderProfile from './pages/provider/ProviderProfile.jsx';
-import ProviderJobs from './pages/provider/ProviderJobs.jsx';
+const HubScanner = lazy(() => import('./pages/hub/HubScanner.jsx'));
+const HubInventory = lazy(() => import('./pages/hub/HubInventory.jsx'));
+const RiderBatches = lazy(() => import('./pages/rider/RiderBatches.jsx'));
+const RiderWallet = lazy(() => import('./pages/rider/RiderWallet.jsx'));
+const CustomerTracking = lazy(() => import('./pages/customer/CustomerTracking.jsx'));
+const OrderTracking = lazy(() => import('./pages/customer/OrderTracking.jsx'));
+const CustomerBookings = lazy(() => import('./pages/customer/CustomerBookings.jsx'));
+const PointsShop = lazy(() => import('./pages/customer/PointsShop.jsx'));
+const MyOrders = lazy(() => import('./pages/customer/MyOrders.jsx'));
+const CartPage = lazy(() => import('./pages/cart/CartPage.jsx'));
+const SukiPoints = lazy(() => import('./pages/customer/SukiPoints.jsx'));
+const DeliveryCostPreview = lazy(() => import('./components/DeliveryCostPreview.jsx'));
+const ReferralQR = lazy(() => import('./pages/affiliate/ReferralQR.jsx'));
+const AffiliateDashboard = lazy(() => import('./pages/affiliate/AffiliateDashboard.jsx'));
+const HomepageV2 = lazy(() => import('./pages/marketplace/HomepageV2.jsx'));
+const Pabili = lazy(() => import('./pages/customer/Pabili.jsx'));
+const MaintenancePage = lazy(() => import('./pages/MaintenancePage.jsx'));
+const SearchPage = lazy(() => import('./pages/marketplace/SearchPage.jsx'));
+const MerchantStorefront = lazy(() => import('./pages/marketplace/MerchantStorefront.jsx'));
+const ProductDetail = lazy(() => import('./pages/marketplace/ProductDetail.jsx'));
+const ProviderDirectory = lazy(() => import('./pages/marketplace/ProviderDirectory.jsx'));
+const HireProvider = lazy(() => import('./pages/marketplace/HireProvider.jsx'));
+const MerchantProducts = lazy(() => import('./pages/merchant/MerchantProducts.jsx'));
+const MerchantDashboard = lazy(() => import('./pages/merchant/MerchantDashboard.jsx'));
+const MerchantReports = lazy(() => import('./pages/merchant/MerchantReports.jsx'));
+const MerchantPayouts = lazy(() => import('./pages/merchant/MerchantPayouts.jsx'));
+const MerchantAds = lazy(() => import('./pages/merchant/MerchantAds.jsx'));
+const MerchantOrders = lazy(() => import('./pages/merchant/MerchantOrders.jsx'));
+const MerchantProfile = lazy(() => import('./pages/merchant/MerchantProfile.jsx'));
+const AdminMerchants = lazy(() => import('./pages/admin/AdminMerchants.jsx'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
+const AdminMerchantList = lazy(() => import('./pages/admin/AdminMerchantList.jsx'));
+const AdminMall = lazy(() => import('./pages/admin/AdminMall.jsx'));
+const AdminRiders = lazy(() => import('./pages/admin/AdminRiders.jsx'));
+const AdminAffiliates = lazy(() => import('./pages/admin/AdminAffiliates.jsx'));
+const AdminBanners = lazy(() => import('./pages/admin/AdminBanners.jsx'));
+const AdminAds = lazy(() => import('./pages/admin/AdminAds.jsx'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings.jsx'));
+const AdminFinance = lazy(() => import('./pages/admin/AdminFinance.jsx'));
+const StaffMall = lazy(() => import('./pages/staff/StaffMall.jsx'));
+const StaffMallOrders = lazy(() => import('./pages/staff/StaffMallOrders.jsx'));
+const StaffFinance = lazy(() => import('./pages/staff/StaffFinance.jsx'));
+const StaffDispatch = lazy(() => import('./pages/staff/StaffDispatch.jsx'));
+const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard.jsx'));
+const RiderDeliveries = lazy(() => import('./pages/rider/RiderDeliveries.jsx'));
+const RiderProfile = lazy(() => import('./pages/rider/RiderProfile.jsx'));
+const CustomerProfile = lazy(() => import('./pages/customer/CustomerProfile.jsx'));
+const RiderDashboard = lazy(() => import('./pages/rider/RiderDashboard.jsx'));
+const ProviderProfile = lazy(() => import('./pages/provider/ProviderProfile.jsx'));
+const ProviderJobs = lazy(() => import('./pages/provider/ProviderJobs.jsx'));
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('bayanbox_user'));
@@ -71,6 +73,18 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
   const [queueSize, setQueueSize] = useState(0);
+
+  useEffect(() => {
+    const context = conversionContext();
+    if (!/^\/(?:$|search$|mall$|product\/|store\/)/.test(location.pathname)) return;
+    if (user && !['customer', 'provider'].includes(user.role)) return;
+    try {
+      if (context && !sessionStorage.getItem('habi_visit_' + context.session_id)) {
+        track('visit');
+        sessionStorage.setItem('habi_visit_' + context.session_id, '1');
+      }
+    } catch { /* Measurement is optional when browser storage is unavailable. */ }
+  }, [location.pathname, user?.role]);
 
   // Verify stored token with the backend (skip in demo mode)
   useEffect(() => {
@@ -156,7 +170,9 @@ export default function App() {
             path="*"
             element={
               <ErrorBoundary>
-                <MainRoutes user={user} onAuth={(u) => { setUser(u); navigate('/'); }} />
+                <Suspense fallback={<div role="status" aria-label="Loading page" className="flex min-h-[40vh] items-center justify-center"><Spinner /></div>}>
+                <MainRoutes user={user} onAuth={(u) => { setUser(u); navigate(safeReturnTo(new URLSearchParams(location.search).get('return_to')), { replace: true }); }} />
+                </Suspense>
               </ErrorBoundary>
             }
           />
@@ -231,7 +247,7 @@ function MainRoutes({ user, onAuth }) {
         </>
       )}
 
-      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+      <Route path="*" element={<LoginRedirect user={user} />} />
     </Routes>
   );
 }
@@ -243,4 +259,10 @@ function MainRoutes({ user, onAuth }) {
 function ReferralRedirect() {
   const { code } = useParams();
   return <Navigate to={`/login?ref=${code}`} replace />;
+}
+
+function LoginRedirect({ user }) {
+  const location = useLocation();
+  const destination = safeReturnTo(location.pathname + location.search);
+  return <Navigate to={user ? '/' : `/login?return_to=${encodeURIComponent(destination)}`} replace />;
 }

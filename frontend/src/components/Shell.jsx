@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { safeReturnTo } from '../lib/purchaseJourney.js';
 import client from '../api/client.js';
 import {
   HomeIcon, MapPinIcon, StarIcon, WalletIcon, ScanIcon,
@@ -75,6 +76,7 @@ function tabsFor(role) {
 export default function Shell({ user, online, queueCount, demo, onRoleChange, children, onLogout }) {
   const notify = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const tabs = tabsFor(user?.role || 'guest');
   const [cartCount, setCartCount] = useState(0);
 
@@ -162,7 +164,7 @@ export default function Shell({ user, online, queueCount, demo, onRoleChange, ch
                 </>
               ) : (
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/login?return_to=' + encodeURIComponent(safeReturnTo(location.pathname + location.search)))}
                   className="px-4 py-2 bg-bayan-600 hover:bg-bayan-700 text-white text-sm font-bold rounded-2xl shadow-lift transition"
                 >
                   Login / Signup

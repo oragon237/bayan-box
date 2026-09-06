@@ -70,6 +70,8 @@ Route::middleware('maintenance')->group(function () {
     // Public storefront — browse products without login (item 1, homepage)
     Route::get('/products', [MarketplaceController::class, 'index']);
     Route::get('/products/categories', [MarketplaceController::class, 'categories']);
+    Route::get('/products/locations', [MarketplaceController::class, 'locations']);
+    Route::post('/conversions', [\App\Http\Controllers\Api\ConversionController::class, 'store'])->middleware('throttle:60,1');
     Route::get('/products/category-images', [MarketplaceController::class, 'categoryImages']);
     Route::get('/products/{id}', [MarketplaceController::class, 'show'])->whereNumber('id');
     Route::get('/products/{id}/related', [MarketplaceController::class, 'related'])->whereNumber('id');
@@ -193,6 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/{id}/review', [ProductReviewController::class, 'store'])->whereNumber('id');
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/sync', [CartController::class, 'sync']);
+    Route::post('/cart/items', [CartController::class, 'add']);
     Route::delete('/cart/items/{productId}', [CartController::class, 'remove']);
     Route::post('/checkout', [CheckoutController::class, 'processPurchase']);
 });
@@ -289,6 +292,7 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->prefix('staff')->group(
 
 // ---- Admin: banner management ----
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/conversions', [\App\Http\Controllers\Api\ConversionController::class, 'report']);
     Route::get('/banners', [BannerController::class, 'adminIndex']);
     Route::post('/banners', [BannerController::class, 'store']);
     Route::put('/banners/{id}', [BannerController::class, 'update'])->whereNumber('id');

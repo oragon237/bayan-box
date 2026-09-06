@@ -1,3 +1,7 @@
+import ShoppingArea from '../../components/ShoppingArea.jsx';
+import { useShoppingArea, areaParams } from '../../hooks/useShoppingArea.js';
+import { addProduct } from '../../services/shopping.js';
+import ProductRating from '../../components/ProductRating.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import client, { APP_BASE } from '../../api/client.js';
@@ -50,8 +54,7 @@ function AdCard({ campaignId, product, user, notify, navigate, horizontal = fals
           <h3 className="font-bold text-ink-800 text-sm leading-snug hover:text-bayan-700 transition line-clamp-2">{product.name}</h3>
         </button>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(product.reviews_avg_rating || 0) || 4))}</span>
-          <span className="text-[10px] text-ink-400">({product.reviews_count || 0})</span>
+          <ProductRating average={product.reviews_avg_rating} count={product.reviews_count} />
           <span className="text-[10px] text-ink-400 ml-auto">{product.stock} in stock</span>
         </div>
       </div>
@@ -67,7 +70,7 @@ function AdCard({ campaignId, product, user, notify, navigate, horizontal = fals
           )}
         </div>
         <button
-          onClick={() => { if (!user) { notify('Please log in.', 'info'); navigate('/login'); return; } client.post('/cart/sync', { cart: [{ product_id: product.id, quantity: 1 }] }).catch(() => {}); notify('Added to cart.', 'success'); }}
+          onClick={() => addProduct(product, 1, user, navigate, notify)}
           disabled={Number(product.stock) <= 0}
           className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl"
         >
@@ -89,7 +92,8 @@ export default function SearchPage({ user }) {
   const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [categories, setCategories] = useState([]);
-  const [city, setCity] = useState('');
+  const [area] = useShoppingArea();
+  const requestVersion = useRef(0);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [onSaleOnly, setOnSaleOnly] = useState(searchParams.get('on_sale') === '1');
@@ -116,18 +120,20 @@ export default function SearchPage({ user }) {
   }, []);
 
   const load = async (reset = true) => {
-    if (reset) setLoading(true); else setLoadingMore(true);
+    const version = ++requestVersion.current;
+    if (reset) { setLoading(true); setSponsoredItems([]); } else setLoadingMore(true);
     try {
       const params = { per_page: PER_PAGE, page: reset ? 1 : page };
       if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
       if (category) params.category = category;
-      if (city.trim()) params.city = city.trim();
+      Object.assign(params, areaParams(area));
       if (minPrice) params.min_price = minPrice;
       if (maxPrice) params.max_price = maxPrice;
       if (onSaleOnly) params.on_sale = 1;
       if (mallOnly) params.official_mall = 1;
       if (sort !== 'relevance') params.sort = sort;
       const res = await client.get('/products', { params });
+      if (version !== requestVersion.current) return;
       const list = Array.isArray(res.data.data) ? res.data.data : [];
       setProducts((prev) => (reset ? list : [...prev, ...list]));
       if (reset) {
@@ -135,14 +141,14 @@ export default function SearchPage({ user }) {
       }
       setHasMore(res.data.current_page < res.data.last_page);
     } catch {
+      if (version !== requestVersion.current) return;
       setProducts((prev) => (reset ? [] : prev));
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (version === requestVersion.current) { setLoading(false); setLoadingMore(false); }
     }
   };
 
-  useEffect(() => { setPage(1); load(true); }, [debouncedQuery, category, city, minPrice, maxPrice, onSaleOnly, sort, mallOnly]);
+  useEffect(() => { setPage(1); load(true); }, [debouncedQuery, category, area.city, area.barangay, minPrice, maxPrice, onSaleOnly, sort, mallOnly]);
   useEffect(() => { if (page > 1) load(false); }, [page]);
 
   const saveRecent = (q) => {
@@ -178,7 +184,7 @@ export default function SearchPage({ user }) {
           <div>{p.sale_price ? <div className="flex items-baseline gap-1.5"><span className="text-[10px] text-ink-400 line-through">₱{Number(p.price).toLocaleString()}</span><span className="text-lg font-black text-red-600">₱{Number(p.sale_price).toLocaleString()}</span></div> : <span className="text-lg font-black text-ink-900">₱{Number(p.price).toLocaleString()}</span>}</div>
           <span className="text-[10px] text-ink-400">{p.stock} in stock</span>
         </div>
-        <button onClick={() => { if (!user) { notify('Please log in.', 'info'); navigate('/login'); return; } client.post('/cart/sync', { cart: [{ product_id: p.id, quantity: 1 }] }).catch(() => {}); notify('Added to cart.', 'success'); }} disabled={p.stock <= 0} className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl">
+        <button onClick={() => addProduct(p, 1, user, navigate, notify)} disabled={p.stock <= 0} className="w-full py-2 bg-bayan-600 hover:bg-bayan-700 disabled:bg-ink-200 text-white text-xs font-bold rounded-xl">
           {p.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
         </button>
       </div>
@@ -225,10 +231,11 @@ export default function SearchPage({ user }) {
         </div>
       )}
 
+      <ShoppingArea />
+
       {/* Filters + sort */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="field bg-white col-span-2 sm:col-span-1"><option value="">All categories</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
-        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className="field" />
         <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} type="number" placeholder="Min ₱" className="field" />
         <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} type="number" placeholder="Max ₱" className="field" />
         <select value={sort} onChange={(e) => setSort(e.target.value)} className="field bg-white"><option value="relevance">Relevance</option><option value="reviews">Most Reviewed</option><option value="sales">Top Sales</option><option value="price_asc">Price: Low to High</option><option value="price_desc">Price: High to Low</option></select>
@@ -256,7 +263,7 @@ export default function SearchPage({ user }) {
           [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-52 bg-ink-200 rounded-2xl animate-pulse-soft" />)
         ) : products.length === 0 ? (
           <div className="col-span-full">
-            <EmptyState icon="🔍" title="No products found" hint="Try a different search, or browse a category." />
+            <EmptyState icon="🔍" title="No products found" hint="Try another store location, search, or category." />
             <div className="flex flex-wrap gap-2 justify-center mt-3">
               {categories.slice(0, 5).map((c) => <button key={c} onClick={() => setCategory(c)} className="chip border bg-white text-ink-600 border-ink-200">{c}</button>)}
             </div>

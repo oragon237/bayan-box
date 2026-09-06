@@ -1,3 +1,6 @@
+import ShoppingArea from '../../components/ShoppingArea.jsx';
+import { useShoppingArea, areaParams } from '../../hooks/useShoppingArea.js';
+import ProductRating from '../../components/ProductRating.jsx';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
@@ -28,26 +31,6 @@ const CATEGORIES = [
   { label: 'Provincial Goods', icon: '🏺', to: '/search?category=Provincial%20Goods' },
   { label: 'Points Shop', icon: '⭐', to: '/points-shop' },
 ];
-
-/* ── countdown hook (urgency, PRD §4.14) ─────────────────────────── */
-function useCountdown(targetMs) {
-  const [left, setLeft] = useState(Math.max(0, targetMs - Date.now()));
-  useEffect(() => {
-    const t = setInterval(() => setLeft(Math.max(0, targetMs - Date.now())), 1000);
-    return () => clearInterval(t);
-  }, [targetMs]);
-  const s = Math.floor(left / 1000);
-  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const ss = String(s % 60).padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
-}
-
-function endOfToday() {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
-}
 
 /* ── Image w/ offline-safe fallback (failed URL → emoji, never blank) ─ */
 function ImageFallback({ src, alt, className, emoji = '🛍️', imgClassName = 'w-full h-full object-cover' }) {
@@ -139,13 +122,11 @@ function HeroCarousel({ banners, onGo }) {
 }
 
 /* ── Slot 2: Urgency / deal bar ──────────────────────────────────── */
-function DealBar({ flashEndsAt, onGo }) {
-  const time = useCountdown(flashEndsAt);
+function DealBar({ onGo }) {
   return (
     <section className="flex items-center justify-between gap-2 bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 rounded-2xl px-4 py-3">
-      <span className="text-sm font-black">⚡ Flash Deals today</span>
+      <span className="text-sm font-black">Current offers</span>
       <div className="flex items-center gap-2">
-        <span className="font-black tabular-nums" aria-live="polite">⏱ {time}</span>
         <button onClick={() => onGo('/search?on_sale=1')} className="underline text-xs font-bold">See all</button>
       </div>
     </section>
@@ -208,14 +189,12 @@ function CategoryTileImage({ src, alt, emoji }) {
 }
 
 /* ── Slot 4: Flash-sale grid (2-col) ─────────────────────────────── */
-function FlashGrid({ items, flashEndsAt, onGo }) {
-  const time = useCountdown(flashEndsAt);
+function FlashGrid({ items, onGo }) {
   if (!items.length) return null;
   return (
-    <section aria-label="Flash deals">
+    <section aria-label="Sale products">
       <div className="flex items-center justify-between px-1 mb-2">
-        <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider">🔥 Flash Sale</h3>
-        <span className="text-[11px] font-bold text-red-600">⏱ {time}</span>
+        <h3 className="text-sm font-bold text-ink-500 uppercase tracking-wider">Sale products</h3>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {items.map((p) => (
@@ -231,8 +210,7 @@ function FlashGrid({ items, flashEndsAt, onGo }) {
               </div>
               <h4 className="font-bold text-ink-800 text-sm line-clamp-1">{p.name}</h4>
               <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-amber-400 text-xs">{'★'.repeat(Math.min(5, Math.max(1, Math.round(Number(p.reviews_avg_rating) || 4))))}</span>
-                <span className="text-[11px] text-ink-500">({p.reviews_count || 0})</span>
+                <ProductRating average={p.reviews_avg_rating} count={p.reviews_count} />
               </div>
               <PriceBlock price={p.price} sale={p.sale_price} />
               {Number(p.suki_points_award) > 0 && (
@@ -257,7 +235,7 @@ function PromoBanners({ onGo }) {
   const promos = [
     { icon: '⭐', title: 'Points Shop', sub: 'Redeem with Suki Points', to: '/points-shop', tint: 'from-amber-50 to-amber-100 border-amber-200 text-amber-800' },
     { icon: '🧑‍🔧', title: 'Skilled Workers', sub: 'Hire nearby local pros', to: '/providers', tint: 'from-bayan-50 to-bayan-100 border-bayan-200 text-bayan-800' },
-    { icon: '🛵', title: 'Free delivery over ₱500', sub: 'In your barangay', to: '/search', tint: 'from-ink-50 to-ink-100 border-ink-200 text-ink-700' },
+    { icon: '🛵', title: 'Local delivery', sub: 'Delivery fees calculated at checkout', to: '/search', tint: 'from-ink-50 to-ink-100 border-ink-200 text-ink-700' },
   ];
   return (
     <section aria-label="Offers" className="space-y-3">
@@ -283,8 +261,7 @@ function ProductCard({ p, onGo }) {
         <ImageFallback src={p.image_url || p.images?.[0]?.image_url} alt={p.name} className="aspect-square w-full rounded-xl mb-2" />
         <h4 className="text-xs font-bold text-ink-800 leading-snug line-clamp-2">{p.name}</h4>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-amber-400 text-[11px]">{'★'.repeat(Math.min(5, Math.max(1, Math.round(Number(p.reviews_avg_rating) || 4))))}</span>
-          <span className="text-[10px] text-ink-500">({p.reviews_count || 0})</span>
+          <ProductRating average={p.reviews_avg_rating} count={p.reviews_count} />
         </div>
         <PriceBlock price={p.price} sale={p.sale_price} />
       </button>
@@ -384,6 +361,7 @@ function Footer() {
 /* ── HomepageV2 — assembles all slots ────────────────────────────── */
 export default function HomepageV2({ user }) {
   const navigate = useNavigate();
+  const [area] = useShoppingArea();
   const [banners, setBanners] = useState([]);
   const [flash, setFlash] = useState([]);
   const [mallProducts, setMallProducts] = useState([]);
@@ -391,24 +369,27 @@ export default function HomepageV2({ user }) {
   const [categoryImages, setCategoryImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
-  const flashEndsAt = endOfToday();
 
   const go = (to) => navigate(to);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+    setLoading(true);
+    setFlash([]); setMallProducts([]); setProducts([]);
     Promise.all([
-      client.get('/banners').then((r) => setBanners(Array.isArray(r.data) ? r.data : [])).catch(() => {}),
-      client.get('/products', { params: { per_page: 6, on_sale: 1, sort: 'reviews' } }).then((r) => setFlash(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
-      client.get('/products', { params: { per_page: 6, official_mall: 1 } }).then((r) => setMallProducts(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
-      client.get('/products', { params: { per_page: 12 } }).then((r) => setProducts(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
+      client.get('/banners', { signal }).then((r) => setBanners(Array.isArray(r.data) ? r.data : [])).catch(() => {}),
+      client.get('/products', { signal, params: { ...areaParams(area), per_page: 6, on_sale: 1, sort: 'reviews' } }).then((r) => setFlash(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
+      client.get('/products', { signal, params: { ...areaParams(area), per_page: 6, official_mall: 1 } }).then((r) => setMallProducts(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
+      client.get('/products', { signal, params: { ...areaParams(area), per_page: 12 } }).then((r) => setProducts(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {}),
       // Category images: use the lightweight endpoint, fall back to client scan offline
-      client.get('/products/category-images').then((r) => {
+      client.get('/products/category-images', { signal }).then((r) => {
         const rows = Array.isArray(r.data) ? r.data : [];
         const imgMap = {};
         rows.forEach((c) => { if (c?.image_url && c?.category) imgMap[c.category] = c.image_url; });
         setCategoryImages(imgMap);
       }).catch(() => {
-        client.get('/products', { params: { per_page: 100 } }).then((r) => {
+        client.get('/products', { signal, params: { ...areaParams(area), per_page: 100 } }).then((r) => {
           const all = Array.isArray(r.data?.data) ? r.data.data : [];
           const imgMap = {};
           all.forEach((p) => {
@@ -417,8 +398,9 @@ export default function HomepageV2({ user }) {
           setCategoryImages(imgMap);
         }).catch(() => {});
       }),
-    ]).finally(() => setLoading(false));
-  }, []);
+    ]).finally(() => { if (!signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [area.city, area.barangay]);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Spinner /></div>;
 
@@ -438,19 +420,17 @@ export default function HomepageV2({ user }) {
         />
         <button type="submit" className="px-4 py-1.5 bg-bayan-600 hover:bg-bayan-700 text-white text-xs font-bold rounded-xl transition">Search</button>
       </form>
-      <div className="flex items-center gap-1.5 px-1 -mt-2 text-[11px] font-bold text-ink-500">
-        <span>📍</span>
-        <span>{user?.barangay ? `${user.barangay}, ${user.municipality || ''}` : 'Near your barangay'}</span>
-      </div>
+      <ShoppingArea />
 
       <HeroCarousel banners={banners} onGo={go} />
       <PabiliHighlight onGo={go} />
-      <DealBar flashEndsAt={flashEndsAt} onGo={go} />
+      {flash.length > 0 && <DealBar onGo={go} />}
       <CategoryRail categories={CATEGORIES} categoryImages={categoryImages} onGo={go} />
-      <FlashGrid items={flash} flashEndsAt={flashEndsAt} onGo={go} />
+      <FlashGrid items={flash} onGo={go} />
       <MallShelf products={mallProducts} onGo={go} />
       <PromoBanners onGo={go} />
       <ProductGrid products={products} onGo={go} />
+      {area.city && !products.length && <p className="card p-4 text-sm text-ink-600">No products found in this store location. Choose another barangay or All locations above.</p>}
       <TrustStrip />
       <Footer />
     </div>

@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { addProduct } from '../../services/shopping.js';
+import { requestedQuantity } from '../../lib/purchaseJourney.js';
+import { track } from '../../services/conversion.js';
+import { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import client from '../../api/client.js';
 import { Spinner, useToast } from '../../components/ui.jsx';
 
@@ -29,6 +32,8 @@ function Stars({ value, size = 'text-sm', onSelect, selected }) {
 
 export default function ProductDetail({ user }) {
   const { id } = useParams();
+  const location = useLocation();
+  const viewed = useRef(null);
   const navigate = useNavigate();
   const notify = useToast();
   const [product, setProduct] = useState(null);
@@ -37,10 +42,18 @@ export default function ProductDetail({ user }) {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(() => requestedQuantity(location.search));
   const [adding, setAdding] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [related, setRelated] = useState([]);
+
+  const changeQuantity = (next) => {
+    const value = Math.max(1, Math.min(100, product.stock, next));
+    setQuantity(value);
+    const params = new URLSearchParams(location.search);
+    params.set('quantity', String(value));
+    navigate(`${location.pathname}?${params}`, { replace: true });
+  };
 
   const load = () => {
     setLoading(true);
@@ -48,6 +61,7 @@ export default function ProductDetail({ user }) {
       .get(`/products/${id}`)
       .then((res) => {
         setProduct(res.data.data || res.data);
+        if (viewed.current !== id) { viewed.current = id; track('view_item', { product_id: Number(id) }); }
         return client.get(`/products/${id}/related`).catch(() => ({ data: { related: [] } }));
       })
       .then((res) => setRelated(res.data?.related || []))
@@ -57,28 +71,19 @@ export default function ProductDetail({ user }) {
 
   useEffect(() => {
     setSelectedImage(0);
+    setQuantity(requestedQuantity(location.search));
     load();
   }, [id]);
 
   const addToCart = async () => {
-    if (!user) {
-      notify('Please log in to add items to your cart.', 'info');
-      navigate('/login');
-      return;
-    }
-    if (quantity < 1 || quantity > product.stock) {
-      notify(`Please select 1–${product.stock} items.`, 'error');
+    if (adding) return;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > Math.min(100, product.stock)) {
+      notify(`Please select 1–${Math.min(100, product.stock)} items.`, 'error');
       return;
     }
     setAdding(true);
-    try {
-      await client.post('/cart/sync', { cart: [{ product_id: product.id, quantity }] });
-      notify(`Added ${quantity} × ${product.name} to cart.`, 'success');
-    } catch {
-      notify('Could not add to cart.', 'error');
-    } finally {
-      setAdding(false);
-    }
+    await addProduct(product, quantity, user, navigate, notify);
+    setAdding(false);
   };
 
   const submitReview = async () => {
@@ -115,7 +120,7 @@ export default function ProductDetail({ user }) {
     return (
       <div className="card p-6 text-center">
         <p className="text-ink-400">Product not found.</p>
-        <button onClick={() => navigate('/market')} className="mt-3 px-4 py-2 bg-bayan-600 text-white text-xs font-bold rounded-xl">
+        <button onClick={() => navigate('/search')} className="mt-3 px-4 py-2 bg-bayan-600 text-white text-xs font-bold rounded-xl">
           Back to marketplace
         </button>
       </div>
@@ -234,7 +239,7 @@ export default function ProductDetail({ user }) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-ink-50 rounded-xl px-2 py-1.5">
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                onClick={() => changeQuantity(quantity - 1)}
                 disabled={quantity <= 1}
                 className="w-8 h-8 rounded-lg bg-white hover:bg-ink-100 disabled:opacity-40 font-bold text-sm transition"
               >
@@ -242,7 +247,7 @@ export default function ProductDetail({ user }) {
               </button>
               <span className="w-8 text-center font-bold text-ink-800 text-sm">{quantity}</span>
               <button
-                onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                onClick={() => changeQuantity(quantity + 1)}
                 disabled={quantity >= product.stock}
                 className="w-8 h-8 rounded-lg bg-white hover:bg-ink-100 disabled:opacity-40 font-bold text-sm transition"
               >
@@ -258,7 +263,7 @@ export default function ProductDetail({ user }) {
             </button>
           </div>
           <button
-            onClick={() => navigate('/market')}
+            onClick={() => navigate('/search')}
             className="w-full py-2.5 bg-ink-100 hover:bg-ink-200 text-ink-700 font-bold rounded-xl transition text-sm"
           >
             Browse marketplace

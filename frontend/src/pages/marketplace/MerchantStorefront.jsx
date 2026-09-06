@@ -1,3 +1,4 @@
+import { addProduct } from '../../services/shopping.js';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
@@ -122,11 +123,7 @@ export default function MerchantStorefront({ user }) {
     notify(next ? 'Store followed.' : 'Unfollowed.');
   };
 
-  const addToCart = (p) => {
-    if (!user) { notify('Please log in.', 'info'); navigate('/login'); return; }
-    client.post('/cart/sync', { cart: [{ product_id: p.id, quantity: 1 }] }).catch(() => {});
-    notify('Added to cart.', 'success');
-  };
+  const addToCart = (p) => addProduct(p, 1, user, navigate, notify);
 
   const resetFilters = () => {
     setQ(''); setCategory(''); setSort(''); setMinPrice(''); setMaxPrice(''); setMinRating(''); setInStock(false);

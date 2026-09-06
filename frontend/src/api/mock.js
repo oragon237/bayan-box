@@ -231,12 +231,20 @@ export function mockRequest(url, method, data, params = {}) {
   if (path === '/loyalty' && lower === 'get') return Promise.resolve(mockResponse(LOYALTY));
 
   // Marketplace (FR-MKT)
+  if (path === '/products/locations' && lower === 'get') {
+    return Promise.resolve(mockResponse([{ city: 'Naga City', barangay: 'San Jose' }]));
+  }
+  if (path === '/admin/conversions' && lower === 'get') {
+    return Promise.resolve(mockResponse({ days: 30, stages: [], sources: [], completed_orders: 0 }));
+  }
   if (path === '/products' && lower === 'get') {
     const q = (params?.q || '').toLowerCase();
     const cat = params?.category;
     const pointsOnly = params?.points_only;
     const onSale = params?.on_sale;
     let list = [...MALL_PRODUCTS, ...PRODUCTS].filter((p) => p.status === 'active' && p.stock > 0);
+    if (params?.city && params.city !== 'Naga City') list = [];
+    if (params?.barangay && params.barangay !== 'San Jose') list = [];
     if (params?.official_mall) list = list.filter((p) => p.is_official_mall);
     if (pointsOnly) list = list.filter((p) => p.points_only);
     if (onSale) list = list.filter((p) => p.sale_price);
@@ -328,6 +336,18 @@ export function mockRequest(url, method, data, params = {}) {
       return { ...i, product, merchant };
     });
     return Promise.resolve(mockResponse({ items, count: items.length }));
+  }
+  if (path === '/cart/items' && lower === 'post') {
+    const product = [...MALL_PRODUCTS, ...PRODUCTS].find((p) => p.id === Number(data?.product_id));
+    const existing = MOCK_CART.find((row) => row.product_id === product?.id);
+    const quantity = Number(data?.quantity);
+    const total = (existing?.quantity || 0) + quantity;
+    if (!product || !Number.isInteger(quantity) || quantity < 1 || total > Math.min(100, product.stock)) {
+      return Promise.reject({ response: { status: 422, data: { message: 'Requested quantity is unavailable.' } } });
+    }
+    if (existing) existing.quantity = total;
+    else MOCK_CART.push({ id: product.id, customer_id: 5, product_id: product.id, quantity: total });
+    return Promise.resolve(mockResponse({ message: 'Added to cart.' }));
   }
   if (path === '/cart/sync' && lower === 'post') {
     MOCK_CART = (data?.cart || []).map((c) => ({ id: c.product_id, customer_id: 5, product_id: c.product_id, quantity: c.quantity }));

@@ -1,3 +1,4 @@
+import ConversionReport from '../../components/ConversionReport.jsx';
 import { useEffect, useState } from 'react';
 import client from '../../api/client.js';
 import { Spinner } from '../../components/ui.jsx';
@@ -36,6 +37,8 @@ export default function AdminDashboard({ user }) {
           <p className="text-white/75 text-sm mt-1">System overview across all modules.</p>
         </div>
       </div>
+
+      <ConversionReport />
 
       {/* Financial & Sales */}
       <div>

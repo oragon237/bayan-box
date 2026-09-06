@@ -1,8 +1,10 @@
+import { safeReturnTo } from '../lib/purchaseJourney.js';
 import { useState } from 'react';
 import client from '../api/client.js';
 import { useToast, Spinner } from '../components/ui.jsx';
 
 export default function Auth({ onAuth }) {
+  const returning = safeReturnTo(new URLSearchParams(window.location.search).get('return_to')) !== '/';
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState('customer');
   const [form, setForm] = useState(() => {
@@ -62,6 +64,7 @@ export default function Auth({ onAuth }) {
   return (
     <div className="relative w-screen -ml-[calc(50vw-50%)] bg-gradient-to-br from-bayan-800 via-bayan-700 to-bayan-500 -mt-4 -mb-28 min-h-[calc(100vh-152px)]">
       <div className="flex flex-col items-center justify-center px-5 py-10">
+        {returning && <p className="mb-4 text-sm text-white text-center">Sign in to continue shopping. Your selected item and quantity will be waiting.</p>}
         {/* Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-4 py-2.5 shadow-lift">

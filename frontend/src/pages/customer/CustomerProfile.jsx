@@ -1,5 +1,6 @@
+import { safeReturnTo } from '../../lib/purchaseJourney.js';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import client from '../../api/client.js';
 import { useToast } from '../../components/ui.jsx';
 
@@ -8,6 +9,8 @@ import { useToast } from '../../components/ui.jsx';
  * (latitude / longitude) used for delivery routing and tracking.
  */
 export default function CustomerProfile({ user }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const notify = useToast();
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({
@@ -77,6 +80,7 @@ export default function CustomerProfile({ user }) {
         longitude: lng,
       });
       notify('Profile updated.');
+      if (safeReturnTo(searchParams.get('return_to')) === '/cart') { navigate('/cart'); return; }
       load();
     } catch (err) {
       notify(err.response?.data?.message || err.response?.data?.error || 'Could not save.', 'error');

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client.js';
 import { Spinner } from '../../components/ui.jsx';
+import ProductRating from '../../components/ProductRating.jsx';
 
 const CATEGORIES = [
   { label: 'Fresh Produce', icon: '🥬', color: 'from-green-400 to-green-600' },
@@ -139,12 +140,9 @@ export default function MarketplaceHome({ user }) {
                     )}
                   </div>
                   <h4 className="font-bold text-ink-800 text-sm leading-snug line-clamp-1">{p.name}</h4>
-                  {p.reviews_count > 0 && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-amber-400 text-xs">{'★'.repeat(Math.round(Number(p.reviews_avg_rating || 0) || 4))}</span>
-                      <span className="text-[10px] text-ink-400">({p.reviews_count})</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <ProductRating average={p.reviews_avg_rating} count={p.reviews_count} />
+                  </div>
                   <div className="flex items-baseline gap-1.5 mt-1.5">
                     <span className="text-xs text-ink-400 line-through">₱{Number(p.price).toLocaleString()}</span>
                     <span className="text-base font-black text-red-600">₱{Number(p.sale_price).toLocaleString()}</span>

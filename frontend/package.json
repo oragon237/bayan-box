@@ -6,15 +6,16 @@
   "description": "Bayan (BodegaBarangay) Provincial Last-Mile Logistics PWA",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "vite build && node scripts/check-bundle.mjs",
+    "preview": "vite preview",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",
     "axios": "^1.7.7",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
-    "maplibre-gl": "^6.6.0",
+    "maplibre-gl": "6.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"
